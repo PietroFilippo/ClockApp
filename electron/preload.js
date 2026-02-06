@@ -16,5 +16,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     minimizeWindow: () => ipcRenderer.send('window-minimize'),
     maximizeWindow: () => ipcRenderer.send('window-maximize'),
     closeWindow: () => ipcRenderer.send('window-close'),
-    pickCustomPosition: () => ipcRenderer.invoke('pick-custom-notification-position')
+    pickCustomPosition: () => ipcRenderer.invoke('pick-custom-notification-position'),
+
+    // Windows API Secundaria
+    moveWindow: (data) => ipcRenderer.send('window-move', data),
+    sendNotificationAction: (data) => ipcRenderer.send('notification-action', data),
+    saveCustomPosition: () => ipcRenderer.send('save-custom-position')
 });

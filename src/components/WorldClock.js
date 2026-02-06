@@ -1,6 +1,7 @@
 import { timezones } from '../data/timezones.js';
 import { showModal } from '../utils/modal.js';
 import { showConfirm, truncate } from '../utils/notification.js';
+import { contextMenu } from '../utils/contextMenu.js';
 
 export function WorldClock() {
     const container = document.createElement('div');
@@ -29,12 +30,37 @@ export function WorldClock() {
         container.querySelector('#add-clock-btn').onclick = openCitySearch;
         container.querySelector('#edit-clock-btn').onclick = toggleEditMode;
 
-        // Listeners de exclusão
+        // Menu de contexto
+        container.querySelectorAll('.clock-card').forEach(card => {
+            card.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                const index = Number(card.dataset.index);
+                const clock = clocks[index];
+
+                contextMenu.show(e.clientX, e.clientY, [
+                    {
+                        label: 'Delete',
+                        danger: true,
+                        action: async () => {
+                            const truncatedLabel = truncate(clock.label, 60);
+                            const msg = `Remove <span title="${clock.label}">${truncatedLabel}</span>?`;
+                            if (await showConfirm(msg, 'Remove Clock')) {
+                                deleteClock(index);
+                            }
+                        }
+                    }
+                ]);
+            });
+        });
+
+        // Listeners de exclusão (existing)
         container.querySelectorAll('.delete-clock-btn').forEach(btn => {
             btn.onclick = async (e) => {
                 const index = Number(e.currentTarget.dataset.index);
                 const clock = clocks[index];
-                if (await showConfirm(`Remove ${truncate(clock.label)}?`, 'Remove Clock')) {
+                const truncatedLabel = truncate(clock.label, 60);
+                const msg = `Remove <span title="${clock.label}">${truncatedLabel}</span>?`;
+                if (await showConfirm(msg, 'Remove Clock')) {
                     deleteClock(index);
                 }
             };

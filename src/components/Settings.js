@@ -89,7 +89,7 @@ export function Settings() {
                 </div>
 
                 <div style="margin-top: 20px; text-align: center; color: #444; font-size: 12px;">
-                    Clock App v1.4.0
+                    Clock App v2.0.0
                 </div>
             </div>
         `;

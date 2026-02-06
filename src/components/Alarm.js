@@ -1,12 +1,18 @@
 import { alarmManager } from '../modules/AlarmManager.js';
+import { audioManager } from '../utils/AudioManager.js';
 import { showModal } from '../utils/modal.js';
 import { showAlert, showConfirm, truncate } from '../utils/notification.js';
+import { openSoundPicker } from '../utils/SoundPicker.js';
+import { openSoundSettingsModal } from '../utils/SoundSettingsModal.js';
+import { contextMenu } from '../utils/contextMenu.js';
+import { STORAGE_KEYS, DEFAULT_SOUND } from '../utils/constants.js';
 
 export function Alarm() {
   const container = document.createElement('div');
   container.className = 'view-container';
 
   let isEditing = false;
+  let ignoreNextUpdate = false;
 
   function render() {
     const alarms = alarmManager.getAlarms();
@@ -23,9 +29,9 @@ export function Alarm() {
             <button class="add-btn" id="add-alarm-btn" style="visibility: ${isEditing ? 'hidden' : 'visible'}">+</button>
         </div>
       </div>
-      <div class="alarm-list ${isEditing ? 'edit-mode' : ''}">
-        ${alarms.length === 0 ? '<p style="text-align:center; color:var(--text-secondary); margin-top:50px;">No Alarms</p>' : ''}
-        ${alarms.map(alarm => {
+  <div class="alarm-list ${isEditing ? 'edit-mode' : ''}">
+    ${alarms.length === 0 ? '<p style="text-align:center; color:var(--text-secondary); margin-top:50px;">No Alarms</p>' : ''}
+    ${alarms.map(alarm => {
       const isSnoozing = snoozed[alarm.id];
       // Formata o rótulo ou status de snooze
       let labelText = alarm.label;
@@ -44,7 +50,7 @@ export function Alarm() {
              
             <div class="alarm-info" data-id="${alarm.id}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
               <span class="alarm-time ${!alarm.enabled ? 'disabled' : ''}">${alarm.time}</span>
-              <span class="${subTextClass}" style="${isSnoozing ? 'color: var(--accent-orange);' : ''}">${labelText}</span>
+              <span class="${subTextClass}" style="${isSnoozing ? 'color: var(--accent-orange);' : ''}" title="${labelText.replace(/<[^>]*>?/gm, '')}">${labelText}</span>
             </div>
             
             ${!isEditing ? `
@@ -56,8 +62,8 @@ export function Alarm() {
             
           </div>
         `}).join('')}
-      </div>
-    `;
+  </div>
+`;
 
     attachListeners();
   }
@@ -74,7 +80,7 @@ export function Alarm() {
 
   function attachListeners() {
     container.querySelector('#add-alarm-btn').onclick = () => openAlarmModal();
-    container.querySelector('#audio-settings-btn').onclick = () => openAudioSettingsModal();
+    container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
     container.querySelector('#edit-alarm-btn').onclick = () => {
       isEditing = !isEditing;
       render();
@@ -84,8 +90,17 @@ export function Alarm() {
       toggle.onchange = (e) => {
         e.stopPropagation();
         const id = Number(e.target.dataset.id);
+
+        // Previne loop de re-renderização completo
+        ignoreNextUpdate = true;
         alarmManager.toggleAlarm(id);
-        render();
+
+        // Atualização UI granular
+        const item = e.target.closest('.alarm-item');
+        const timeDisplay = item.querySelector('.alarm-time');
+        if (timeDisplay) {
+          timeDisplay.classList.toggle('disabled', !e.target.checked);
+        }
       };
     });
 
@@ -96,6 +111,37 @@ export function Alarm() {
         const id = Number(e.currentTarget.dataset.id);
         openAlarmModal(id);
       };
+
+      // Menu de contexto
+      info.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const id = Number(e.currentTarget.dataset.id);
+        const alarm = alarmManager.getAlarms().find(a => a.id === id);
+
+        contextMenu.show(e.clientX, e.clientY, [
+          {
+            label: 'Edit',
+            primary: true,
+            action: () => openAlarmModal(id)
+          },
+          {
+            label: 'Delete',
+            danger: true,
+            action: async () => {
+              const label = alarm && alarm.label ? alarm.label : 'Alarm';
+              const truncatedLabel = truncate(label, 60);
+              const confirmMsg = alarm && alarm.label
+                ? `Delete "<span title="${label.replace(/"/g, '&quot;')}">${truncatedLabel}</span>" ? `
+                : `Delete alarm for ${alarm ? alarm.time : 'this time'} ? `;
+
+              if (await showConfirm(confirmMsg, 'Delete Alarm')) {
+                alarmManager.deleteAlarm(id);
+                render();
+              }
+            }
+          }
+        ]);
+      });
     });
 
     if (isEditing) {
@@ -105,9 +151,10 @@ export function Alarm() {
           const id = Number(e.currentTarget.dataset.id);
           const alarm = alarmManager.getAlarms().find(a => a.id === id);
           const label = alarm && alarm.label ? alarm.label : 'Alarm';
+          const truncatedLabel = truncate(label, 60);
           const confirmMsg = alarm && alarm.label
-            ? `Delete "${truncate(label)}"?`
-            : `Delete alarm for ${alarm ? alarm.time : 'this time'}?`;
+            ? `Delete "<span title="${label.replace(/"/g, '&quot;')}">${truncatedLabel}</span>" ? `
+            : `Delete alarm for ${alarm ? alarm.time : 'this time'} ? `;
 
           if (await showConfirm(confirmMsg, 'Delete Alarm')) {
             alarmManager.deleteAlarm(id);
@@ -127,278 +174,13 @@ export function Alarm() {
     });
   }
 
-  function openAudioSettingsModal() {
-    const volume = alarmManager.getVolume();
-    const customSounds = alarmManager.getCustomSounds();
-    const limit = window.electronAPI ? 20 : 10;
-
-    // Rastreia o estado do áudio localmente para a modal
-    let previewAudio = null;
-    let playingId = null;
-
-    // Helper pra parar a prévia atual e liberar o bloqueio do arquivo (crucial para o delete no Electron)
-    const stopPreview = () => {
-      if (previewAudio) {
-        previewAudio.pause();
-        previewAudio.currentTime = 0;
-        // libera a fonte para evitar EBUSY no delete
-        previewAudio.src = '';
-        previewAudio.load();
-        previewAudio = null;
-      }
-      playingId = null;
-      renderAudioState(); // Update icons
-    };
-
-    const content = `
-        <div class="audio-settings">
-            <div class="audio-controls">
-                <label>Master Volume</label>
-                <div class="volume-slider-container">
-                    <span id="vol-low">🔈</span>
-                    <input type="range" id="master-volume" class="volume-slider" min="0" max="1" step="0.1" value="${volume}">
-                    <span id="vol-high">🔊</span>
-                </div>
-            </div>
-
-            <label style="display:block; margin-bottom:10px;">Custom Sounds (${customSounds.length}/${limit})</label>
-            <div class="custom-sound-list" id="custom-sound-list">
-                ${renderSoundListHTML(customSounds)}
-            </div>
-
-            ${(window.electronAPI && customSounds.length < 20) || (!window.electronAPI && customSounds.length < 10) ? `
-            <div class="file-input-wrapper">
-                <div class="upload-btn">Upload Sound (Max ${window.electronAPI ? '100MB' : '2MB'})</div>
-                <input type="file" id="sound-upload" accept="audio/*">
-            </div>
-            ` : `<div style="text-align:center; color:var(--accent-red);">Limit reached (${window.electronAPI ? '20/20' : '10/10'})</div>`}
-        </div>
-      `;
-
-    function renderSoundListHTML(sounds) {
-      if (sounds.length === 0) return '<div style="text-align:center; color:#555; padding:10px;">No custom sounds</div>';
-
-      return sounds.map(s => `
-            <div class="custom-sound-item" id="sound-item-${s.id}">
-                <div class="sound-main-info">
-                    <span class="custom-sound-name" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.name}</span>
-                    <div class="sound-actions">
-                        <button class="sound-btn reset-preview" data-id="${s.id}" title="Reset">⏮</button>
-                        <button class="sound-btn play-preview" data-id="${s.id}" data-src="${s.data}" title="Play/Pause">▶</button>
-                        <button class="sound-btn delete" data-id="${s.id}" title="Delete">🗑</button>
-                    </div>
-                </div>
-                <input type="range" class="seek-bar" data-id="${s.id}" value="0" step="0.1">
-            </div>
-        `).join('');
-    }
-
-    const overlay = showModal({
-      title: 'Audio Settings',
-      content,
-      onSave: () => {
-        stopPreview();
-        render();
-      }
-    });
-
-    overlay.querySelector('.modal-btn.save').textContent = 'Done';
-    overlay.querySelector('.modal-btn.cancel').style.display = 'none';
-
-    // Helper para atualizar os ícones de play baseados no estado
-    function renderAudioState() {
-      const list = overlay.querySelector('#custom-sound-list');
-      list.querySelectorAll('.custom-sound-item').forEach(item => {
-        const id = item.id.replace('sound-item-', '');
-        const playBtn = item.querySelector('.play-preview');
-        const seekBar = item.querySelector('.seek-bar');
-
-        if (id === playingId && previewAudio) {
-          playBtn.textContent = previewAudio.paused ? '▶' : '⏸';
-          seekBar.style.display = 'block';
-          if (!isNaN(previewAudio.duration)) {
-            seekBar.max = previewAudio.duration;
-          }
-          seekBar.value = previewAudio.currentTime;
-        } else {
-          playBtn.textContent = '▶';
-          seekBar.style.display = 'none';
-          seekBar.value = 0;
-        }
-      });
-    }
-
-    // Anexa os listeners
-    const volumeSlider = overlay.querySelector('#master-volume');
-    volumeSlider.oninput = (e) => {
-      const newVol = Number(e.target.value);
-      alarmManager.setVolume(newVol);
-      if (previewAudio) {
-        previewAudio.volume = newVol;
-      }
-    };
-
-    // Lógica de upload
-    const uploadInput = overlay.querySelector('#sound-upload');
-    if (uploadInput) {
-      uploadInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const maxSize = window.electronAPI ? 100 * 1024 * 1024 : 2 * 1024 * 1024;
-        if (file.size > maxSize) {
-          showAlert(`File too large (Max ${window.electronAPI ? '100MB' : '2MB'})`, 'Upload Failed');
-          return;
-        }
-
-        const handleResult = (soundData) => {
-          const name = file.name.split('.')[0];
-          stopPreview();
-          const success = alarmManager.addCustomSound(name, soundData);
-          if (success && success.then) {
-            success.then((res) => { if (res) refreshList(); });
-          } else if (success) {
-            refreshList();
-          }
-        };
-
-        if (window.electronAPI && file.path) {
-          // usa o caminho do arquivo diretamente
-          handleResult(file.path);
-        } else {
-          // fallback do navegador
-          const reader = new FileReader();
-          reader.onload = (loadEvent) => {
-            handleResult(loadEvent.target.result);
-          };
-          reader.readAsDataURL(file);
-        }
-
-        // Reseta valor pra permitir upload do mesmo arquivo novamente
-        e.target.value = '';
-      };
-    }
-
-    function refreshList() {
-      const listContainer = overlay.querySelector('#custom-sound-list');
-      const customSounds = alarmManager.getCustomSounds();
-      listContainer.innerHTML = renderSoundListHTML(customSounds);
-      attachListListeners();
-
-      // atualiza o label do limite
-      const reached = (window.electronAPI && customSounds.length >= 20) || (!window.electronAPI && customSounds.length >= 10);
-      const label = overlay.querySelector('label[style="display:block; margin-bottom:10px;"]');
-      if (label) label.textContent = `Custom Sounds (${customSounds.length}/${limit})`;
-
-      // atualiza a seção de upload se o limite foi atingido/liberado
-      const audioSettings = overlay.querySelector('.audio-settings');
-      const existingUpload = audioSettings.querySelector('.file-input-wrapper');
-      const existingLimitText = audioSettings.querySelector('div[style*="text-align:center"]');
-
-      if (!reached && !existingUpload) {
-        if (existingLimitText) existingLimitText.remove();
-        const html = `
-          <div class="file-input-wrapper">
-              <div class="upload-btn">Upload Sound (Max ${window.electronAPI ? '100MB' : '2MB'})</div>
-              <input type="file" id="sound-upload" accept="audio/*">
-          </div>`;
-        audioSettings.insertAdjacentHTML('beforeend', html);
-        // Revincula o novo input de upload
-        const newInp = audioSettings.querySelector('#sound-upload');
-        newInp.onchange = uploadInput.onchange;
-      } else if (reached && existingUpload) {
-        existingUpload.remove();
-        const html = `<div style="text-align:center; color:var(--accent-red);">Limit reached (${window.electronAPI ? '20/20' : '10/10'})</div>`;
-        audioSettings.insertAdjacentHTML('beforeend', html);
-      }
-    }
-
-    function attachListListeners() {
-      const listContainer = overlay.querySelector('#custom-sound-list');
-
-      // Play/Pause
-      listContainer.querySelectorAll('.play-preview').forEach(btn => {
-        btn.onclick = () => {
-          const id = btn.dataset.id;
-          const src = btn.dataset.src;
-
-          if (playingId === id && previewAudio) {
-            // Toggle
-            if (previewAudio.paused) {
-              previewAudio.play();
-            } else {
-              previewAudio.pause();
-            }
-            renderAudioState();
-          } else {
-            // Novo som
-            stopPreview(); // Limpa o antigo
-            playingId = id;
-            previewAudio = new Audio(src);
-            previewAudio.volume = alarmManager.getVolume();
-            previewAudio.loop = false;
-            previewAudio.onended = () => {
-              renderAudioState();
-            };
-            previewAudio.ontimeupdate = () => {
-              renderAudioState();
-            };
-            previewAudio.onloadedmetadata = () => {
-              renderAudioState();
-            };
-            previewAudio.play().catch(e => console.error(e));
-            renderAudioState();
-          }
-        };
-      });
-
-      // Seek
-      listContainer.querySelectorAll('.seek-bar').forEach(bar => {
-        bar.oninput = (e) => {
-          const id = bar.dataset.id;
-          if (playingId === id && previewAudio) {
-            previewAudio.currentTime = Number(e.target.value);
-          }
-        };
-      });
-
-      // Reset
-      listContainer.querySelectorAll('.reset-preview').forEach(btn => {
-        btn.onclick = () => {
-          const id = btn.dataset.id;
-          if (playingId === id && previewAudio) {
-            previewAudio.currentTime = 0;
-            if (previewAudio.paused) {
-              previewAudio.play();
-              renderAudioState();
-            }
-          }
-        };
-      });
-
-      // Delete
-      listContainer.querySelectorAll('.delete').forEach(btn => {
-        btn.onclick = async () => {
-          if (await showConfirm('Delete this sound?', 'Delete Sound')) {
-            const id = btn.dataset.id;
-            // Precisa parar o preview para liberar o arquivo
-            if (playingId === id) {
-              stopPreview();
-            }
-
-            const result = alarmManager.deleteCustomSound(id);
-            if (result && result.then) {
-              result.then(() => refreshList());
-            } else {
-              refreshList();
-            }
-          }
-        };
-      });
-    }
-
-    attachListListeners();
+  function getSoundName(id) {
+    const builtIn = alarmManager.getBuiltInSounds().find(s => s.id === id);
+    const custom = alarmManager.getCustomSounds().find(s => s.id === id);
+    return builtIn ? builtIn.name : (custom ? custom.name : DEFAULT_SOUND.NAME || 'Radar (Default)');
   }
+
+
 
   function openAlarmModal(existingId = null) {
     let alarm = {
@@ -415,12 +197,10 @@ export function Alarm() {
       if (found) alarm = { ...found };
     }
 
-    const customSounds = alarmManager.getCustomSounds();
-
     const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     const content = `
-            <div style="text-align:center; padding: 20px 0;">
+      <div style="text-align:center; padding: 20px 0;">
                 <input type="time" id="modal-time" value="${alarm.time}" style="font-size: 48px; background: transparent; border: none; color: white; font-family: inherit;">
             </div>
             
@@ -435,14 +215,14 @@ export function Alarm() {
             <div class="modal-section">
                 <div class="modal-row">
                     <span>Label</span>
-                    <input type="text" id="modal-label" value="${alarm.label}" placeholder="Alarm">
+                    <input type="text" id="modal-label" value="${alarm.label === 'Alarm' ? '' : alarm.label}" placeholder="Alarm" maxlength="200">
                 </div>
                 <div class="modal-row">
                     <span>Sound</span>
-                    <select id="modal-sound">
-                        <option value="default" ${alarm.sound === 'default' ? 'selected' : ''}>Radar (Default)</option>
-                        ${customSounds.map(s => `<option value="${s.id}" ${alarm.sound === s.id ? 'selected' : ''}>${truncate(s.name, 20)}</option>`).join('')}
-                    </select>
+                    <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${alarm.sound}" title="${getSoundName(alarm.sound)}">
+                        ${getSoundName(alarm.sound)}
+                    </button>
+                    <input type="hidden" id="modal-sound-value" value="${alarm.sound}">
                 </div>
                 <div class="modal-row">
                     <span>Snooze</span>
@@ -459,7 +239,7 @@ export function Alarm() {
                     <input type="range" id="modal-snooze-interval" min="1" max="30" value="${alarm.snoozeInterval}" style="width: 100%; accent-color: var(--accent-orange);"> 
                 </div>
             </div>
-        `;
+`;
 
     showModal({
       title: existingId ? 'Edit Alarm' : 'Add Alarm',
@@ -467,7 +247,7 @@ export function Alarm() {
       onSave: (overlay) => {
         const time = overlay.querySelector('#modal-time').value;
         const label = overlay.querySelector('#modal-label').value;
-        const sound = overlay.querySelector('#modal-sound').value;
+        const sound = overlay.querySelector('#modal-sound-value').value;
         const snoozeEnabled = overlay.querySelector('#modal-snooze').checked;
         const snoozeInterval = Number(overlay.querySelector('#modal-snooze-interval').value);
 
@@ -507,6 +287,17 @@ export function Alarm() {
         };
       });
 
+      const soundTrigger = overlay.querySelector('#modal-sound-trigger');
+      const soundValue = overlay.querySelector('#modal-sound-value');
+      if (soundTrigger) {
+        soundTrigger.onclick = () => {
+          openSoundPicker(soundValue.value, (selectedId) => {
+            soundValue.value = selectedId;
+            soundTrigger.textContent = getSoundName(selectedId);
+          });
+        };
+      }
+
       const snoozeToggle = overlay.querySelector('#modal-snooze');
       const snoozeRow = overlay.querySelector('#snooze-duration-row');
       const snoozeInput = overlay.querySelector('#modal-snooze-interval');
@@ -524,6 +315,10 @@ export function Alarm() {
 
   // Atualizações externas (ex: alarme disparado e desabilitado)
   function onAlarmsUpdated() {
+    if (ignoreNextUpdate) {
+      ignoreNextUpdate = false;
+      return;
+    }
     render();
   }
 

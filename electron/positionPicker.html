@@ -71,9 +71,8 @@
     </div>
 
     <script>
-        const { ipcRenderer } = require('electron');
         document.getElementById('save-btn').onclick = () => {
-            ipcRenderer.send('save-custom-position');
+            window.electronAPI.saveCustomPosition();
         };
     </script>
 </body>

@@ -60,11 +60,14 @@ function createWindow() {
     win = new BrowserWindow({
         width: 900,
         height: 700,
+        minWidth: 400,
+        minHeight: 520,
         frame: false, // Barra de título customizada
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js'),
+            backgroundThrottling: false
         },
         autoHideMenuBar: true,
         icon: iconPath,
@@ -137,10 +140,19 @@ ipcMain.handle('get-settings', () => {
     return appSettings;
 });
 
-ipcMain.handle('save-setting', (event, key, value) => {
+// Desativa shortcuts de reload em production/dev
+app.on('web-contents-created', (event, contents) => {
+    contents.on('before-input-event', (event, input) => {
+        if ((input.control && input.key.toLowerCase() === 'r') || input.key === 'F5') {
+            event.preventDefault();
+        }
+    });
+});
+
+ipcMain.handle('save-setting', async (event, key, value) => {
     appSettings[key] = value;
     try {
-        fs.writeFileSync(settingsPath, JSON.stringify(appSettings, null, 2));
+        await fs.promises.writeFile(settingsPath, JSON.stringify(appSettings, null, 2));
     } catch (e) {
         console.error('Error saving settings:', e);
     }
@@ -232,30 +244,35 @@ ipcMain.handle('show-custom-notification', (event, data) => {
         alwaysOnTop: true,
         skipTaskbar: true,
         resizable: false,
-        focusable: false, // Evita roubar o foco
+        focusable: true, // Necessário para tooltips funcionarem em alguns sistemas
         webPreferences: {
-            nodeIntegration: true, // Necessário para simples script em HTML sem preload
-            contextIsolation: false // Simplicidade para esta janela popup interna
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
         }
     });
+
+    notificationWindow.showInactive(); // Mostra sem roubar o foco
 
     // Monta query string
     const params = new URLSearchParams({
         title: data.title,
-        message: data.body,
+        body: data.body, // Alinhado com o que notification.html espera
         snooze: data.snoozeEnabled ? 'true' : 'false',
         repeat: data.repeatEnabled ? 'true' : 'false',
-        id: data.id || ''
+        id: data.id || '',
+        repeatCount: data.repeatCount || '0'
     });
 
     notificationWindow.loadURL(`file://${path.join(__dirname, 'notification.html')}?${params.toString()}`);
 
     // Fecha automaticamente baseado na setting
     const duration = appSettings.notificationDuration || 30;
+    const currentWindow = notificationWindow; // Referência local para evitar race condition
     if (duration > 0) {
         setTimeout(() => {
-            if (notificationWindow && !notificationWindow.isDestroyed()) {
-                notificationWindow.close();
+            if (currentWindow && !currentWindow.isDestroyed()) {
+                currentWindow.close();
             }
         }, duration * 1000);
     }
@@ -301,8 +318,9 @@ ipcMain.handle('pick-custom-notification-position', () => {
         alwaysOnTop: true,
         skipTaskbar: true,
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
         }
     });
 
@@ -313,13 +331,17 @@ ipcMain.handle('pick-custom-notification-position', () => {
     });
 });
 
-ipcMain.on('save-custom-position', (event) => {
+ipcMain.on('save-custom-position', async (event) => {
     if (positionPickerWindow) {
         const [x, y] = positionPickerWindow.getPosition();
         appSettings.customNotificationX = x;
         appSettings.customNotificationY = y;
 
-        fs.writeFileSync(settingsPath, JSON.stringify(appSettings, null, 2));
+        try {
+            await fs.promises.writeFile(settingsPath, JSON.stringify(appSettings, null, 2));
+        } catch (e) {
+            console.error('Error saving settings:', e);
+        }
 
         positionPickerWindow.close();
 
@@ -427,6 +449,14 @@ ipcMain.on('window-close', () => {
     if (win) win.close();
 });
 
+ipcMain.on('window-move', (event, { deltaX, deltaY }) => {
+    const senderWin = BrowserWindow.fromWebContents(event.sender);
+    if (senderWin) {
+        const [x, y] = senderWin.getPosition();
+        senderWin.setPosition(x + deltaX, y + deltaY);
+    }
+});
+
 // Manipulador de saída
 app.on('before-quit', () => {
     isQuitting = true;
@@ -446,4 +476,26 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
     }
+});
+
+// Manipuladores para encerramento melhor via terminal (Ctrl+C)
+if (process.platform === 'win32') {
+    const rl = (await import('readline')).createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    rl.on('SIGINT', () => {
+        process.emit('SIGINT');
+    });
+}
+
+process.on('SIGINT', () => {
+    console.log('Received SIGINT. Quitting gracefully...');
+    app.quit();
+});
+
+process.on('SIGTERM', () => {
+    console.log('Received SIGTERM. Quitting gracefully...');
+    app.quit();
 });

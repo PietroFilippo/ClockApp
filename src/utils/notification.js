@@ -1,4 +1,4 @@
-export function truncate(text, limit = 30) {
+export function truncate(text, limit = 60) {
     if (!text) return '';
     return text.length > limit ? text.substring(0, limit) + '...' : text;
 }
@@ -11,12 +11,12 @@ export function showAlert(message, title = 'Notification') {
 
         overlay.innerHTML = `
             <div class="modal-content notification-modal animate-pop">
-                <h2 style="margin-bottom: 10px;">${title}</h2>
+                <h2 style="margin-bottom: 10px;" title="${title}">${title}</h2>
                 <div class="notification-body" style="text-align: center; color: var(--text-primary); margin: 15px 0; font-size: 16px; line-height: 1.4;">
                     ${message}
                 </div>
                 <div class="modal-actions">
-                    <button class="modal-btn save" id="notif-ok" style="width: 100%;">OK</button>
+                    <button class="modal-btn save" id="notif-ok">OK</button>
                 </div>
             </div>
         `;
@@ -56,7 +56,7 @@ export function showConfirm(message, title = 'Confirm') {
 
         overlay.innerHTML = `
             <div class="modal-content notification-modal animate-pop">
-                <h2 style="margin-bottom: 10px;">${title}</h2>
+                <h2 style="margin-bottom: 10px;" title="${title}">${title}</h2>
                 <div class="notification-body" style="text-align: center; color: var(--text-primary); margin: 15px 0; font-size: 16px; line-height: 1.4;">
                     ${message}
                 </div>

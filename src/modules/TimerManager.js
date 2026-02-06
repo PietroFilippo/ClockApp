@@ -9,6 +9,7 @@ class TimerManager {
         this.label = '';
         this.soundId = 'default';
         this.intervalId = null;
+        this.repeatCount = 0;
 
         this.initialHours = 0;
         this.initialMinutes = 0;
@@ -26,6 +27,11 @@ class TimerManager {
                 this.updatePowerBlocker();
             }
         });
+
+        // Listener para requisições de repetição de timer
+        document.addEventListener('timer-repeat-requested', () => {
+            this.repeat();
+        });
     }
 
     loadState() {
@@ -37,6 +43,7 @@ class TimerManager {
             this.totalSeconds = state.totalSeconds || 0;
             this.label = state.label || '';
             this.soundId = state.soundId || 'default';
+            this.repeatCount = state.repeatCount || 0;
             this.isPaused = state.isPaused || false;
             this.isRunning = state.isRunning || false;
 
@@ -51,8 +58,7 @@ class TimerManager {
                     const elapsedSinceSave = Math.floor((now - state.lastSaved) / 1000);
                     this.remainingSeconds = Math.max(0, state.remainingSeconds - elapsedSinceSave);
                     if (this.remainingSeconds === 0) {
-                        this.isRunning = false;
-                        setTimeout(() => alarmManager.triggerTimer(this.label, this.soundId), 500);
+                        setTimeout(() => this.finish(), 100);
                     }
                 }
             }
@@ -70,6 +76,7 @@ class TimerManager {
             initialHours: this.initialHours,
             initialMinutes: this.initialMinutes,
             initialSeconds: this.initialSeconds,
+            repeatCount: this.repeatCount,
             lastSaved: Date.now()
         };
         localStorage.setItem('timer-state', JSON.stringify(state));
@@ -157,6 +164,7 @@ class TimerManager {
         this.remainingSeconds = this.totalSeconds;
         this.label = label;
         this.soundId = soundId;
+        this.repeatCount = 0;
         this.isRunning = true;
         this.isPaused = false;
 
@@ -216,12 +224,15 @@ class TimerManager {
         this.saveState();
         this.updatePowerBlocker();
 
-        alarmManager.triggerTimer(this.label, this.soundId);
+        alarmManager.triggerTimer(this.label, this.soundId, this.repeatCount);
         this.notify('timer-finished');
     }
 
     repeat() {
+        const currentCount = this.repeatCount;
         this.start(this.initialHours, this.initialMinutes, this.initialSeconds, this.label, this.soundId);
+        this.repeatCount = currentCount + 1;
+        this.saveState();
     }
 
     getState() {
@@ -234,7 +245,8 @@ class TimerManager {
             soundId: this.soundId,
             initialHours: this.initialHours,
             initialMinutes: this.initialMinutes,
-            initialSeconds: this.initialSeconds
+            initialSeconds: this.initialSeconds,
+            repeatCount: this.repeatCount
         };
     }
 

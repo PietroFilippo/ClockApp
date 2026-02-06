@@ -7,7 +7,8 @@ import { Timer } from './components/Timer.js';
 import { Settings } from './components/Settings.js';
 import { alarmManager } from './modules/AlarmManager.js';
 import { timerManager } from './modules/TimerManager.js';
-import { showModal } from './utils/modal.js';
+import { showRingOverlay } from './components/RingOverlay.js';
+import { truncate } from './utils/notification.js';
 
 alarmManager.init();
 
@@ -17,83 +18,64 @@ let currentOverlay = null;
 
 function onAlarmRing(e) {
   const { alarm, isSnooze } = e.detail;
-  const overlay = showModal({
-    title: alarm.label || '',
-    content: `
-              <div style="text-align:center;">
-                  <h1 style="font-size:60px; margin:20px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; display:block;">${alarm.time}</h1>
-                  ${alarm.snoozeEnabled ? `<button class="modal-btn snooze-btn" style="background:var(--accent-orange); color:black; width:100%; margin-bottom:10px;">Snooze (${alarm.snoozeInterval || 9} min)</button>` : ''}
-              </div>
-          `,
-    onSave: () => {
+
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const title = isSnooze ? `Snooze (${timeStr})` : `Alarm (${timeStr})`;
+  const displayTime = isSnooze ? timeStr : alarm.time;
+  const truncatedLabel = truncate(alarm.label || '', 60);
+
+  const overlay = showRingOverlay({
+    title,
+    timeDisplay: displayTime,
+    label: truncatedLabel,
+    actionButton: alarm.snoozeEnabled ? {
+      text: `Snooze (${alarm.snoozeInterval || 9} min)`,
+      onClick: (ovl) => {
+        alarmManager.snoozeAlarm(alarm.id);
+        ovl.remove();
+        currentOverlay = null;
+      }
+    } : null,
+    onStop: () => {
       alarmManager.stopAlarm(alarm.id);
       currentOverlay = null;
     }
   });
+
   currentOverlay = { element: overlay, type: 'alarm', id: alarm.id };
-
-  const snoozeBtn = overlay.querySelector('.snooze-btn');
-  if (snoozeBtn) {
-    snoozeBtn.onclick = () => {
-      alarmManager.snoozeAlarm(alarm.id);
-      overlay.remove();
-      currentOverlay = null;
-    };
-  }
-
-  // Desativa o botão Cancelar e o clique no fundo pro modal
-  overlay.querySelector('.cancel').style.display = 'none';
-  overlay.onclick = null;
-
-  const saveBtn = overlay.querySelector('.modal-btn.save');
-  if (saveBtn) {
-    saveBtn.textContent = 'Stop';
-    saveBtn.style.background = 'var(--accent-red)';
-    saveBtn.style.color = 'white';
-  }
 }
 
 document.addEventListener('alarm-ring', onAlarmRing);
 
 function onTimerRing(e) {
-  const { label } = e.detail;
-  const overlay = showModal({
-    title: 'Timer',
-    content: `
-              <div style="text-align:center;">
-                  <h1 style="font-size:34px; margin:20px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; display:block; padding: 0 10px;">${label}</h1>
-                  <p style="color:var(--text-secondary); font-size:24px;">Time is up!</p>
-                  <button class="modal-btn repeat-btn" style="background:var(--accent-orange); color:black; width:100%; margin-top:20px;">Repeat</button>
-              </div>
-          `,
-    onSave: () => {
-      alarmManager.stopAudio(); // Para o som
+  const { label, repeatCount } = e.detail;
+  const countDisplay = (repeatCount > 0) ? ` (${repeatCount + 1}x)` : '';
+  const truncatedLabel = truncate(label || '', 60);
+
+  const overlay = showRingOverlay({
+    title: 'Timer' + countDisplay,
+    timeDisplay: truncatedLabel + countDisplay,
+    label: 'Time is up!',
+    actionButton: {
+      text: 'Repeat',
+      onClick: (ovl) => {
+        alarmManager.stopAudio();
+        timerManager.repeat();
+        ovl.remove();
+        currentOverlay = null;
+      }
+    },
+    onStop: () => {
+      alarmManager.stopAudio();
       currentOverlay = null;
     }
   });
 
+  const h1 = overlay.querySelector('h1');
+  if (h1) h1.style.fontSize = '34px';
+
   currentOverlay = { element: overlay, type: 'timer' };
-
-  const repeatBtn = overlay.querySelector('.repeat-btn');
-  if (repeatBtn) {
-    repeatBtn.onclick = () => {
-      alarmManager.stopAudio();
-      timerManager.repeat();
-      overlay.remove();
-      currentOverlay = null;
-    };
-  }
-
-  // Estilo similar ao alarme
-  overlay.querySelector('.cancel').style.display = 'none';
-  overlay.onclick = null;
-
-  const saveBtn = overlay.querySelector('.modal-btn.save');
-  if (saveBtn) {
-    saveBtn.textContent = 'Stop';
-    saveBtn.style.background = 'var(--accent-red)';
-    saveBtn.style.color = 'white';
-  }
 }
 
 document.addEventListener('timer-ring', onTimerRing);

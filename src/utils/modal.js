@@ -4,7 +4,7 @@ export function showModal({ title, content, onSave }) {
 
   overlay.innerHTML = `
     <div class="modal-content">
-      <h2 style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; display:block;">${title}</h2>
+      <h2 style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; display:block;" title="${title}">${title}</h2>
       ${content}
       <div class="modal-actions">
         <button class="modal-btn cancel">Cancel</button>
