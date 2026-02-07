@@ -165,15 +165,6 @@ ipcMain.handle('get-settings', () => {
     return appSettings;
 });
 
-// Desativa shortcuts de reload em production/dev
-app.on('web-contents-created', (event, contents) => {
-    contents.on('before-input-event', (event, input) => {
-        if ((input.control && input.key.toLowerCase() === 'r') || input.key === 'F5') {
-            event.preventDefault();
-        }
-    });
-});
-
 ipcMain.handle('save-setting', async (event, key, value) => {
     appSettings[key] = value;
     try {
@@ -196,12 +187,12 @@ ipcMain.handle('set-power-blocker', (event, enabled) => {
     if (enabled) {
         if (powerBlockerId === null) {
             powerBlockerId = powerSaveBlocker.start('prevent-display-sleep');
-            console.log('Power Blocker Started (ID ' + powerBlockerId + ')');
+            // Power Blocker ligado
         }
     } else {
         if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
             powerSaveBlocker.stop(powerBlockerId);
-            console.log('Power Blocker Stopped (ID ' + powerBlockerId + ')');
+            // Power Blocker desligado
             powerBlockerId = null;
         }
     }
@@ -447,7 +438,6 @@ if (!gotTheLock) {
         // Registra atalho global para desligamento (Dev helper)
 
         globalShortcut.register('CommandOrControl+Q', () => {
-            console.log('Global shortcut CommandOrControl+Q pressed. Quitting gracefully...');
             isQuitting = true;
             app.quit();
         });
@@ -481,6 +471,46 @@ ipcMain.on('window-maximize', () => {
 ipcMain.on('window-close', () => {
     if (win) win.close();
 });
+
+// Shortcuts globais
+ipcMain.on('register-global-shortcuts', (event, shortcuts) => {
+    // Desregistra existentes para evitar conflitos
+    globalShortcut.unregisterAll();
+
+    // Re-registra padrões ou passados pelo usuário
+    globalShortcut.register('CommandOrControl+Q', () => {
+        isQuitting = true;
+        app.quit();
+    });
+
+    Object.entries(shortcuts).forEach(([action, accelerator]) => {
+        if (!accelerator) return;
+        try {
+            const ret = globalShortcut.register(accelerator, () => {
+                if (win && !win.isDestroyed()) {
+                    win.webContents.send('global-shortcut-triggered', action);
+                }
+            });
+            if (!ret) {
+            }
+        } catch (err) {
+            // Suprime error logging para conflitos esperados (como Alt+R com Overlay Nvidia)
+            if (!err.message.includes('Registration failed')) {
+                console.log('Error registering shortcut', accelerator, err);
+            }
+        }
+    });
+});
+
+ipcMain.on('unregister-global-shortcuts', () => {
+    globalShortcut.unregisterAll();
+    // fallback
+    globalShortcut.register('CommandOrControl+Q', () => {
+        isQuitting = true;
+        app.quit();
+    });
+});
+
 
 ipcMain.on('window-move', (event, { deltaX, deltaY }) => {
     const senderWin = BrowserWindow.fromWebContents(event.sender);

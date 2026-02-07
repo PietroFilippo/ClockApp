@@ -1,8 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-    saveFile: (name, buffer) => ipcRenderer.invoke('save-file', name, buffer),
-    copySoundFile: (sourcePath, filename) => ipcRenderer.invoke('copy-sound-file', sourcePath, filename),
+    // Shortcuts globais
+    registerGlobalShortcuts: (shortcuts) => ipcRenderer.send('register-global-shortcuts', shortcuts),
+    unregisterGlobalShortcuts: () => ipcRenderer.send('unregister-global-shortcuts'),
+    onGlobalShortcut: (callback) => ipcRenderer.on('global-shortcut-triggered', (event, action) => callback(action)),
+    // End Shortcuts globais
     deleteFile: (filename) => ipcRenderer.invoke('delete-file', filename),
     getStorePath: () => ipcRenderer.invoke('get-store-path'),
     // Settings API
@@ -22,4 +25,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     moveWindow: (data) => ipcRenderer.send('window-move', data),
     sendNotificationAction: (data) => ipcRenderer.send('notification-action', data),
     saveCustomPosition: () => ipcRenderer.send('save-custom-position')
+});
+
+window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey && e.key === 'r') || e.key === 'F5') {
+        e.preventDefault();
+    }
 });

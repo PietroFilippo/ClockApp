@@ -5,6 +5,7 @@ class StopwatchManager {
         this.isRunning = false;
         this.laps = [];
         this.previousLapTime = 0;
+        this.speed = 1.0;
         this.loadState();
     }
 
@@ -17,6 +18,7 @@ class StopwatchManager {
             this.isRunning = state.isRunning || false;
             this.laps = state.laps || [];
             this.previousLapTime = state.previousLapTime || 0;
+            this.speed = state.speed || 1.0;
         }
     }
 
@@ -26,14 +28,17 @@ class StopwatchManager {
             elapsedSoFar: this.elapsedSoFar,
             isRunning: this.isRunning,
             laps: this.laps,
-            previousLapTime: this.previousLapTime
+            previousLapTime: this.previousLapTime,
+            speed: this.speed
         };
         localStorage.setItem('stopwatch-state', JSON.stringify(state));
     }
 
     getElapsed() {
         if (!this.isRunning) return this.elapsedSoFar;
-        return Date.now() - this.startTime + this.elapsedSoFar;
+        const now = Date.now();
+        const delta = now - this.startTime;
+        return this.elapsedSoFar + (delta * this.speed);
     }
 
     start() {
@@ -47,6 +52,17 @@ class StopwatchManager {
         if (!this.isRunning) return;
         this.elapsedSoFar = this.getElapsed();
         this.isRunning = false;
+        this.saveState();
+    }
+
+    setSpeed(newSpeed) {
+        if (this.speed === newSpeed) return;
+        if (this.isRunning) {
+            this.elapsedSoFar = this.getElapsed();
+            this.startTime = Date.now();
+        }
+
+        this.speed = newSpeed;
         this.saveState();
     }
 
@@ -68,12 +84,22 @@ class StopwatchManager {
         this.saveState();
     }
 
+    specialReset() {
+        this.elapsedSoFar = 0;
+        this.laps = [];
+        this.previousLapTime = 0;
+        this.startTime = Date.now();
+        this.isRunning = true;
+        this.saveState();
+    }
+
     getState() {
         return {
             elapsed: this.getElapsed(),
             isRunning: this.isRunning,
             laps: this.laps,
-            previousLapTime: this.previousLapTime
+            previousLapTime: this.previousLapTime,
+            speed: this.speed
         };
     }
 }

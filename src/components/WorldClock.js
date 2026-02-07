@@ -72,9 +72,22 @@ export function WorldClock() {
         }
     }
 
+    function getGMTOffset(timezone) {
+        try {
+            const now = new Date();
+            const str = now.toLocaleTimeString('en-US', { timeZone: timezone, timeZoneName: 'shortOffset', hour12: false });
+            // Extrai o deslocamento GMT/UTC geralmente no final, exemplo: "12:00:00 GMT+3" ou "GMT-5"
+            const parts = str.split(' ');
+            return parts[parts.length - 1] || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
     function createClockHTML(clock, index) {
         const now = new Date();
         let timeString = '--:--';
+        let offsetString = '';
         try {
             timeString = now.toLocaleTimeString('en-US', {
                 timeZone: clock.timezone,
@@ -82,6 +95,7 @@ export function WorldClock() {
                 minute: '2-digit',
                 hour12: false
             });
+            offsetString = getGMTOffset(clock.timezone);
         } catch (e) { }
 
         return `
@@ -90,7 +104,7 @@ export function WorldClock() {
         <div class="clock-card-inner">
             <div class="clock-info">
             <span class="clock-label">${clock.label}</span>
-            <span class="clock-timezone">${clock.country || clock.timezone}</span>
+            <span class="clock-timezone">${clock.country || clock.timezone} <span style="opacity: 0.6; font-size: 0.9em; margin-left: 5px;">${offsetString}</span></span>
             </div>
             <div class="clock-time">${timeString}</div>
         </div>
@@ -235,7 +249,9 @@ export function WorldClock() {
 
     function renderCityList(list) {
         if (list.length === 0) return '<div style="text-align:center; padding: 20px; color: #8e8e93;">No results</div>';
-        return list.map(tz => `
+        return list.map(tz => {
+            const offset = getGMTOffset(tz.zone);
+            return `
         <button class="city-item-btn" data-zone="${tz.zone}" data-city="${tz.city}" data-country="${tz.country}"
             style="
                 background: #2c2c2e; border: none; padding: 12px; border-radius: 8px; 
@@ -243,9 +259,9 @@ export function WorldClock() {
                 align-items: center;
             ">
             <span style="font-weight: 500;">${tz.city}</span>
-            <span style="color: #8e8e93; font-size: 14px;">${tz.country}</span>
+            <span style="color: #8e8e93; font-size: 14px;">${tz.country} <span style="opacity: 0.7; font-size: 0.9em; margin-left: 4px;">${offset}</span></span>
         </button>
-      `).join('');
+      `}).join('');
     }
 
     function attachCityListeners(overlay) {

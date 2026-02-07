@@ -803,6 +803,100 @@ input:checked+.slider:before {
   transition: opacity 0.2s;
 }
 
+/* Seletor de Velocidade */
+.speed-btn-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.speed-toggle-btn {
+  position: absolute;
+  right: 20px;
+  top: 10px;
+  background: #3a3a3c;
+  border: none;
+  color: white;
+  border-radius: 20px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.speed-toggle-btn:hover {
+  background: #48484a;
+}
+
+.speed-selector-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 20px;
+  background: #2c2c2e;
+  border-radius: 8px;
+  padding: 5px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  min-width: 100px;
+  animation: fadeIn 0.2s ease;
+}
+
+.speed-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  border-radius: 4px;
+  align-items: center;
+}
+
+.speed-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.speed-option.active {
+  color: var(--accent-orange);
+}
+
+/* Modal keybinds */
+.keybind-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.keybind-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2c2c2e;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.keybind-item span {
+  text-transform: capitalize;
+}
+
+.record-btn {
+  background: #3a3a3c;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  color: white;
+  min-width: 80px;
+  cursor: pointer;
+  font-family: monospace;
+  transition: background 0.2s, color 0.2s;
+}
+
+.record-btn.recording {
+  background: var(--accent-orange);
+  color: black;
+}
+
 .settings-btn:hover {
   opacity: 1;
 }
