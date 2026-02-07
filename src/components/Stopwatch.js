@@ -15,7 +15,7 @@ export function Stopwatch() {
   // Carrega as cores salvas no localStorage ou usa os valores padrão
   let fastestColor = localStorage.getItem(STORAGE_KEYS.STOPWATCH_FASTEST_COLOR) || COLORS.DEFAULT_FASTEST_LAP;
   let slowestColor = localStorage.getItem(STORAGE_KEYS.STOPWATCH_SLOWEST_COLOR) || COLORS.DEFAULT_SLOWEST_LAP;
-
+  
   // Handler da modal do ESC
   const handleEsc = (e) => {
     if (e.key === 'Escape') {
@@ -34,11 +34,20 @@ export function Stopwatch() {
   let customColors = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_CUSTOM_COLORS)) || [];
 
   function formatTime(ms) {
-    const date = new Date(ms);
-    const m = String(date.getUTCMinutes()).padStart(2, '0');
-    const s = String(date.getUTCSeconds()).padStart(2, '0');
-    const cs = String(Math.floor(date.getUTCMilliseconds() / 10)).padStart(2, '0');
-    return `${m}:${s}.${cs}`;
+    const totalSeconds = Math.floor(ms / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const cs = Math.floor((ms % 1000) / 10);
+
+    const formattedM = String(m).padStart(2, '0');
+    const formattedS = String(s).padStart(2, '0');
+    const formattedCS = String(cs).padStart(2, '0');
+
+    if (h > 0) {
+      return `${h}:${formattedM}:${formattedS}.${formattedCS}`;
+    }
+    return `${formattedM}:${formattedS}.${formattedCS}`;
   }
 
   function getLapStats(laps) {

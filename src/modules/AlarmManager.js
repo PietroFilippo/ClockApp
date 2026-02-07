@@ -21,6 +21,39 @@ export class AlarmManager {
 
         this.startMonitoring();
         this.setupIPCListeners();
+        this.checkMissedSnoozes();
+    }
+
+    checkMissedSnoozes() {
+        const now = new Date();
+        const currentHours = now.getHours();
+        const currentMinutes = now.getMinutes();
+
+        let snoozeChanged = false;
+
+        Object.keys(this.snoozedAlarms).forEach(id => {
+            const timeStr = this.snoozedAlarms[id]; // "HH:MM"
+            const [snoozeHours, snoozeMinutes] = timeStr.split(':').map(Number);
+
+            // Checa se o tempo de soneca passou (hora anterior OU mesma hora, mas minuto anterior)
+            if (snoozeHours < currentHours || (snoozeHours === currentHours && snoozeMinutes <= currentMinutes)) {
+                console.log(`Found missed snoozed alarm: ${id} (Target: ${timeStr})`);
+                const alarm = this.alarms.find(a => a.id === Number(id));
+                if (alarm) {
+                    this.triggerAlarm(alarm, true);
+                    delete this.snoozedAlarms[id];
+                    snoozeChanged = true;
+                } else {
+                    // Se o alarme não existe mais limpa a soneca
+                    delete this.snoozedAlarms[id];
+                    snoozeChanged = true;
+                }
+            }
+        });
+
+        if (snoozeChanged) {
+            this.saveAlarms();
+        }
     }
 
     setupIPCListeners() {

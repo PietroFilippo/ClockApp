@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, powerSaveBlocker, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, powerSaveBlocker, screen, globalShortcut } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -57,9 +57,14 @@ function getIconPath() {
 
 function createWindow() {
     const iconPath = getIconPath();
+    // Salva estado da janela
+    const windowState = appSettings.windowState || {};
+
     win = new BrowserWindow({
-        width: 900,
-        height: 700,
+        width: windowState.width || 900,
+        height: windowState.height || 700,
+        x: windowState.x,
+        y: windowState.y,
         minWidth: 400,
         minHeight: 520,
         frame: false, // Barra de título customizada
@@ -71,10 +76,13 @@ function createWindow() {
         },
         autoHideMenuBar: true,
         icon: iconPath,
-        show: false // Mostra manualmente depois de maximizar
+        show: false // Mostra manualmente
     });
 
-    win.maximize();
+    if (windowState.isMaximized) {
+        win.maximize();
+    }
+
     win.show();
 
     // Carrega dev/prod
@@ -86,6 +94,23 @@ function createWindow() {
     }
 
     win.on('close', (event) => {
+        // Salva estado da janela antes de fechar/ocultar
+        if (win && !win.isDestroyed()) {
+            const bounds = win.getBounds();
+            appSettings.windowState = {
+                x: bounds.x,
+                y: bounds.y,
+                width: bounds.width,
+                height: bounds.height,
+                isMaximized: win.isMaximized()
+            };
+            try {
+                fs.writeFileSync(settingsPath, JSON.stringify(appSettings, null, 2));
+            } catch (e) {
+                console.error('Error saving window state:', e);
+            }
+        }
+
         // Minimiza pra tray se a setting é valida e habilitada
         if (!isQuitting && appSettings.minimizeToTray) {
             // Verifica se tray existe antes de esconder
@@ -418,6 +443,14 @@ if (!gotTheLock) {
                 if (win) win.show();
             }
         });
+
+        // Registra atalho global para desligamento (Dev helper)
+
+        globalShortcut.register('CommandOrControl+Q', () => {
+            console.log('Global shortcut CommandOrControl+Q pressed. Quitting gracefully...');
+            isQuitting = true;
+            app.quit();
+        });
     });
 }
 
@@ -478,24 +511,4 @@ app.on('window-all-closed', () => {
     }
 });
 
-// Manipuladores para encerramento melhor via terminal (Ctrl+C)
-if (process.platform === 'win32') {
-    const rl = (await import('readline')).createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
 
-    rl.on('SIGINT', () => {
-        process.emit('SIGINT');
-    });
-}
-
-process.on('SIGINT', () => {
-    console.log('Received SIGINT. Quitting gracefully...');
-    app.quit();
-});
-
-process.on('SIGTERM', () => {
-    console.log('Received SIGTERM. Quitting gracefully...');
-    app.quit();
-});
