@@ -442,6 +442,17 @@ if (!gotTheLock) {
             app.quit();
         });
     });
+
+    app.on('web-contents-created', (event, contents) => {
+        contents.on('before-input-event', (event, input) => {
+            // Bloqueia DevTools (Ctrl+Shift+I) em Produção
+            if (input.control && input.shift && input.key.toLowerCase() === 'i') {
+                if (app.isPackaged) {
+                    event.preventDefault();
+                }
+            }
+        });
+    });
 }
 
 // IPC: Exit App

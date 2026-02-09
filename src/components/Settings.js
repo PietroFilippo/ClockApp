@@ -17,7 +17,9 @@ export function Settings() {
     };
 
     function render() {
-        container.innerHTML = `
+        const isElectron = !!window.electronAPI;
+
+        let content = `
             <div class="header">
                 <div style="width: 50px;"></div> <!-- Spacer for edit-btn -->
                 <h1>Settings</h1>
@@ -25,7 +27,10 @@ export function Settings() {
             </div>
             
             <div class="settings-list" style="padding: 20px; max-width: 600px; margin: 0 auto;">
-                
+        `;
+
+        if (isElectron) {
+            content += `
                 <h3 style="color: var(--text-secondary); margin: 20px 0 10px;">General</h3>
                 
                 ${renderToggle('autoLaunch', 'Start on Boot', 'Launch app automatically when you log in.')}
@@ -87,14 +92,36 @@ export function Settings() {
                 <div class="setting-item" style="background: rgba(255, 69, 58, 0.1); padding: 15px; border-radius: 12px; margin-top: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;" id="exit-btn">
                     <span style="color: #ff453a; font-weight: 500;">Exit Application</span>
                 </div>
+            `;
+        } else {
+            // Browser Version
+            content += `
+                <div class="setting-item" style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; text-align: center; margin-top: 20px;">
+                    <h3 style="margin-bottom: 10px;">Get the App</h3>
+                    <p style="color: #888; font-size: 14px; margin-bottom: 20px;">
+                        Download the full application to get access to custom notifications, system tray integration, and more.
+                    </p>
+                    <a href="https://github.com/PietroFilippo/clockapp/releases/latest" target="_blank" style="text-decoration: none;">
+                        <button style="background: var(--accent-orange); color: black; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px;">
+                            Download for Windows
+                        </button>
+                    </a>
+                </div>
+            `;
+        }
 
+        content += `
                 <div style="margin-top: 20px; text-align: center; color: #444; font-size: 12px;">
-                    Clock App v2.0.0
+                    Clock App v2.2.0
                 </div>
             </div>
         `;
 
-        attachListeners();
+        container.innerHTML = content;
+
+        if (isElectron) {
+            attachListeners();
+        }
     }
 
     function renderToggle(key, label, description) {

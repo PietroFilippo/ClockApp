@@ -1,7 +1,7 @@
 {
   "name": "clockapp",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -31,6 +31,13 @@
     "win": {
       "target": "nsis",
       "icon": "public/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
   },
   "dependencies": {
