@@ -1,7 +1,8 @@
 import { alarmManager } from '../modules/AlarmManager.js';
 import { audioManager } from '../utils/AudioManager.js';
 import { showModal } from '../utils/modal.js';
-import { showAlert, showConfirm, truncate } from '../utils/notification.js';
+import { confirmDelete, showAlert } from '../utils/notification.js';
+import { escapeHtml } from '../utils/sanitize.js';
 import { openSoundPicker } from '../utils/SoundPicker.js';
 import { openSoundSettingsModal } from '../utils/SoundSettingsModal.js';
 import { contextMenu } from '../utils/contextMenu.js';
@@ -13,6 +14,8 @@ export function Alarm() {
 
   let isEditing = false;
   let ignoreNextUpdate = false;
+
+  initDelegatedListeners();
 
   function render() {
     const alarms = alarmManager.getAlarms();
@@ -34,7 +37,7 @@ export function Alarm() {
     ${alarms.map(alarm => {
       const isSnoozing = snoozed[alarm.id];
       // Formata o rótulo ou status de snooze
-      let labelText = alarm.label || 'Alarm';
+      let labelText = escapeHtml(alarm.label || 'Alarm');
       let htmlContent = labelText;
       let snoozeText = '';
 
@@ -44,7 +47,7 @@ export function Alarm() {
         htmlContent += `, <span style="font-size: 12px; color: var(--text-secondary);">${formatDays(alarm.repeat)}</span>`;
       }
 
-      // Sanitiza o atributo title (remove HTML)
+      // Sanitiza o atributo title (já que labelText está escapado, pode ter entities HTML, mas title lida melhor com raw text. Entretanto, para title attribute, escapeHtml é correto para aspas)
       const titleText = labelText + (alarm.repeat && alarm.repeat.length > 0 ? `, ${formatDays(alarm.repeat)}` : '');
 
       return `
@@ -69,7 +72,7 @@ export function Alarm() {
   </div>
 `;
 
-    attachListeners();
+    // attachListeners(); // Removido para evitar duplicação - chamado apenas na inicialização
   }
 
   function formatDays(days) {
@@ -82,44 +85,83 @@ export function Alarm() {
     return days.map(d => dayNames[d]).join(', ');
   }
 
-  function attachListeners() {
-    container.querySelector('#add-alarm-btn').onclick = () => openAlarmModal();
-    container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
-    container.querySelector('#edit-alarm-btn').onclick = () => {
-      isEditing = !isEditing;
-      render();
-    };
+  function initDelegatedListeners() {
+    // Event Delegation no container principal
+    container.addEventListener('click', async (e) => {
+      const target = e.target;
 
-    container.querySelectorAll('.alarm-toggle').forEach(toggle => {
-      toggle.onchange = (e) => {
+      // Add Alarm
+      if (target.closest('#add-alarm-btn')) {
+        openAlarmModal();
+        return;
+      }
+
+      // Audio Settings
+      if (target.closest('#audio-settings-btn')) {
+        openSoundSettingsModal(() => render());
+        return;
+      }
+
+      // Edit Mode Toggle
+      if (target.closest('#edit-alarm-btn')) {
+        isEditing = !isEditing;
+        render();
+        return;
+      }
+
+      // Toggle Alarm (Switch)
+      if (target.classList.contains('alarm-toggle')) {
         e.stopPropagation();
-        const id = Number(e.target.dataset.id);
+        const id = Number(target.dataset.id);
 
         // Previne loop de re-renderização completo
         ignoreNextUpdate = true;
         alarmManager.toggleAlarm(id);
 
         // Atualização UI granular
-        const item = e.target.closest('.alarm-item');
-        const timeDisplay = item.querySelector('.alarm-time');
+        const item = target.closest('.alarm-item');
+        const timeDisplay = item ? item.querySelector('.alarm-time') : null;
         if (timeDisplay) {
-          timeDisplay.classList.toggle('disabled', !e.target.checked);
+          timeDisplay.classList.toggle('disabled', !target.checked);
         }
-      };
+        return;
+      }
+
+      // Cancel Snooze
+      if (target.closest('.cancel-snooze-btn')) {
+        e.stopPropagation();
+        const btn = target.closest('.cancel-snooze-btn');
+        const id = Number(btn.dataset.id);
+        alarmManager.cancelSnooze(id);
+        render();
+        return;
+      }
+
+      // Delete Alarm (Edit Mode)
+      if (target.closest('.delete-clock-btn')) {
+        e.stopPropagation();
+        const btn = target.closest('.delete-clock-btn');
+        const id = Number(btn.dataset.id);
+        const alarm = alarmManager.getAlarms().find(a => a.id === id);
+
+        await confirmAndDelete(id, alarm);
+        return;
+      }
+
+      // Edit Alarm (Click on Info)
+      const alarmInfo = target.closest('.alarm-info');
+      if (alarmInfo) {
+        const id = Number(alarmInfo.dataset.id);
+        openAlarmModal(id);
+      }
     });
 
-    // Edita clicando no item
-    container.querySelectorAll('.alarm-info').forEach(info => {
-      info.onclick = (e) => {
-        // abre modal de edição mesmo no modo de edição (no estilo iOS)
-        const id = Number(e.currentTarget.dataset.id);
-        openAlarmModal(id);
-      };
-
-      // Menu de contexto
-      info.addEventListener('contextmenu', (e) => {
+    // Context Menu via Delegation
+    container.addEventListener('contextmenu', (e) => {
+      const alarmInfo = e.target.closest('.alarm-info');
+      if (alarmInfo) {
         e.preventDefault();
-        const id = Number(e.currentTarget.dataset.id);
+        const id = Number(alarmInfo.dataset.id);
         const alarm = alarmManager.getAlarms().find(a => a.id === id);
 
         contextMenu.show(e.clientX, e.clientY, [
@@ -131,51 +173,19 @@ export function Alarm() {
           {
             label: 'Delete',
             danger: true,
-            action: async () => {
-              const label = alarm && alarm.label ? alarm.label : 'Alarm';
-              const truncatedLabel = truncate(label, 60);
-              const confirmMsg = alarm && alarm.label
-                ? `Delete "<span title="${label.replace(/"/g, '&quot;')}">${truncatedLabel}</span>" ? `
-                : `Delete alarm for ${alarm ? alarm.time : 'this time'} ? `;
-
-              if (await showConfirm(confirmMsg, 'Delete Alarm')) {
-                alarmManager.deleteAlarm(id);
-                render();
-              }
-            }
+            action: () => confirmAndDelete(id, alarm)
           }
         ]);
-      });
+      }
     });
+  }
 
-    if (isEditing) {
-      container.querySelectorAll('.delete-clock-btn').forEach(btn => {
-        btn.onclick = async (e) => {
-          e.stopPropagation();
-          const id = Number(e.currentTarget.dataset.id);
-          const alarm = alarmManager.getAlarms().find(a => a.id === id);
-          const label = alarm && alarm.label ? alarm.label : 'Alarm';
-          const truncatedLabel = truncate(label, 60);
-          const confirmMsg = alarm && alarm.label
-            ? `Delete "<span title="${label.replace(/"/g, '&quot;')}">${truncatedLabel}</span>" ? `
-            : `Delete alarm for ${alarm ? alarm.time : 'this time'} ? `;
-
-          if (await showConfirm(confirmMsg, 'Delete Alarm')) {
-            alarmManager.deleteAlarm(id);
-            render();
-          }
-        };
-      });
+  async function confirmAndDelete(id, alarm) {
+    const label = alarm && alarm.label ? alarm.label : (alarm ? alarm.time : 'Alarm');
+    if (await confirmDelete(label, 'Alarm')) {
+      alarmManager.deleteAlarm(id);
+      render();
     }
-
-    container.querySelectorAll('.cancel-snooze-btn').forEach(btn => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        const id = Number(e.target.dataset.id);
-        alarmManager.cancelSnooze(id);
-        render();
-      };
-    });
   }
 
   function getSoundName(id) {

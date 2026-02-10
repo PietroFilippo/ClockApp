@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clock-app-v2.2.1';
+const CACHE_NAME = 'clock-app-v2.3.0';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',

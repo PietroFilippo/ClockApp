@@ -1,11 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-    // Shortcuts globais
     registerGlobalShortcuts: (shortcuts) => ipcRenderer.send('register-global-shortcuts', shortcuts),
     unregisterGlobalShortcuts: () => ipcRenderer.send('unregister-global-shortcuts'),
     onGlobalShortcut: (callback) => ipcRenderer.on('global-shortcut-triggered', (event, action) => callback(action)),
+    removeGlobalShortcutListener: () => ipcRenderer.removeAllListeners('global-shortcut-triggered'),
     // End Shortcuts globais
+    saveFile: (filename, content) => ipcRenderer.invoke('save-file', filename, content),
     deleteFile: (filename) => ipcRenderer.invoke('delete-file', filename),
     getStorePath: () => ipcRenderer.invoke('get-store-path'),
     // Settings API

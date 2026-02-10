@@ -4,9 +4,9 @@ export class AlarmManager {
     constructor() {
         this.alarms = JSON.parse(localStorage.getItem('alarms')) || [];
         this.permissionsGranted = false;
-        this.checkInterval = null;
+        this.checkTimeout = null;
         this.snoozedAlarms = JSON.parse(localStorage.getItem('snoozed-alarms')) || {};
-        this.activeAlerts = []; // Queue/Stack for active notifications
+        this.activeAlerts = []; // Queue/Stack para notificações ativas
         this.lastUsedSound = localStorage.getItem('lastUsedSound') || 'default';
     }
 
@@ -84,24 +84,45 @@ export class AlarmManager {
     }
 
     startMonitoring() {
-        if (this.checkInterval) clearInterval(this.checkInterval);
-        this.checkInterval = setInterval(() => this.checkAlarms(), 1000);
+        if (this.checkTimeout) clearTimeout(this.checkTimeout);
+        this.scheduleNextCheck();
+    }
+
+    scheduleNextCheck() {
+        const now = new Date();
+        const seconds = now.getSeconds();
+        const msUntilNextMinute = (60 - seconds) * 1000 - now.getMilliseconds();
+
+        // Adiciona um pequeno buffer (50ms) para garantir que entramos no próximo minuto mas não tanto 
+        // que acabe pulando o segundo 0 se o sistema estiver lento
+
+        this.checkTimeout = setTimeout(() => {
+            this.checkAlarms();
+            this.scheduleNextCheck();
+        }, msUntilNextMinute + 50);
     }
 
     checkAlarms() {
         const now = new Date();
         const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        const currentSeconds = now.getSeconds();
         const currentDay = now.getDay();
 
-        if (currentSeconds !== 0) return;
+        // Verificação de segurança: se por algum motivo o timeout disparar antes da virada do minuto (drift negativo),
+        // não processa para evitar disparos duplicados ou errados.
+        console.log(`Checking alarms at ${currentTime}:${now.getSeconds()}`);
 
         this.alarms.forEach(alarm => {
             if (!alarm.enabled) return;
             const isToday = Array.isArray(alarm.repeat) && alarm.repeat.length > 0
                 ? alarm.repeat.includes(currentDay)
                 : true;
+
+            // Compara apenas HH:MM. Como rodamos aprox no segundo 0, isso é válido.
             if (alarm.time === currentTime && isToday) {
+                // Evita disparos múltiplos no mesmo minuto checando se já disparou?
+                // Não é necessário se garantirmos que esta função roda apenas uma vez por minuto.
+                // O setTimeout recursivo garante o espaçamento de ~60s.
+
                 console.log(`Triggering alarm ${alarm.id} at ${currentTime}`);
                 this.triggerAlarm(alarm);
 

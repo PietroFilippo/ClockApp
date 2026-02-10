@@ -3,95 +3,111 @@ export function truncate(text, limit = 60) {
     return text.length > limit ? text.substring(0, limit) + '...' : text;
 }
 
+function createModalBase(title, message, buttons) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.zIndex = '3000';
+
+    const buttonsHtml = buttons.map(btn =>
+        `<button class="modal-btn ${btn.className}" id="${btn.id}">${btn.label}</button>`
+    ).join('');
+
+    overlay.innerHTML = `
+        <div class="modal-content notification-modal animate-pop">
+            <h2 style="margin-bottom: 10px;"></h2>
+            <div class="notification-body" style="text-align: center; color: var(--text-primary); margin: 15px 0; font-size: 16px; line-height: 1.4;">
+            </div>
+            <div class="modal-actions">
+                ${buttonsHtml}
+            </div>
+        </div>
+    `;
+
+    const titleEl = overlay.querySelector('h2');
+    titleEl.textContent = title;
+    titleEl.title = title;
+
+    const bodyEl = overlay.querySelector('.notification-body');
+    if (message instanceof Node) {
+        bodyEl.innerHTML = '';
+        bodyEl.appendChild(message);
+    } else {
+        bodyEl.textContent = message;
+    }
+
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+function cleanup(overlay, handleKey) {
+    if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+    }
+    if (handleKey) window.removeEventListener('keydown', handleKey);
+}
+
 export function showAlert(message, title = 'Notification') {
     return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.style.zIndex = '3000'; // Em cima de tudo
+        const overlay = createModalBase(title, message, [
+            { label: 'OK', className: 'save', id: 'notif-ok' }
+        ]);
 
-        overlay.innerHTML = `
-            <div class="modal-content notification-modal animate-pop">
-                <h2 style="margin-bottom: 10px;" title="${title}">${title}</h2>
-                <div class="notification-body" style="text-align: center; color: var(--text-primary); margin: 15px 0; font-size: 16px; line-height: 1.4;">
-                    ${message}
-                </div>
-                <div class="modal-actions">
-                    <button class="modal-btn save" id="notif-ok">OK</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(overlay);
-
+        // Handler para fechar (sem valor de retorno específico além de void/undefined)
         const close = () => {
-            if (document.body.contains(overlay)) {
-                document.body.removeChild(overlay);
-            }
+            cleanup(overlay, handleKey);
             resolve();
         };
 
-        const okBtn = overlay.querySelector('#notif-ok');
-        okBtn.onclick = close;
+        const handleKey = (e) => {
+            if (e.key === 'Escape' || e.key === 'Enter') close();
+        };
+        window.addEventListener('keydown', handleKey);
 
+        overlay.querySelector('#notif-ok').onclick = close;
         overlay.onclick = (e) => {
             if (e.target === overlay) close();
         };
-
-        // Tecla ESC
-        const handleKey = (e) => {
-            if (e.key === 'Escape' || e.key === 'Enter') {
-                window.removeEventListener('keydown', handleKey);
-                close();
-            }
-        };
-        window.addEventListener('keydown', handleKey);
     });
 }
 
 export function showConfirm(message, title = 'Confirm') {
     return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.style.zIndex = '3000';
-
-        overlay.innerHTML = `
-            <div class="modal-content notification-modal animate-pop">
-                <h2 style="margin-bottom: 10px;" title="${title}">${title}</h2>
-                <div class="notification-body" style="text-align: center; color: var(--text-primary); margin: 15px 0; font-size: 16px; line-height: 1.4;">
-                    ${message}
-                </div>
-                <div class="modal-actions">
-                    <button class="modal-btn cancel" id="notif-cancel">Cancel</button>
-                    <button class="modal-btn save" id="notif-confirm">OK</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(overlay);
+        const overlay = createModalBase(title, message, [
+            { label: 'Cancel', className: 'cancel', id: 'notif-cancel' },
+            { label: 'OK', className: 'save', id: 'notif-confirm' }
+        ]);
 
         const handleResult = (result) => {
-            if (document.body.contains(overlay)) {
-                document.body.removeChild(overlay);
-            }
-            window.removeEventListener('keydown', handleKey);
+            cleanup(overlay, handleKey);
             resolve(result);
         };
 
+        const handleKey = (e) => {
+            if (e.key === 'Escape') handleResult(false);
+            else if (e.key === 'Enter') handleResult(true);
+        };
+        window.addEventListener('keydown', handleKey);
+
         overlay.querySelector('#notif-cancel').onclick = () => handleResult(false);
         overlay.querySelector('#notif-confirm').onclick = () => handleResult(true);
-
         overlay.onclick = (e) => {
             if (e.target === overlay) handleResult(false);
         };
-
-        // Teclas
-        const handleKey = (e) => {
-            if (e.key === 'Escape') {
-                handleResult(false);
-            } else if (e.key === 'Enter') {
-                handleResult(true);
-            }
-        };
-        window.addEventListener('keydown', handleKey);
     });
+}
+
+export async function confirmDelete(label, context = 'Item') {
+    const container = document.createElement('span');
+    container.textContent = `Delete "`;
+
+    const labelSpan = document.createElement('span');
+    labelSpan.textContent = truncate(label, 60);
+    labelSpan.title = label; // Tooltip com o texto completo
+    labelSpan.style.fontWeight = 'bold';
+    labelSpan.style.color = 'var(--text-primary)';
+
+    container.appendChild(labelSpan);
+    container.appendChild(document.createTextNode(`"?`));
+
+    return await showConfirm(container, `Delete ${context}`);
 }

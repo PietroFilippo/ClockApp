@@ -1,6 +1,7 @@
 import { timezones } from '../data/timezones.js';
 import { showModal } from '../utils/modal.js';
-import { showConfirm, truncate } from '../utils/notification.js';
+import { showConfirm, truncate, confirmDelete } from '../utils/notification.js';
+import { escapeHtml } from '../utils/sanitize.js';
 import { contextMenu } from '../utils/contextMenu.js';
 
 export function WorldClock() {
@@ -14,6 +15,8 @@ export function WorldClock() {
     let isEditing = false;
     let draggedItemIndex = null;
 
+    initDelegatedListeners();
+
     function renderClocks() {
         container.innerHTML = `
       <div class="header">
@@ -25,58 +28,12 @@ export function WorldClock() {
         ${clocks.map((clock, index) => createClockHTML(clock, index)).join('')}
       </div>
     `;
-
-        // Reanexa listeners
-        container.querySelector('#add-clock-btn').onclick = openCitySearch;
-        container.querySelector('#edit-clock-btn').onclick = toggleEditMode;
-
-        // Menu de contexto
-        container.querySelectorAll('.clock-card').forEach(card => {
-            card.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                const index = Number(card.dataset.index);
-                const clock = clocks[index];
-
-                contextMenu.show(e.clientX, e.clientY, [
-                    {
-                        label: 'Delete',
-                        danger: true,
-                        action: async () => {
-                            const truncatedLabel = truncate(clock.label, 60);
-                            const msg = `Remove <span title="${clock.label}">${truncatedLabel}</span>?`;
-                            if (await showConfirm(msg, 'Remove Clock')) {
-                                deleteClock(index);
-                            }
-                        }
-                    }
-                ]);
-            });
-        });
-
-        // Listeners de exclusão (existing)
-        container.querySelectorAll('.delete-clock-btn').forEach(btn => {
-            btn.onclick = async (e) => {
-                const index = Number(e.currentTarget.dataset.index);
-                const clock = clocks[index];
-                const truncatedLabel = truncate(clock.label, 60);
-                const msg = `Remove <span title="${clock.label}">${truncatedLabel}</span>?`;
-                if (await showConfirm(msg, 'Remove Clock')) {
-                    deleteClock(index);
-                }
-            };
-        });
-
-        // Listeners de arrastar (ativos apenas no modo de edição)
-        if (isEditing) {
-            enableDragAndDrop();
-        }
     }
 
     function getGMTOffset(timezone) {
         try {
             const now = new Date();
             const str = now.toLocaleTimeString('en-US', { timeZone: timezone, timeZoneName: 'shortOffset', hour12: false });
-            // Extrai o deslocamento GMT/UTC geralmente no final, exemplo: "12:00:00 GMT+3" ou "GMT-5"
             const parts = str.split(' ');
             return parts[parts.length - 1] || '';
         } catch (e) {
@@ -103,7 +60,7 @@ export function WorldClock() {
         <button class="delete-clock-btn" data-index="${index}">−</button>
         <div class="clock-card-inner">
             <div class="clock-info">
-            <span class="clock-label">${clock.label}</span>
+            <span class="clock-label">${escapeHtml(clock.label)}</span>
             <span class="clock-timezone">${clock.country || clock.timezone} <span style="opacity: 0.6; font-size: 0.9em; margin-left: 5px;">${offsetString}</span></span>
             </div>
             <div class="clock-time">${timeString}</div>
@@ -113,47 +70,103 @@ export function WorldClock() {
     `;
     }
 
-    function toggleEditMode() {
-        isEditing = !isEditing;
-        renderClocks();
-    }
+    function initDelegatedListeners() {
+        container.addEventListener('click', async (e) => {
+            const target = e.target;
 
-    function enableDragAndDrop() {
-        const cards = container.querySelectorAll('.clock-card');
-        const list = container.querySelector('.clock-list');
+            // Header Buttons
+            if (target.closest('#add-clock-btn')) {
+                openCitySearch();
+                return;
+            }
 
-        cards.forEach(card => {
-            card.addEventListener('dragstart', (e) => {
+            if (target.closest('#edit-clock-btn')) {
+                isEditing = !isEditing;
+                renderClocks();
+                return;
+            }
+
+            // Botão Delete Clock
+            if (target.closest('.delete-clock-btn')) {
+                const btn = target.closest('.delete-clock-btn');
+                const index = Number(btn.dataset.index);
+                const clock = clocks[index];
+                // Safety check
+                if (!clock) return;
+
+                if (await confirmDelete(clock.label, 'Clock')) {
+                    deleteClock(index);
+                }
+                return;
+            }
+        });
+
+        container.addEventListener('contextmenu', (e) => {
+            const card = e.target.closest('.clock-card');
+            if (card) {
+                e.preventDefault();
+                const index = Number(card.dataset.index);
+                const clock = clocks[index];
+                if (!clock) return;
+
+                contextMenu.show(e.clientX, e.clientY, [
+                    {
+                        label: 'Delete',
+                        danger: true,
+                        action: async () => {
+                            if (await confirmDelete(clock.label, 'Clock')) {
+                                deleteClock(index);
+                            }
+                        }
+                    }
+                ]);
+            }
+        });
+
+        // Drag and Drop Delegation
+        container.addEventListener('dragstart', (e) => {
+            if (!isEditing) {
+                e.preventDefault();
+                return;
+            }
+            const card = e.target.closest('.clock-card');
+            if (card) {
                 draggedItemIndex = Number(card.dataset.index);
-                card.classList.add('dragging');
-                // Obrigatório pro Firefox
+                // setTimeout para o drag ghost ser criado antes de esconder o elemento
+                setTimeout(() => card.classList.add('dragging'), 0);
                 e.dataTransfer.effectAllowed = 'move';
-            });
+            }
+        });
 
-            card.addEventListener('dragend', () => {
+        container.addEventListener('dragend', (e) => {
+            const card = e.target.closest('.clock-card');
+            if (card) {
                 card.classList.remove('dragging');
                 draggedItemIndex = null;
-            });
-
-            card.addEventListener('dragover', (e) => {
-                e.preventDefault(); // Permite soltar
-                const afterElement = getDragAfterElement(list, e.clientY);
-                const draggable = document.querySelector('.dragging');
-                if (afterElement == null) {
-                    list.appendChild(draggable);
-                } else {
-                    list.insertBefore(draggable, afterElement);
-                }
-            });
-
-            // Manipula drop pra salvar o estado
-            card.addEventListener('drop', (e) => {
-                e.preventDefault();
-                saveNewOrder();
-            });
+            }
         });
-        // Ouve na lista por drop se solto na parte inferior
-        list.addEventListener('drop', (e) => {
+
+        // dragover precisa estar no container da lista para permitir o drop
+        container.addEventListener('dragover', (e) => {
+            if (!isEditing) return;
+            e.preventDefault(); // permite drop
+
+            const list = container.querySelector('.clock-list');
+            if (!list) return;
+
+            const afterElement = getDragAfterElement(list, e.clientY);
+            const draggable = list.querySelector('.dragging');
+            if (!draggable) return;
+
+            if (afterElement == null) {
+                list.appendChild(draggable);
+            } else {
+                list.insertBefore(draggable, afterElement);
+            }
+        });
+
+        container.addEventListener('drop', (e) => {
+            if (!isEditing) return;
             e.preventDefault();
             saveNewOrder();
         });
@@ -196,6 +209,9 @@ export function WorldClock() {
     }
 
     function updateTimes() {
+        // Pausa atualizações durante drag para evitar glitch visual
+        if (draggedItemIndex !== null) return;
+
         const timeElements = container.querySelectorAll('.clock-time');
         timeElements.forEach((el, index) => {
             const clock = clocks[index];

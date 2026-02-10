@@ -1,0 +1,91 @@
+/* Alarm */
+.alarm-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.alarm-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #38383a;
+    overflow: hidden;
+    /* Garante que o item não ultrapasse o container */
+}
+
+.alarm-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    /* Garante que a informação ocupe todo o espaço disponível */
+    min-width: 0;
+    /* Habilita a compactação do item para overflow de texto */
+    margin-right: 15px;
+    /* Espaçamento do switch/botão */
+}
+
+.alarm-time {
+    font-size: 48px;
+    font-weight: 200;
+    color: var(--text-primary);
+    transition: color 0.2s;
+}
+
+.alarm-time.disabled {
+    color: var(--text-secondary);
+}
+
+.alarm-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    /* Take full width of parent .alarm-info */
+    display: block;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    margin-left: 10px;
+}
+
+/* Especifico para o Alarme */
+.alarm-days {
+    font-size: 12px;
+    color: var(--accent-green);
+    margin-top: 2px;
+}
+
+.day-selector {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0;
+}
+
+.day-option {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid #38383a;
+    background: none;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.day-option.selected {
+    background: var(--accent-orange);
+    color: black;
+    border-color: var(--accent-orange);
+}

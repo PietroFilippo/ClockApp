@@ -14,7 +14,8 @@ export function Settings() {
         showTimerInTray: false,
         notificationPosition: 'bottom-right',
         notificationDuration: 30,
-        stealFocus: true
+        stealFocus: true,
+        globalShortcuts: true
     };
 
     function render() {
@@ -42,7 +43,7 @@ export function Settings() {
                 <h3 style="color: var(--text-secondary); margin: 20px 0 10px;">Notifications</h3>
 
                 ${renderToggle('stealFocus', 'Steal Focus', 'When notifications appear, they will take keyboard focus.')}
-                
+
                 <div class="setting-item" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-size: 16px;">Notification Style</span>
@@ -89,6 +90,11 @@ export function Settings() {
                     </div>
                     <div style="font-size: 12px; color: #888; margin-top: 5px;">How long the notification stays on screen.</div>
                 </div>
+                
+                <h3 style="color: var(--text-secondary); margin: 20px 0 10px;">Shortcuts</h3>
+                ${renderToggle('globalShortcuts', 'Global Shortcuts', 'Enable shortcuts (Alt+S, Alt+R, etc) even when app is minimized.')}
+
+
 
                 <div class="setting-item" style="background: rgba(255, 69, 58, 0.1); padding: 15px; border-radius: 12px; margin-top: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;" id="exit-btn">
                     <span style="color: #ff453a; font-weight: 500;">Exit Application</span>
@@ -113,7 +119,7 @@ export function Settings() {
 
         content += `
                 <div style="margin-top: 20px; text-align: center; color: #444; font-size: 12px;">
-                    Clock App v2.2.1
+                    Clock App v2.3.0
                 </div>
             </div>
         `;
@@ -153,6 +159,21 @@ export function Settings() {
                     if (key === 'preventSuspend') {
                         // Notifica outros módulos (como TimerManager) para reavaliar bloqueio de energia imediatamente
                         document.dispatchEvent(new CustomEvent('settings-updated', { detail: { key, value } }));
+                    }
+                    if (key === 'globalShortcuts') {
+                        if (value) {
+                            const keybinds = JSON.parse(localStorage.getItem('stopwatch-keybinds')) || {
+                                toggle: 'Alt+P',
+                                lap: 'Alt+L',
+                                stop: 'Alt+S',
+                                reset: 'Alt+R'
+                            };
+                            window.electronAPI.registerGlobalShortcuts(keybinds);
+                        } else {
+                            window.electronAPI.unregisterGlobalShortcuts();
+                        }
+                        // Notifica stopwatch se estiver aberto
+                        localStorage.setItem('app-settings', JSON.stringify(settings)); // Sync local mirror
                     }
                 }
             };

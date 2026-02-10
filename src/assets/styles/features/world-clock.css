@@ -1,0 +1,106 @@
+/* World Clock */
+.clock-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.clock-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #38383a;
+    position: relative;
+    transition: background-color 0.2s;
+    cursor: default;
+}
+
+.clock-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.clock-label {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.clock-timezone {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.clock-time {
+    font-size: 48px;
+    font-weight: 200;
+    font-variant-numeric: tabular-nums;
+    transition: transform 0.3s ease;
+}
+
+.edit-mode .clock-card {
+    padding-left: 50px;
+    padding-right: 40px;
+}
+
+.clock-card-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    transition: transform 0.3s ease;
+}
+
+.delete-clock-btn {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%) scale(0);
+    background: var(--accent-red);
+    color: white;
+    border: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 18px;
+    line-height: 1;
+    padding-bottom: 2px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.edit-mode .delete-clock-btn {
+    transform: translateY(-50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.drag-handle {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%) translateX(20px);
+    color: var(--text-secondary);
+    font-size: 20px;
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    cursor: grab;
+    pointer-events: none;
+}
+
+.edit-mode .drag-handle {
+    transform: translateY(-50%) translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.clock-card.dragging {
+    opacity: 0.5;
+    background: #333;
+}

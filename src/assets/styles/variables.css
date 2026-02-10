@@ -1,0 +1,12 @@
+:root {
+    --bg-color: #000000;
+    --text-primary: #ffffff;
+    --text-secondary: #8e8e93;
+    --accent-orange: #ff9f0a;
+    --accent-green: #30d158;
+    --accent-red: #ff453a;
+    --surface-color: #1c1c1e;
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color-scheme: dark;
+    /* Forces native browser controls (scrollbars, inputs, selects) to dark mode */
+}

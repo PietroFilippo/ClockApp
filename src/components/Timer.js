@@ -1,7 +1,8 @@
 import { alarmManager } from '../modules/AlarmManager.js';
 import { timerManager } from '../modules/TimerManager.js';
 import { showModal } from '../utils/modal.js';
-import { showAlert, showConfirm, truncate } from '../utils/notification.js';
+import { showAlert, showConfirm, truncate, confirmDelete } from '../utils/notification.js';
+import { escapeHtml } from '../utils/sanitize.js';
 import { openSoundPicker } from '../utils/SoundPicker.js';
 import { openSoundSettingsModal } from '../utils/SoundSettingsModal.js';
 import { contextMenu } from '../utils/contextMenu.js';
@@ -16,6 +17,8 @@ export function Timer() {
 
     let isEditing = false;
     let recents = [];
+
+    initDelegatedListeners();
 
     function loadRecents() {
         recents = timerManager.getRecents();
@@ -40,29 +43,49 @@ export function Timer() {
             };
         }
 
-        container.querySelectorAll('.recent-item-play').forEach(btn => {
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                const id = e.currentTarget.dataset.id;
-                startRecent(id);
-            };
-        });
+        const recentsSection = container.querySelector('.recents-section');
+        if (!recentsSection) return;
+    }
 
-        container.querySelectorAll('.recent-item-info').forEach(item => {
-            item.onclick = (e) => {
+    // Move listeners para fora do render loop
+    function initDelegatedListeners() {
+        container.addEventListener('click', async (e) => {
+            const target = e.target;
+
+            // Recents Play
+            if (target.closest('.recent-item-play')) {
+                e.stopPropagation();
+                const btn = target.closest('.recent-item-play');
+                const id = btn.dataset.id;
+                startRecent(id);
+                return;
+            }
+
+            // Delete Recent
+            if (target.closest('.delete-recent-btn')) {
+                e.stopPropagation();
+                const btn = target.closest('.delete-recent-btn');
+                const id = btn.dataset.id;
+                await confirmAndDeleteRecent(id);
+                return;
+            }
+
+            const recentInfo = target.closest('.recent-item-info');
+            if (recentInfo) {
+                const id = recentInfo.dataset.id;
                 if (isEditing) {
-                    const id = e.currentTarget.dataset.id;
                     openRecentEditModal(id);
                 } else {
-                    const id = e.currentTarget.dataset.id;
                     startRecent(id);
                 }
-            };
+            }
+        });
 
-            item.addEventListener('contextmenu', (e) => {
+        container.addEventListener('contextmenu', (e) => {
+            const recentInfo = e.target.closest('.recent-item-info');
+            if (recentInfo) {
                 e.preventDefault();
-                const id = e.currentTarget.dataset.id;
-                // const recent = recents.find(r => r.id === id); // util para o label do menu de contexto.
+                const id = recentInfo.dataset.id;
 
                 contextMenu.show(e.clientX, e.clientY, [
                     {
@@ -73,35 +96,20 @@ export function Timer() {
                     {
                         label: 'Delete',
                         danger: true,
-                        action: async () => {
-                            const recent = recents.find(r => r.id === id);
-                            const label = recent ? (recent.label || 'Timer') : 'this timer';
-                            const truncatedLabel = truncate(label, 60);
-                            const msg = `Delete "<span title="${label.replace(/"/g, '&quot;')}">${truncatedLabel}</span>" from recents?`;
-                            if (await showConfirm(msg, 'Delete Recent')) {
-                                timerManager.deleteRecentTimer(id);
-                                render();
-                            }
-                        }
+                        action: () => confirmAndDeleteRecent(id)
                     }
                 ]);
-            });
+            }
         });
+    }
 
-        container.querySelectorAll('.delete-recent-btn').forEach(btn => {
-            btn.onclick = async (e) => {
-                e.stopPropagation();
-                const id = e.currentTarget.dataset.id;
-                const recent = recents.find(r => r.id === id);
-                const label = recent ? (recent.label || 'Timer') : 'this timer';
-                const truncatedLabel = truncate(label, 60);
-                const msg = `Delete "<span title="${label.replace(/"/g, '&quot;')}">${truncatedLabel}</span>" from recents?`;
-                if (await showConfirm(msg, 'Delete Recent')) {
-                    timerManager.deleteRecentTimer(id);
-                    render();
-                }
-            };
-        });
+    async function confirmAndDeleteRecent(id) {
+        const recent = recents.find(r => r.id === id);
+        const label = recent ? (recent.label || 'Timer') : 'this timer';
+        if (await confirmDelete(label, 'Recent Timer')) {
+            timerManager.deleteRecentTimer(id);
+            render();
+        }
     }
 
     function renderPicker(state) {
@@ -177,6 +185,7 @@ export function Timer() {
         validateInput(minutesInput, 59);
         validateInput(secondsInput, 59);
 
+        // attachRecentsListeners - Deletado pois agora é usado delegação
         attachRecentsListeners();
     }
 
@@ -200,7 +209,7 @@ export function Timer() {
             ${isEditing ? `<button class="delete-clock-btn delete-recent-btn" data-id="${recent.id}">−</button>` : ''}
             <div class="alarm-info recent-item-info" data-id="${recent.id}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
               <span class="alarm-time" style="font-size: 32px;">${timeString}</span>
-              <span class="alarm-label" title="${recent.label || 'Timer'}">${recent.label || 'Timer'}</span>
+              <span class="alarm-label" title="${escapeHtml(recent.label || 'Timer')}">${escapeHtml(recent.label || 'Timer')}</span>
             </div>
             ${!isEditing ? `
                 <button class="control-btn start recent-item-play" data-id="${recent.id}" style="width: 40px; height: 40px; min-width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;">
@@ -329,8 +338,6 @@ export function Timer() {
         container.querySelector('#cancel-btn').onclick = () => timerManager.cancel();
         container.querySelector('#pause-btn').onclick = () => togglePause();
         container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
-
-        attachRecentsListeners();
     }
 
     function renderRecentsSection() {

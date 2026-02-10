@@ -45,30 +45,75 @@ export function Stopwatch() {
   let showKeybindsModal = false;
   let showSpeedSelector = false;
 
-  // Registra shortcuts ao carregar
-  if (window.electronAPI) {
-    window.electronAPI.registerGlobalShortcuts(keybinds);
+  // Carrega configurações de atalhos
+  let storedSettings = {};
+  try {
+    storedSettings = JSON.parse(localStorage.getItem('app-settings')) || {};
+  } catch (e) { }
 
-    // Listener para shortcuts
-    window.electronAPI.onGlobalShortcut((action) => {
-      switch (action) {
-        case 'toggle': toggle(); break;
-        case 'lap': stopwatchManager.isRunning ? stopwatchManager.lap() : null; render(); break;
-        case 'stop':
-          if (stopwatchManager.isRunning) {
-            stopwatchManager.stop();
-            stopInterval();
-            render();
-          }
-          break;
-        case 'reset':
-          // Reset especial: Stop, Reset, Start
-          stopwatchManager.specialReset();
-          startInterval();
+  const useGlobalShortcuts = storedSettings.globalShortcuts !== false; // Default true
+
+  // Registra shortcuts
+  if (window.electronAPI) {
+    // Sempre remove listeners e unregisters antigos para garantir estado limpo
+    window.electronAPI.removeGlobalShortcutListener();
+    window.electronAPI.unregisterGlobalShortcuts();
+
+    if (useGlobalShortcuts) {
+      window.electronAPI.registerGlobalShortcuts(keybinds);
+      window.electronAPI.onGlobalShortcut((action) => handleShortcutAction(action));
+    }
+  }
+
+  // Listener Local (sempre ativo se global estiver off ou para garantir funcionamento em foco)
+  const handleLocalKeydown = (e) => {
+    // Se estiver gravando, ignora
+    if (isListeningForKey) return;
+    if (useGlobalShortcuts) return;
+    // Ignora inputs de texto
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    let parts = [];
+    if (e.ctrlKey) parts.push('Ctrl');
+    if (e.altKey) parts.push('Alt');
+    if (e.shiftKey) parts.push('Shift');
+    if (e.metaKey) parts.push('Command');
+
+    let key = e.key.toUpperCase();
+    if (['CONTROL', 'ALT', 'SHIFT', 'META'].includes(key)) return;
+
+    parts.push(key);
+    const accelerator = parts.join('+');
+
+    // Procura ação
+    const action = Object.keys(keybinds).find(k => keybinds[k] === accelerator);
+
+    if (action) {
+      e.preventDefault();
+      handleShortcutAction(action);
+    }
+  };
+
+  window.addEventListener('keydown', handleLocalKeydown);
+
+  function handleShortcutAction(action) {
+    switch (action) {
+      case 'toggle': toggle(); break;
+      case 'lap': stopwatchManager.isRunning ? stopwatchManager.lap() : null; render(); break;
+      case 'stop':
+        if (stopwatchManager.isRunning) {
+          stopwatchManager.stop();
+          stopInterval();
           render();
-          break;
-      }
-    });
+        }
+        break;
+      case 'reset':
+        // Reset especial: Stop, Reset, Start
+        stopwatchManager.specialReset();
+        startInterval();
+        render();
+        break;
+    }
   }
 
   function formatTime(ms) {
@@ -376,7 +421,6 @@ export function Stopwatch() {
 
   function render() {
     const state = stopwatchManager.getState();
-    const { fastestIndex, slowestIndex } = getLapStats(state.laps);
 
     // Renderização inicial da estrutura
     if (!container.querySelector('.header')) {
@@ -403,7 +447,6 @@ export function Stopwatch() {
             <div class="laps-list"></div>
             <div id="modals-placeholder"></div>
         `;
-      // Anexa Listeners apens uma vez efetivamente (delegation ou direct)
       attachMainListeners();
     }
 
@@ -415,106 +458,33 @@ export function Stopwatch() {
 
     // Botão de Velocidade
     const speedBtn = container.querySelector('#speed-btn');
-    if (speedBtn) {
-      // só atualiza se mudar, para evitar minor DOM thrashing (embora textContent seja barato)
-      if (speedBtn.textContent.trim() !== `${state.speed.toFixed(2)}x`) {
-        speedBtn.textContent = `${state.speed.toFixed(2)}x`;
-      }
+    if (speedBtn && speedBtn.textContent.trim() !== `${state.speed.toFixed(2)}x`) {
+      speedBtn.textContent = `${state.speed.toFixed(2)}x`;
     }
 
-    // Dropdown de Velocidade
-    const speedDropdown = container.querySelector('#speed-dropdown-container');
-    if (speedDropdown) {
-      const shouldShow = showSpeedSelector;
-      const currentHTML = speedDropdown.innerHTML;
-      if (shouldShow && currentHTML === '') {
-        speedDropdown.innerHTML = renderSpeedSelector();
-        attachSpeedListeners();
-      } else if (!shouldShow && currentHTML !== '') {
-        speedDropdown.innerHTML = '';
-      } else if (shouldShow) {
-        speedDropdown.innerHTML = renderSpeedSelector();
-        attachSpeedListeners();
-      }
-    }
-
-    // Botões de Controle (Texto & Classe)
-    const toggleBtn = container.querySelector('#toggle-btn');
-    if (toggleBtn) {
-      const newText = state.isRunning ? 'Stop' : 'Start';
-      if (toggleBtn.textContent !== newText) toggleBtn.textContent = newText;
-
-      const newClass = `control-btn ${state.isRunning ? 'stop' : 'start'}`;
-      if (toggleBtn.className !== newClass) toggleBtn.className = newClass;
-    }
-    const lapResetBtn = container.querySelector('#lap-reset-btn');
-    if (lapResetBtn) {
-      const newText = state.isRunning ? 'Lap' : 'Reset';
-      if (lapResetBtn.textContent !== newText) lapResetBtn.textContent = newText;
-    }
-
-    // Lista de Laps
-    const lapsList = container.querySelector('.laps-list');
-    if (lapsList) {
-      const newLapsHTML = state.laps.map((lap, index) => {
-        let lapClass = 'lap-item';
-        let lapStyle = '';
-        if (index === fastestIndex && state.laps.length >= 2) { // só aplica se houver pelo menos 2 voltas
-          lapClass += ' lap-fastest';
-          lapStyle = `style="color: ${fastestColor}"`;
-        } else if (index === slowestIndex && state.laps.length >= 2) { // só aplica se houver pelo menos 2 voltas
-          lapClass += ' lap-slowest';
-          lapStyle = `style="color: ${slowestColor}"`;
-        }
-        return `
-                <div class="${lapClass}" ${lapStyle}>
-                    <span>Lap ${state.laps.length - index}</span>
-                    <span>${formatTime(lap.lapTime)}</span>
-                </div>
-            `;
-      }).join('');
-
-      // apenas atualiza se houver diferença
-      if (lapsList.innerHTML !== newLapsHTML) {
-        lapsList.innerHTML = newLapsHTML;
-      }
-    }
+    renderSpeedDropdownLogic(state);
+    renderControls(state);
+    renderLapsList(state);
+    updateDisplay(state);
 
     // Modais
     const modalsPlaceholder = container.querySelector('#modals-placeholder');
     if (modalsPlaceholder) {
-
       const hasColor = modalsPlaceholder.querySelector('#color-selection-overlay');
       const hasKeybind = modalsPlaceholder.querySelector('#keybinds-modal');
 
-      // modal de seleção de cores
       if (showColorSelection && !hasColor) {
-        // abre modal de seleção de cores
-        modalsPlaceholder.innerHTML = renderColorSelection(); // Substitui qualquer modal existente
+        modalsPlaceholder.innerHTML = renderColorSelection();
         initColorSelection();
       } else if (!showColorSelection && hasColor) {
-        // fecha modal de seleção de cores
         modalsPlaceholder.innerHTML = '';
       }
 
-      // modal de configurações de teclas
       if (showKeybindsModal && !hasKeybind) {
-        // abre modal de configurações de teclas
-        modalsPlaceholder.innerHTML = renderKeybindsModal(); // Substitui qualquer modal existente
+        modalsPlaceholder.innerHTML = renderKeybindsModal();
         attachKeybindModalListeners();
       } else if (!showKeybindsModal && hasKeybind) {
-        // fecha modal de configurações de teclas
         modalsPlaceholder.innerHTML = '';
-      } else if (showKeybindsModal && hasKeybind) {
-      }
-    }
-
-    // Atualiza stopwatch display diretamente para performance
-    const display = container.querySelector('.stopwatch-display');
-    if (display) {
-      const newTime = formatTime(stopwatchManager.getElapsed());
-      if (display.textContent !== newTime) {
-        display.textContent = newTime;
       }
     }
 
@@ -658,6 +628,76 @@ export function Stopwatch() {
     render();
   }
 
+  function updateDisplay(state) {
+    const display = container.querySelector('.stopwatch-display');
+    if (display) {
+      const newTime = formatTime(stopwatchManager.getElapsed());
+      if (display.textContent !== newTime) {
+        display.textContent = newTime;
+      }
+    }
+  }
+
+  function renderControls(state) {
+    const toggleBtn = container.querySelector('#toggle-btn');
+    if (toggleBtn) {
+      const newText = state.isRunning ? 'Stop' : 'Start';
+      if (toggleBtn.textContent !== newText) toggleBtn.textContent = newText;
+      const newClass = `control-btn ${state.isRunning ? 'stop' : 'start'}`;
+      if (toggleBtn.className !== newClass) toggleBtn.className = newClass;
+    }
+    const lapResetBtn = container.querySelector('#lap-reset-btn');
+    if (lapResetBtn) {
+      const newText = state.isRunning ? 'Lap' : 'Reset';
+      if (lapResetBtn.textContent !== newText) lapResetBtn.textContent = newText;
+    }
+  }
+
+  function renderLapsList(state) {
+    const lapsList = container.querySelector('.laps-list');
+    if (!lapsList) return;
+
+    const { fastestIndex, slowestIndex } = getLapStats(state.laps);
+    const newLapsHTML = state.laps.map((lap, index) => {
+      let lapClass = 'lap-item';
+      let lapStyle = '';
+      if (index === fastestIndex && state.laps.length >= 2) {
+        lapClass += ' lap-fastest';
+        lapStyle = `style="color: ${fastestColor}"`;
+      } else if (index === slowestIndex && state.laps.length >= 2) {
+        lapClass += ' lap-slowest';
+        lapStyle = `style="color: ${slowestColor}"`;
+      }
+      return `
+                <div class="${lapClass}" ${lapStyle}>
+                    <span>Lap ${state.laps.length - index}</span>
+                    <span>${formatTime(lap.lapTime)}</span>
+                </div>
+            `;
+    }).join('');
+
+    if (lapsList.innerHTML !== newLapsHTML) {
+      lapsList.innerHTML = newLapsHTML;
+    }
+  }
+
+  function renderSpeedDropdownLogic(state) {
+    const speedDropdown = container.querySelector('#speed-dropdown-container');
+    if (speedDropdown) {
+      const shouldShow = showSpeedSelector;
+      const currentHTML = speedDropdown.innerHTML;
+      if (shouldShow && currentHTML === '') {
+        speedDropdown.innerHTML = renderSpeedSelector();
+        attachSpeedListeners();
+      } else if (!shouldShow && currentHTML !== '') {
+        speedDropdown.innerHTML = '';
+      } else if (shouldShow) {
+        speedDropdown.innerHTML = renderSpeedSelector();
+        attachSpeedListeners();
+      }
+    }
+  }
+
   render();
 
   return {
@@ -665,8 +705,13 @@ export function Stopwatch() {
     cleanup: () => {
       stopInterval();
       window.removeEventListener('keydown', handleEsc);
+      window.removeEventListener('keydown', handleLocalKeydown);
+      // window.removeEventListener('stopwatch-update', handleExternalUpdate);
+
       window.removeEventListener('keydown', handleRecording, { capture: true });
       if (colorPickerInstance) colorPickerInstance.destroy();
     }
   };
-}
+
+};
+

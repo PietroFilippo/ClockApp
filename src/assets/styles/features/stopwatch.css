@@ -1,0 +1,102 @@
+/* Stopwatch */
+.stopwatch-display {
+    font-size: 72px;
+    font-weight: 200;
+    text-align: center;
+    margin: 40px 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.controls {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+    margin-bottom: 20px;
+}
+
+.control-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    /* Centering content */
+    justify-content: center;
+    align-items: center;
+    border: 2px solid transparent;
+}
+
+.control-btn.start {
+    background-color: rgba(48, 209, 88, 0.2);
+    color: var(--accent-green);
+}
+
+.control-btn.stop {
+    background-color: rgba(255, 69, 58, 0.2);
+    color: var(--accent-red);
+}
+
+.control-btn.reset,
+.control-btn.pause {
+    background-color: #333;
+    color: white;
+}
+
+.laps-list {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #38383a;
+    /* max-height: 300px;  Removed to fix double scrollbar */
+    /* overflow-y: auto; */
+}
+
+.lap-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 0;
+    border-bottom: 1px solid #38383a;
+    color: var(--text-secondary);
+}
+
+.lap-item span:last-child {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Configurações das Laps */
+.lap-color-settings {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 15px;
+    padding: 10px;
+}
+
+.lap-color-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 8px 12px;
+    background: var(--surface-color);
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.lap-color-item:hover {
+    background: #2c2c2e;
+}
+
+.color-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.lap-item.lap-fastest span,
+.lap-item.lap-slowest span {
+    font-weight: 600;
+}
