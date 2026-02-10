@@ -1,4 +1,4 @@
-import './style.css';
+import './assets/styles/index.css';
 import { Navigation } from './components/Navigation.js';
 import { WorldClock } from './components/WorldClock.js';
 import { Alarm } from './components/Alarm.js';
@@ -161,6 +161,49 @@ function render() {
     if (minBtn) minBtn.onclick = () => window.electronAPI.minimizeWindow();
     if (maxBtn) maxBtn.onclick = () => window.electronAPI.maximizeWindow();
     if (closeBtn) closeBtn.onclick = () => window.electronAPI.closeWindow();
+
+    // Lógica shortcuts globais
+    window.electronAPI.getSettings().then(settings => {
+      const useGlobalShortcuts = settings.globalShortcuts !== false;
+      if (useGlobalShortcuts) {
+        const keybinds = JSON.parse(localStorage.getItem('stopwatch-keybinds')) || {
+          toggle: 'Alt+P',
+          lap: 'Alt+L',
+          stop: 'Alt+S',
+          reset: 'Alt+R'
+        };
+        window.electronAPI.registerGlobalShortcuts(keybinds);
+      }
+    });
+
+    // Listen for global shortcuts (ALWAYS active)
+    // Removemos listener anterior para evitar duplicatas em re-renders (embora main.js rode uma vez só, render() pode rodar mais?)
+    // render() roda uma vez. updateView roda varias.
+    window.electronAPI.removeGlobalShortcutListener(); // Limpa prévios
+    window.electronAPI.onGlobalShortcut((action) => {
+      // Mapeia ações para o StopwatchManager
+      switch (action) {
+        case 'toggle':
+          stopwatchManager.isRunning ? stopwatchManager.stop() : stopwatchManager.start();
+          break;
+        case 'lap':
+          if (stopwatchManager.isRunning) stopwatchManager.lap();
+          break;
+        case 'stop':
+          if (stopwatchManager.isRunning) stopwatchManager.stop();
+          break;
+        case 'reset':
+          stopwatchManager.specialReset();
+          break;
+      }
+    });
+
+    // Listen for setting changes from Settings.js
+    window.electronAPI.onSettingsUpdated && window.electronAPI.onSettingsUpdated((data) => {
+      // Se settings mudaram no backend (ex: outra janela), podemos reagir. 
+      // Mas Settings.js salva e aplica. Se precisarmos reagir a "Global Shortcuts" toggle aqui:
+      // A lógica de toggle no Settings.js deve reenviar o registro.
+    });
   }
 
   const navContainer = app.querySelector('#nav-container');
