@@ -13,7 +13,8 @@ export function Settings() {
         minimizeToTray: true,
         showTimerInTray: false,
         notificationPosition: 'bottom-right',
-        notificationDuration: 30
+        notificationDuration: 30,
+        stealFocus: true
     };
 
     function render() {
@@ -21,9 +22,7 @@ export function Settings() {
 
         let content = `
             <div class="header">
-                <div style="width: 50px;"></div> <!-- Spacer for edit-btn -->
                 <h1>Settings</h1>
-                <div class="add-btn-container" style="width: 50px;"></div>
             </div>
             
             <div class="settings-list" style="padding: 20px; max-width: 600px; margin: 0 auto;">
@@ -41,6 +40,8 @@ export function Settings() {
                 ${renderToggle('preventSuspend', 'Prevent Sleep', 'Keep computer awake while a timer is running.')}
                 
                 <h3 style="color: var(--text-secondary); margin: 20px 0 10px;">Notifications</h3>
+
+                ${renderToggle('stealFocus', 'Steal Focus', 'When notifications appear, they will take keyboard focus.')}
                 
                 <div class="setting-item" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -112,7 +113,7 @@ export function Settings() {
 
         content += `
                 <div style="margin-top: 20px; text-align: center; color: #444; font-size: 12px;">
-                    Clock App v2.2.0
+                    Clock App v2.2.1
                 </div>
             </div>
         `;

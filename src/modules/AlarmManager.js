@@ -6,7 +6,7 @@ export class AlarmManager {
         this.permissionsGranted = false;
         this.checkInterval = null;
         this.snoozedAlarms = JSON.parse(localStorage.getItem('snoozed-alarms')) || {};
-        this.ringingAlarms = new Set();
+        this.activeAlerts = []; // Queue/Stack for active notifications
         this.lastUsedSound = localStorage.getItem('lastUsedSound') || 'default';
     }
 
@@ -21,7 +21,7 @@ export class AlarmManager {
 
         this.startMonitoring();
         this.setupIPCListeners();
-        this.checkMissedSnoozes();
+        setTimeout(() => this.checkMissedSnoozes(), 500);
     }
 
     checkMissedSnoozes() {
@@ -61,21 +61,20 @@ export class AlarmManager {
             window.electronAPI.onNotificationAction((data) => {
                 console.log('Notification Action:', data);
                 if (data.action === 'stop') {
-                    if (data.id === 'timer') {
-                        this.stopAudio(); // Stop genérico pro timer
+                    if (data.id === 'timer' || String(data.id).startsWith('timer-')) {
+                        this.stopTimer();
                         document.dispatchEvent(new CustomEvent('timer-stop-requested'));
                     } else {
                         this.stopAlarm(Number(data.id));
                         document.dispatchEvent(new CustomEvent('alarm-stop-requested', { detail: { id: Number(data.id) } }));
                     }
                 } else if (data.action === 'repeat') {
-                    if (data.id === 'timer') {
-                        this.stopAudio();
-                        // timerManager.repeat(); // Removed to avoid circular dependency
+                    if (data.id === 'timer' || String(data.id).startsWith('timer-')) {
+                        this.stopTimer();
                         document.dispatchEvent(new CustomEvent('timer-repeat-requested'));
                     }
                 } else if (data.action === 'snooze') {
-                    if (data.id !== 'timer') {
+                    if (data.id !== 'timer' && !String(data.id).startsWith('timer-')) {
                         this.snoozeAlarm(Number(data.id));
                         document.dispatchEvent(new CustomEvent('alarm-snooze-requested', { detail: { id: Number(data.id) } }));
                     }
@@ -102,8 +101,8 @@ export class AlarmManager {
             const isToday = Array.isArray(alarm.repeat) && alarm.repeat.length > 0
                 ? alarm.repeat.includes(currentDay)
                 : true;
-
             if (alarm.time === currentTime && isToday) {
+                console.log(`Triggering alarm ${alarm.id} at ${currentTime}`);
                 this.triggerAlarm(alarm);
 
                 if (!Array.isArray(alarm.repeat) || alarm.repeat.length === 0) {
@@ -149,39 +148,89 @@ export class AlarmManager {
     }
 
     async triggerAlarm(alarm, isSnooze = false) {
-        if (this.ringingAlarms.has(alarm.id)) return;
-
-        this.ringingAlarms.add(alarm.id);
+        // Remove se já existe para mover pro topo (re-trigger)
+        this.activeAlerts = this.activeAlerts.filter(a => a.id !== alarm.id);
 
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const title = isSnooze ? `Snooze (${timeStr})` : `Alarm (${timeStr})`;
-        const body = alarm.label || 'Time to wake up!';
 
-        await this.handleNotification(title, body, {
+        const alertItem = {
+            id: alarm.id,
+            type: 'alarm',
+            title: title,
+            body: alarm.label || 'Time to wake up!',
+            soundId: alarm.sound || 'default',
             snoozeEnabled: alarm.snoozeEnabled,
             repeatEnabled: false,
-            id: alarm.id
-        });
+            timestamp: Date.now()
+        };
 
-        // Usa AudioManager para tocar som
-        audioManager.playAlarm(alarm.sound || 'default');
+        this.activeAlerts.push(alertItem);
+        this.updateActiveAlert();
 
         document.dispatchEvent(new CustomEvent('alarm-ring', { detail: { alarm, isSnooze } }));
     }
 
     async triggerTimer(label, soundId, repeatCount = 0) {
-        await this.handleNotification('Timer Finished', label || 'Time is up!', {
+        const timerId = `timer-${Date.now()}`;
+
+        const alertItem = {
+            id: timerId,
+            type: 'timer',
+            title: 'Timer Finished',
+            body: label || 'Time is up!',
+            soundId: soundId || 'default',
             snoozeEnabled: false,
             repeatEnabled: true,
-            id: 'timer',
-            repeatCount: repeatCount
-        });
+            repeatCount: repeatCount,
+            timestamp: Date.now()
+        };
 
-        // Usa AudioManager para tocar som
-        audioManager.playAlarm(soundId || 'default');
+        this.activeAlerts.push(alertItem);
+        this.updateActiveAlert();
 
-        document.dispatchEvent(new CustomEvent('timer-ring', { detail: { label, repeatCount } }));
+        document.dispatchEvent(new CustomEvent('timer-ring', { detail: { label, repeatCount, id: timerId } }));
+    }
+
+    updateActiveAlert(shouldDispatchEvent = false) {
+        if (this.activeAlerts.length === 0) {
+            this.stopAudio();
+            return;
+        }
+
+        // Pega o último (topo da pilha)
+        const currentAlert = this.activeAlerts[this.activeAlerts.length - 1];
+
+        // Toca o som do alerta atual
+        audioManager.playAlarm(currentAlert.soundId);
+
+        // Atualiza a notificação externa
+        this.handleNotification(currentAlert.title, currentAlert.body, {
+            snoozeEnabled: currentAlert.snoozeEnabled,
+            repeatEnabled: currentAlert.repeatEnabled,
+            id: currentAlert.id,
+            repeatCount: currentAlert.repeatCount
+        }).catch(err => console.error("Notification failed", err));
+
+        // Se solicitado, dispara evento para atualizar a UI interna
+        if (shouldDispatchEvent) {
+            if (currentAlert.type === 'alarm') {
+                // Recupera o objeto alarm original para passar no detail (ou reconstroi um minimo necessário)
+                const alarm = this.alarms.find(a => a.id === currentAlert.id);
+                if (alarm) {
+                    document.dispatchEvent(new CustomEvent('alarm-ring', { detail: { alarm, isSnooze: false } }));
+                }
+            } else if (currentAlert.type === 'timer') {
+                document.dispatchEvent(new CustomEvent('timer-ring', {
+                    detail: {
+                        label: currentAlert.body,
+                        repeatCount: currentAlert.repeatCount,
+                        id: currentAlert.id
+                    }
+                }));
+            }
+        }
     }
 
     async handleNotification(title, body, data = {}) {
@@ -194,6 +243,8 @@ export class AlarmManager {
         }
 
         if (type === 'system' || type === 'both') {
+            // Nota: Notificações do sistema Windows não suportam atualização dinâmica fácil, 
+            // então isso pode empilhar no Action Center, mas o foco é a janela customizada.
             new Notification(title, { body });
         }
 
@@ -213,22 +264,27 @@ export class AlarmManager {
 
     stopAlarm(alarmId) {
         if (alarmId) {
-            this.ringingAlarms.delete(alarmId);
+            this.activeAlerts = this.activeAlerts.filter(a => a.id !== alarmId);
             this.clearSnooze(alarmId);
             this.saveAlarms();
         }
+        this.updateActiveAlert(true);
+    }
 
-        if (this.ringingAlarms.size === 0) {
-            this.stopAudio();
-        }
+    // Chamado quando um timer é parado
+    stopTimer() {
+        this.activeAlerts = this.activeAlerts.filter(a => String(a.id).indexOf('timer-') === -1);
+        this.updateActiveAlert(true);
+    }
 
-        if (window.electronAPI) {
-            window.electronAPI.closeCustomNotification();
-        }
+    checkAudioState() {
+        // Depreciado por updateActiveAlert
     }
 
     stopAudio() {
+        this.activeAlerts = [];
         audioManager.stopAlarm();
+        document.dispatchEvent(new CustomEvent('all-alerts-stopped'));
 
         if (window.electronAPI) {
             window.electronAPI.closeCustomNotification();
@@ -236,10 +292,8 @@ export class AlarmManager {
     }
 
     snoozeAlarm(alarmId) {
-        this.ringingAlarms.delete(alarmId);
-        if (this.ringingAlarms.size === 0) {
-            this.stopAudio();
-        }
+        this.activeAlerts = this.activeAlerts.filter(a => a.id !== alarmId);
+        this.updateActiveAlert(true);
 
         const alarm = this.alarms.find(a => a.id === alarmId);
         if (!alarm) return;

@@ -168,51 +168,65 @@
         });
 
         const params = new URLSearchParams(window.location.search);
-        const title = params.get('title');
-        const message = params.get('body');
-        const snoozeEnabled = params.get('snooze') === 'true';
-        const repeatEnabled = params.get('repeat') === 'true';
-        const id = params.get('id');
-        const repeatCount = parseInt(params.get('repeatCount') || '0');
 
-        const countDisplay = (repeatCount > 0) ? ` (${repeatCount + 1}x)` : '';
-        const rawTitle = (title || 'Notification') + countDisplay;
-        const rawMessage = message || '';
+        function updateContent(data) {
+            const title = data.title;
+            const message = data.body;
+            const snoozeEnabled = data.snooze === 'true' || data.snooze === true;
+            const repeatEnabled = data.repeat === 'true' || data.repeat === true;
+            const id = data.id;
+            const repeatCount = parseInt(data.repeatCount || '0');
 
-        const truncate = (text, limit) => (text && text.length > limit) ? text.substring(0, limit) + '...' : (text || '');
-        const displayTitle = truncate(rawTitle, 60);
-        const displayMessage = truncate(rawMessage, 60);
+            const countDisplay = (repeatCount > 0) ? ` (${repeatCount + 1}x)` : '';
+            const rawTitle = (title || 'Notification') + countDisplay;
+            const rawMessage = message || '';
 
-        const titleEl = document.getElementById('title');
-        titleEl.textContent = displayTitle;
-        titleEl.title = rawTitle;
+            const truncate = (text, limit) => (text && text.length > limit) ? text.substring(0, limit) + '...' : (text || '');
+            const displayTitle = truncate(rawTitle, 60);
+            const displayMessage = truncate(rawMessage, 60);
 
-        const messageEl = document.getElementById('message');
-        messageEl.textContent = displayMessage;
-        messageEl.title = rawMessage;
+            const titleEl = document.getElementById('title');
+            titleEl.textContent = displayTitle;
+            titleEl.title = rawTitle;
 
-        const snoozeBtn = document.getElementById('snooze');
-        if (snoozeEnabled) {
-            snoozeBtn.style.display = 'block';
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = displayMessage;
+            messageEl.title = rawMessage;
+
+            const snoozeBtn = document.getElementById('snooze');
+            snoozeBtn.style.display = snoozeEnabled ? 'block' : 'none';
             snoozeBtn.onclick = () => {
                 window.electronAPI.sendNotificationAction({ action: 'snooze', id });
-                window.close();
             };
-        }
 
-        const repeatBtn = document.getElementById('repeat');
-        if (repeatEnabled) {
-            repeatBtn.style.display = 'block';
+            const repeatBtn = document.getElementById('repeat');
+            repeatBtn.style.display = repeatEnabled ? 'block' : 'none';
             repeatBtn.onclick = () => {
                 window.electronAPI.sendNotificationAction({ action: 'repeat', id });
-                window.close();
+            };
+
+            const stopBtn = document.getElementById('stop');
+            stopBtn.onclick = () => {
+                window.electronAPI.sendNotificationAction({ action: 'stop', id });
             };
         }
 
-        document.getElementById('stop').onclick = () => {
-            window.electronAPI.sendNotificationAction({ action: 'stop', id });
-            window.close();
-        };
+        // Inicializa com os parâmetros da URL
+        updateContent({
+            title: params.get('title'),
+            body: params.get('body'),
+            snooze: params.get('snooze'),
+            repeat: params.get('repeat'),
+            id: params.get('id'),
+            repeatCount: params.get('repeatCount')
+        });
+
+        // Espera por atualizações
+        if (window.electronAPI && window.electronAPI.onUpdateContent) {
+            window.electronAPI.onUpdateContent((data) => {
+                updateContent(data);
+            });
+        }
 
         document.getElementById('close').onclick = () => {
             window.close();

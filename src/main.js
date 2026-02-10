@@ -19,6 +19,12 @@ let currentOverlay = null;
 function onAlarmRing(e) {
   const { alarm, isSnooze } = e.detail;
 
+  // Cleanup de overlay existente (evita empilhamento)
+  if (currentOverlay && currentOverlay.element) {
+    currentOverlay.element.remove();
+    currentOverlay = null;
+  }
+
   const now = new Date();
   const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const title = isSnooze ? `Snooze (${timeStr})` : `Alarm (${timeStr})`;
@@ -50,6 +56,13 @@ document.addEventListener('alarm-ring', onAlarmRing);
 
 function onTimerRing(e) {
   const { label, repeatCount } = e.detail;
+
+  // Cleanup de overlay existente
+  if (currentOverlay && currentOverlay.element) {
+    currentOverlay.element.remove();
+    currentOverlay = null;
+  }
+
   const countDisplay = (repeatCount > 0) ? ` (${repeatCount + 1}x)` : '';
   const truncatedLabel = truncate(label || '', 60);
 
@@ -60,14 +73,14 @@ function onTimerRing(e) {
     actionButton: {
       text: 'Repeat',
       onClick: (ovl) => {
-        alarmManager.stopAudio();
+        alarmManager.stopTimer(); // Usa stoptimer para verificar o estado do audio
         timerManager.repeat();
         ovl.remove();
         currentOverlay = null;
       }
     },
     onStop: () => {
-      alarmManager.stopAudio();
+      alarmManager.stopTimer(); // Usa stopTimer
       currentOverlay = null;
     }
   });
@@ -99,11 +112,19 @@ document.addEventListener('alarm-stop-requested', (e) => {
   if (currentOverlay && currentOverlay.type === 'alarm' && currentOverlay.id === e.detail.id) {
     currentOverlay.element.remove();
     currentOverlay = null;
+  } else if (currentOverlay && currentOverlay.type === 'alarm') {
   }
 });
 
 document.addEventListener('alarm-snooze-requested', (e) => {
   if (currentOverlay && currentOverlay.type === 'alarm' && currentOverlay.id === e.detail.id) {
+    currentOverlay.element.remove();
+    currentOverlay = null;
+  }
+});
+
+document.addEventListener('all-alerts-stopped', () => {
+  if (currentOverlay && currentOverlay.element) {
     currentOverlay.element.remove();
     currentOverlay = null;
   }

@@ -3,7 +3,7 @@ import { showAlert } from './notification.js';
 class AudioManager {
     constructor() {
         this.builtInSounds = [
-            { id: 'default', name: 'Radar (Default)', data: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3' },
+            { id: 'default', name: 'Radar (Default)', data: 'sounds/radar.mp3' },
             { id: 'bell-notification', name: 'Bell Notification', data: 'sounds/bell-notification.wav' },
             { id: 'correct-answer-tone', name: 'Correct Answer Tone', data: 'sounds/correct-answer-tone.wav' },
             { id: 'eas-alarm', name: 'EAS Alarm', data: 'sounds/eas-alarm.mp3' },

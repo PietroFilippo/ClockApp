@@ -24,7 +24,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Windows API Secundaria
     moveWindow: (data) => ipcRenderer.send('window-move', data),
     sendNotificationAction: (data) => ipcRenderer.send('notification-action', data),
-    saveCustomPosition: () => ipcRenderer.send('save-custom-position')
+    saveCustomPosition: () => ipcRenderer.send('save-custom-position'),
+    onUpdateContent: (callback) => ipcRenderer.on('update-content', (event, data) => callback(data))
 });
 
 window.addEventListener('keydown', (e) => {

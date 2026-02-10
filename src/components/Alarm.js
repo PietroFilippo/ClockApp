@@ -34,15 +34,18 @@ export function Alarm() {
     ${alarms.map(alarm => {
       const isSnoozing = snoozed[alarm.id];
       // Formata o rótulo ou status de snooze
-      let labelText = alarm.label;
-      let subTextClass = 'alarm-label';
+      let labelText = alarm.label || 'Alarm';
+      let htmlContent = labelText;
+      let snoozeText = '';
 
       if (isSnoozing) {
-        labelText = `Snoozing until ${isSnoozing} <button class="cancel-snooze-btn" data-id="${alarm.id}" title="Cancel Snooze">✕</button>`;
-        subTextClass = 'alarm-label snoozing';
+        snoozeText = `<span style="color: var(--accent-orange); font-size: 12px; display: block; margin-top: 2px;">Snoozing until ${isSnoozing} <button class="cancel-snooze-btn" data-id="${alarm.id}" title="Cancel Snooze" style="background:none; border:none; color:var(--text-secondary); cursor:pointer;">✕</button></span>`;
       } else if (alarm.repeat && alarm.repeat.length > 0) {
-        labelText += `, ${formatDays(alarm.repeat)}`;
+        htmlContent += `, <span style="font-size: 12px; color: var(--text-secondary);">${formatDays(alarm.repeat)}</span>`;
       }
+
+      // Sanitiza o atributo title (remove HTML)
+      const titleText = labelText + (alarm.repeat && alarm.repeat.length > 0 ? `, ${formatDays(alarm.repeat)}` : '');
 
       return `
           <div class="alarm-item" style="position:relative;">
@@ -50,7 +53,8 @@ export function Alarm() {
              
             <div class="alarm-info" data-id="${alarm.id}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
               <span class="alarm-time ${!alarm.enabled ? 'disabled' : ''}">${alarm.time}</span>
-              <span class="${subTextClass}" style="${isSnoozing ? 'color: var(--accent-orange);' : ''}" title="${labelText.replace(/<[^>]*>?/gm, '')}">${labelText}</span>
+              <span class="alarm-label" title="${titleText}">${htmlContent}</span>
+              ${snoozeText}
             </div>
             
             ${!isEditing ? `
@@ -198,6 +202,8 @@ export function Alarm() {
     }
 
     const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const allDaysSelected = days.every((_, i) => alarm.repeat.includes(i));
+    const buttonText = allDaysSelected ? 'Clear' : 'Select All';
 
     const content = `
       <div style="text-align:center; padding: 20px 0;">
@@ -205,6 +211,10 @@ export function Alarm() {
             </div>
             
             <div class="modal-section">
+                <div style="display:flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px;">
+                     <span style="font-size: 14px; color: var(--text-secondary);">Repeat</span>
+                     <button id="toggle-days-btn" style="background:none; border:none; color:var(--accent-orange); cursor:pointer; font-size:13px;">${buttonText}</button>
+                </div>
                 <div class="day-selector">
                     ${days.map((d, i) => `
                         <div class="day-option ${alarm.repeat.includes(i) ? 'selected' : ''}" data-day="${i}">${d}</div>
@@ -281,9 +291,29 @@ export function Alarm() {
       const overlay = document.querySelector('.modal-overlay');
       if (!overlay) return;
 
-      overlay.querySelectorAll('.day-option').forEach(opt => {
+      const toggleBtn = overlay.querySelector('#toggle-days-btn');
+      const dayOptions = overlay.querySelectorAll('.day-option');
+
+      // Atualiza o texto do botão ao iniciar
+      const updateButtonState = () => {
+        const allSelected = Array.from(dayOptions).every(opt => opt.classList.contains('selected'));
+        toggleBtn.textContent = allSelected ? 'Clear' : 'Select All';
+      };
+      updateButtonState();
+
+      toggleBtn.onclick = () => {
+        const allSelected = Array.from(dayOptions).every(opt => opt.classList.contains('selected'));
+        dayOptions.forEach(opt => {
+          if (allSelected) opt.classList.remove('selected');
+          else opt.classList.add('selected');
+        });
+        updateButtonState();
+      };
+
+      dayOptions.forEach(opt => {
         opt.onclick = () => {
           opt.classList.toggle('selected');
+          updateButtonState();
         };
       });
 

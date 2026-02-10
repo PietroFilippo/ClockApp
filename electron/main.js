@@ -29,6 +29,7 @@ let appSettings = {
     customNotificationY: 0,
     minimizeToTray: true,
     showTimerInTray: false,
+    stealFocus: true,
     notificationDuration: 30 // segundos, 0 para nunca
 };
 
@@ -205,14 +206,40 @@ ipcMain.handle('show-custom-notification', (event, data) => {
         return;
     }
 
-    // Se app está focado, não mostra notificação customizada (a menos que seja explicitado, mas por padrão evitamos poluição)
+    // Se o app está focado, não mostra notificação customizada
     if (win && win.isVisible() && win.isFocused()) {
+        // se já existe uma janela de notificação (ex: de um alarme anterior), fecha ela pois o usuário já está no app
+        if (notificationWindow && !notificationWindow.isDestroyed()) {
+            notificationWindow.close();
+        }
         return;
     }
 
-    // Fecha existente se houver
+    // Se janela já existe e não foi destruída, reutiliza!
     if (notificationWindow && !notificationWindow.isDestroyed()) {
-        notificationWindow.close();
+        const notifData = {
+            title: data.title,
+            body: data.body,
+            snooze: data.snoozeEnabled,
+            repeat: data.repeatEnabled,
+            id: data.id,
+            repeatCount: data.repeatCount
+        };
+
+        notificationWindow.webContents.send('update-content', notifData);
+
+        if (appSettings.stealFocus !== false) {
+            if (notificationWindow.isMinimized()) notificationWindow.restore();
+            notificationWindow.show();
+            notificationWindow.moveTop();
+        } else {
+            notificationWindow.showInactive();
+        }
+
+        // Reinicia timer de auto-close se necessário (opcional, mas bom pra UX)
+        // Resetar o timeout seria complexo aqui sem trackear var global, 
+        // mas como o 'updateActiveAlert' é chamado frequentemente, o risco é baixo.
+        return;
     }
 
     const { width, height } = screen.getPrimaryDisplay().workAreaSize;
@@ -261,6 +288,7 @@ ipcMain.handle('show-custom-notification', (event, data) => {
         skipTaskbar: true,
         resizable: false,
         focusable: true, // Necessário para tooltips funcionarem em alguns sistemas
+        show: false, // Inicia oculto para respeitar a configuração de foco depois
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -268,7 +296,13 @@ ipcMain.handle('show-custom-notification', (event, data) => {
         }
     });
 
-    notificationWindow.showInactive(); // Mostra sem roubar o foco
+    notificationWindow.setAlwaysOnTop(true, 'screen-saver');
+
+    if (appSettings.stealFocus !== false) { // Default true
+        notificationWindow.show();
+    } else {
+        notificationWindow.showInactive(); // Mostra sem roubar o foco
+    }
 
     // Monta query string
     const params = new URLSearchParams({
@@ -309,6 +343,12 @@ ipcMain.handle('close-custom-notification', () => {
 ipcMain.on('notification-action', (event, data) => {
     if (win && !win.isDestroyed()) {
         win.webContents.send('notification-action', data);
+    }
+
+    // Fecha a janela de notificação ao interagir (Stop, Snooze, Repeat)
+    // Isso garante que a próxima notificação crie uma nova janela com o estado de foco correto
+    if (notificationWindow && !notificationWindow.isDestroyed()) {
+        notificationWindow.close();
     }
 });
 
