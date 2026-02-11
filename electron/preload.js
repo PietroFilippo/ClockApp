@@ -26,7 +26,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     moveWindow: (data) => ipcRenderer.send('window-move', data),
     sendNotificationAction: (data) => ipcRenderer.send('notification-action', data),
     saveCustomPosition: () => ipcRenderer.send('save-custom-position'),
-    onUpdateContent: (callback) => ipcRenderer.on('update-content', (event, data) => callback(data))
+    onUpdateContent: (callback) => ipcRenderer.on('update-content', (event, data) => callback(data)),
+
+    // Auto-Update API
+    onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, data) => callback(data)),
+    onUpdateProgress: (callback) => ipcRenderer.on('update-progress', (event, data) => callback(data)),
+    onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', () => callback()),
+    startUpdateDownload: () => ipcRenderer.invoke('start-update-download'),
+    openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });
 
 window.addEventListener('keydown', (e) => {

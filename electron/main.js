@@ -1,4 +1,6 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, powerSaveBlocker, screen, globalShortcut } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, powerSaveBlocker, screen, globalShortcut, shell } from 'electron';
+import pkg from 'electron-updater';
+const { autoUpdater } = pkg;
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -126,6 +128,15 @@ function createWindow() {
     // Limpa quando a janela é fechada (se não minimizada)
     win.on('closed', () => {
         win = null;
+    });
+
+    // Auto-updater: verifica atualização após a janela carregar
+    win.webContents.on('did-finish-load', () => {
+        if (app.isPackaged) {
+            autoUpdater.checkForUpdates().catch(err => {
+                console.log('Update check failed:', err.message);
+            });
+        }
     });
 }
 
@@ -413,14 +424,14 @@ ipcMain.handle('save-file', async (event, name, buffer) => {
     const safeName = path.basename(name);
     const targetPath = path.join(soundsDir, safeName);
 
-    fs.writeFileSync(targetPath, Buffer.from(buffer));
+    await fs.promises.writeFile(targetPath, Buffer.from(buffer));
     return `file://${targetPath.replace(/\\/g, '/')}`;
 });
 
 ipcMain.handle('copy-sound-file', async (event, sourcePath, filename) => {
     const safeName = path.basename(filename);
     const targetPath = path.join(soundsDir, safeName);
-    fs.copyFileSync(sourcePath, targetPath);
+    await fs.promises.copyFile(sourcePath, targetPath);
     return `file://${targetPath.replace(/\\/g, '/')}`;
 });
 
@@ -442,6 +453,20 @@ ipcMain.handle('get-store-path', () => {
     return `file://${soundsDir.replace(/\\/g, '/')}`;
 });
 
+// IPC Handlers: Auto-Update
+ipcMain.handle('start-update-download', () => {
+    autoUpdater.downloadUpdate().catch(err => {
+        console.error('Download update failed:', err.message);
+    });
+});
+
+ipcMain.handle('open-external', (event, url) => {
+    // Valida URL por segurança
+    if (typeof url === 'string' && url.startsWith('https://github.com/')) {
+        shell.openExternal(url);
+    }
+});
+
 
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -457,6 +482,37 @@ if (!gotTheLock) {
     });
 
     app.whenReady().then(() => {
+        // Configuração do autoUpdater
+        autoUpdater.autoDownload = false;
+        autoUpdater.autoInstallOnAppQuit = false;
+
+        autoUpdater.on('update-available', (info) => {
+            if (win && !win.isDestroyed()) {
+                win.webContents.send('update-available', {
+                    version: info.version,
+                    releaseUrl: `https://github.com/PietroFilippo/ClockApp/releases/tag/v${info.version}`
+                });
+            }
+        });
+
+        autoUpdater.on('download-progress', (progress) => {
+            if (win && !win.isDestroyed()) {
+                win.webContents.send('update-progress', {
+                    percent: Math.round(progress.percent)
+                });
+            }
+        });
+
+        autoUpdater.on('update-downloaded', () => {
+            if (win && !win.isDestroyed()) {
+                win.webContents.send('update-downloaded');
+            }
+            // Aguarda um breve momento e instala
+            setTimeout(() => {
+                autoUpdater.quitAndInstall(false, true);
+            }, 1500);
+        });
+
         createWindow();
         createTray();
 

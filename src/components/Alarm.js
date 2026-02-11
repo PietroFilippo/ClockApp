@@ -18,25 +18,59 @@ export function Alarm() {
   initDelegatedListeners();
 
   function render() {
+    // Cria a estrutura estática apenas uma vez (padrão Stopwatch)
+    if (!container.querySelector('.header')) {
+      container.innerHTML = `
+        <div class="header">
+          <button class="edit-btn" id="edit-alarm-btn">Edit</button>
+          <h1>Alarm</h1>
+          <div class="add-btn-container" style="display: flex; gap: 10px;">
+              <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
+              <button class="add-btn" id="add-alarm-btn">+</button>
+          </div>
+        </div>
+        <div class="alarm-list"></div>
+      `;
+    }
+
+    // Atualiza apenas as partes dinâmicas
+    updateHeaderState();
+    updateAlarmList();
+  }
+
+  function updateHeaderState() {
+    const editBtn = container.querySelector('#edit-alarm-btn');
+    if (editBtn) editBtn.textContent = isEditing ? 'Done' : 'Edit';
+
+    const audioBtn = container.querySelector('#audio-settings-btn');
+    const addBtn = container.querySelector('#add-alarm-btn');
+    if (audioBtn) audioBtn.style.visibility = isEditing ? 'hidden' : 'visible';
+    if (addBtn) addBtn.style.visibility = isEditing ? 'hidden' : 'visible';
+  }
+
+  function updateAlarmList() {
+    const alarmList = container.querySelector('.alarm-list');
+    if (!alarmList) return;
+
     const alarms = alarmManager.getAlarms();
     const snoozed = alarmManager.getSnoozedAlarms();
-    // Ordena os ativados primeiro, depois por horário
     alarms.sort((a, b) => a.time.localeCompare(b.time));
 
-    container.innerHTML = `
-      <div class="header">
-        <button class="edit-btn" id="edit-alarm-btn">${isEditing ? 'Done' : 'Edit'}</button>
-        <h1>Alarm</h1>
-        <div class="add-btn-container" style="display: flex; gap: 10px;">
-            <button class="add-btn" id="audio-settings-btn" style="visibility: ${isEditing ? 'hidden' : 'visible'}; font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
-            <button class="add-btn" id="add-alarm-btn" style="visibility: ${isEditing ? 'hidden' : 'visible'}">+</button>
-        </div>
-      </div>
-  <div class="alarm-list ${isEditing ? 'edit-mode' : ''}">
-    ${alarms.length === 0 ? '<p style="text-align:center; color:var(--text-secondary); margin-top:50px;">No Alarms</p>' : ''}
-    ${alarms.map(alarm => {
+    // Atualiza classe de modo de edição
+    if (isEditing) {
+      alarmList.classList.add('edit-mode');
+    } else {
+      alarmList.classList.remove('edit-mode');
+    }
+
+    // Reconstrói apenas o conteúdo da lista
+    if (alarms.length === 0) {
+      alarmList.innerHTML = '<p style="text-align:center; color:var(--text-secondary); margin-top:50px;">No Alarms</p>';
+      return;
+    }
+
+    alarmList.innerHTML = alarms.map(alarm => {
       const isSnoozing = snoozed[alarm.id];
-      // Formata o rótulo ou status de snooze
       let labelText = escapeHtml(alarm.label || 'Alarm');
       let htmlContent = labelText;
       let snoozeText = '';
@@ -47,7 +81,6 @@ export function Alarm() {
         htmlContent += `, <span style="font-size: 12px; color: var(--text-secondary);">${formatDays(alarm.repeat)}</span>`;
       }
 
-      // Sanitiza o atributo title (já que labelText está escapado, pode ter entities HTML, mas title lida melhor com raw text. Entretanto, para title attribute, escapeHtml é correto para aspas)
       const titleText = labelText + (alarm.repeat && alarm.repeat.length > 0 ? `, ${formatDays(alarm.repeat)}` : '');
 
       return `
@@ -68,11 +101,8 @@ export function Alarm() {
             ` : `<div style="width: 50px;"></div>`}
             
           </div>
-        `}).join('')}
-  </div>
-`;
-
-    // attachListeners(); // Removido para evitar duplicação - chamado apenas na inicialização
+        `;
+    }).join('');
   }
 
   function formatDays(days) {

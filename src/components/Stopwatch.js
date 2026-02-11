@@ -1,6 +1,7 @@
 import { stopwatchManager } from '../modules/StopwatchManager.js';
 import { showAlert } from '../utils/notification.js';
 import { ColorPicker } from '../utils/ColorPicker.js';
+import { KeybindManager } from '../utils/KeybindManager.js';
 import { STORAGE_KEYS, COLORS, LIMITS } from '../utils/constants.js';
 
 export function Stopwatch() {
@@ -33,68 +34,14 @@ export function Stopwatch() {
   // Carrega as cores personalizadas do localStorage
   let customColors = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_CUSTOM_COLORS)) || [];
 
-  // Estado das keybinds
-  const DEFAULT_KEYBINDS = {
-    toggle: 'Alt+P',
-    lap: 'Alt+L',
-    stop: 'Alt+S',
-    reset: 'Alt+R' // reset especial
-  };
-  let keybinds = JSON.parse(localStorage.getItem('stopwatch-keybinds')) || DEFAULT_KEYBINDS;
-  let isListeningForKey = null; // 'toggle', 'lap', etc.
   let showKeybindsModal = false;
   let showSpeedSelector = false;
 
-  // Carrega configurações de atalhos
-  let storedSettings = {};
-  try {
-    storedSettings = JSON.parse(localStorage.getItem('app-settings')) || {};
-  } catch (e) { }
-
-  const useGlobalShortcuts = storedSettings.globalShortcuts !== false; // Default true
-
-  // Registra shortcuts
-  if (window.electronAPI) {
-    // Sempre remove listeners e unregisters antigos para garantir estado limpo
-    window.electronAPI.removeGlobalShortcutListener();
-    window.electronAPI.unregisterGlobalShortcuts();
-
-    if (useGlobalShortcuts) {
-      window.electronAPI.registerGlobalShortcuts(keybinds);
-      window.electronAPI.onGlobalShortcut((action) => handleShortcutAction(action));
-    }
-  }
-
-  // Listener Local (sempre ativo se global estiver off ou para garantir funcionamento em foco)
-  const handleLocalKeydown = (e) => {
-    // Se estiver gravando, ignora
-    if (isListeningForKey) return;
-    if (useGlobalShortcuts) return;
-    // Ignora inputs de texto
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-    let parts = [];
-    if (e.ctrlKey) parts.push('Ctrl');
-    if (e.altKey) parts.push('Alt');
-    if (e.shiftKey) parts.push('Shift');
-    if (e.metaKey) parts.push('Command');
-
-    let key = e.key.toUpperCase();
-    if (['CONTROL', 'ALT', 'SHIFT', 'META'].includes(key)) return;
-
-    parts.push(key);
-    const accelerator = parts.join('+');
-
-    // Procura ação
-    const action = Object.keys(keybinds).find(k => keybinds[k] === accelerator);
-
-    if (action) {
-      e.preventDefault();
-      handleShortcutAction(action);
-    }
-  };
-
-  window.addEventListener('keydown', handleLocalKeydown);
+  // Keybind manager (encapsula estado, gravação, conflitos, shortcuts)
+  const keybindManager = new KeybindManager({
+    onAction: (action) => handleShortcutAction(action),
+    onUpdate: () => render()
+  });
 
   function handleShortcutAction(action) {
     switch (action) {
@@ -242,117 +189,6 @@ export function Stopwatch() {
       `;
   }
 
-  function renderKeybindsModal() {
-    return `
-        <div class="modal-overlay" id="keybinds-modal">
-            <div class="modal-content" style="max-width: 400px;">
-                <h2>Customize Keybinds</h2>
-                <div class="keybind-list">
-                    ${Object.entries(keybinds).map(([action, currentKey]) => `
-                        <div class="keybind-item">
-                            <span>${action === 'reset' ? 'Special Reset' : action}</span>
-                            <button class="record-btn ${isListeningForKey === action ? 'recording' : ''}" data-action="${action}">
-                                ${isListeningForKey === action ? 'Press keys...' : currentKey}
-                            </button>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="modal-actions">
-                    <button class="modal-btn secondary" id="reset-defaults">Defaults</button>
-                    <button class="modal-btn primary" id="close-keybinds">Done</button>
-                </div>
-            </div>
-        </div>
-      `;
-  }
-
-  // Lógica de gravação de keybinds
-  const handleRecording = (e) => {
-    if (isListeningForKey) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (e.key === 'Escape') {
-        isListeningForKey = null;
-        if (window.electronAPI) window.electronAPI.registerGlobalShortcuts(keybinds);
-        updateKeybindsModalUI();
-        return;
-      }
-
-      try {
-        let parts = [];
-        if (e.ctrlKey) parts.push('Ctrl');
-        if (e.altKey) parts.push('Alt');
-        if (e.shiftKey) parts.push('Shift');
-        if (e.metaKey) parts.push('Command'); // Mac
-
-        let key = e.key.toUpperCase();
-        // Permite o uso geral do Control, mas bloqueia pressionamentos de teclas de modificadores sozinhos
-        if (['CONTROL', 'ALT', 'SHIFT', 'META'].includes(key)) return;
-
-        parts.push(key);
-        const accelerator = parts.join('+');
-
-        // Resolução de conflito
-        const existingAction = Object.keys(keybinds).find(k => keybinds[k] === accelerator && k !== isListeningForKey);
-
-        if (existingAction) {
-          // Se roubar uma tecla de existingAction
-          const defaultKey = DEFAULT_KEYBINDS[existingAction];
-
-          // Verifica se a tecla padrão para existingAction está livre (tomada por ninguém, incluindo a que esta sendo atribuida)
-          // EXCEPTION: Se a tecla padrão for a mesma, não considera "tomada" pelo valor antigo porque vai sobreescrevê-la
-          const isDefaultTaken = Object.entries(keybinds).some(([k, v]) => v === defaultKey && k !== existingAction && k !== isListeningForKey);
-
-          // Também verifica se a tecla padrão é a mesma que esta sendo atribuida
-          // Se existingAction's default é 'Alt+R' e esta sendo atribuido 'Alt+R' pra 'lap', não pode reverter existingAction pra 'Alt+R'
-          const isDefaultBeingStolen = (defaultKey === accelerator);
-
-          if (!isDefaultTaken && !isDefaultBeingStolen) {
-            // Reverte pra tecla padrão
-            keybinds[existingAction] = defaultKey;
-          } else {
-            // Ou desvincula
-            keybinds[existingAction] = '';
-          }
-        }
-
-        keybinds[isListeningForKey] = accelerator;
-        isListeningForKey = null;
-
-        // Salva e registra
-        localStorage.setItem('stopwatch-keybinds', JSON.stringify(keybinds));
-        if (window.electronAPI) {
-          window.electronAPI.registerGlobalShortcuts(keybinds);
-        }
-        // Re-renderiza apenas a parte do modal para evitar flickering
-        updateKeybindsModalUI();
-      } catch (err) {
-        isListeningForKey = null;
-        updateKeybindsModalUI();
-      }
-    }
-  };
-
-  window.addEventListener('keydown', handleRecording, { capture: true });
-
-  function updateKeybindsModalUI() {
-    const kbModal = container.querySelector('#keybinds-modal');
-    if (!kbModal) {
-      return;
-    }
-
-    // Atualiza botões
-    kbModal.querySelectorAll('.record-btn').forEach(btn => {
-      const action = btn.dataset.action;
-      const currentKey = keybinds[action];
-      const isRecording = isListeningForKey === action;
-
-      btn.className = `record-btn ${isRecording ? 'recording' : ''}`;
-      btn.textContent = isRecording ? 'Press keys...' : currentKey;
-    });
-  }
-
   function initColorSelection() {
     const overlay = container.querySelector('#color-selection-overlay');
     if (!overlay) return;
@@ -481,8 +317,15 @@ export function Stopwatch() {
       }
 
       if (showKeybindsModal && !hasKeybind) {
-        modalsPlaceholder.innerHTML = renderKeybindsModal();
-        attachKeybindModalListeners();
+        modalsPlaceholder.innerHTML = keybindManager.renderModal();
+        keybindManager.attachModalListeners(container, () => {
+          showKeybindsModal = false;
+          keybindManager.cancelRecording();
+          render();
+        });
+      } else if (showKeybindsModal && hasKeybind) {
+        // Modal já existe: atualiza apenas os botões de keybind
+        keybindManager.updateModalUI(container);
       } else if (!showKeybindsModal && hasKeybind) {
         modalsPlaceholder.innerHTML = '';
       }
@@ -549,48 +392,6 @@ export function Stopwatch() {
     };
     // setTimeout pra evitar trigger imediato
     setTimeout(() => document.addEventListener('click', closeSpeed), 0);
-  }
-
-  function attachKeybindModalListeners() {
-    const kbModal = container.querySelector('#keybinds-modal');
-    if (kbModal) {
-      // Overlay clique para fechar
-      kbModal.onclick = (e) => {
-        if (e.target === kbModal) {
-          showKeybindsModal = false;
-          isListeningForKey = null;
-          render();
-        }
-      }
-
-      kbModal.querySelectorAll('.record-btn').forEach(btn => {
-        btn.onclick = () => {
-          if (window.electronAPI) window.electronAPI.unregisterGlobalShortcuts();
-
-          isListeningForKey = btn.dataset.action;
-          updateKeybindsModalUI();
-        };
-      });
-      kbModal.querySelector('#reset-defaults').onclick = () => {
-        keybinds = { ...DEFAULT_KEYBINDS };
-        isListeningForKey = null; // Limpa estado de gravação
-        localStorage.setItem('stopwatch-keybinds', JSON.stringify(keybinds));
-        if (window.electronAPI) window.electronAPI.registerGlobalShortcuts(keybinds);
-        updateKeybindsModalUI();
-      };
-      kbModal.querySelector('#close-keybinds').onclick = () => {
-        // Garante que está re-registrado
-        if (window.electronAPI) window.electronAPI.registerGlobalShortcuts(keybinds);
-        showKeybindsModal = false;
-        isListeningForKey = null;
-        render();
-      };
-    }
-  }
-
-  // Função legada, caso necessário
-  function attachListeners() {
-    // Substituída por attachMainListeners chamada dentro de render
   }
 
   function toggle() {
@@ -705,10 +506,7 @@ export function Stopwatch() {
     cleanup: () => {
       stopInterval();
       window.removeEventListener('keydown', handleEsc);
-      window.removeEventListener('keydown', handleLocalKeydown);
-      // window.removeEventListener('stopwatch-update', handleExternalUpdate);
-
-      window.removeEventListener('keydown', handleRecording, { capture: true });
+      keybindManager.cleanup();
       if (colorPickerInstance) colorPickerInstance.destroy();
     }
   };

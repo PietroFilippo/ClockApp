@@ -267,3 +267,73 @@ function updateNav() {
 
 render();
 
+// Auto-Update Banner
+if (window.electronAPI && window.electronAPI.onUpdateAvailable) {
+  window.electronAPI.onUpdateAvailable((data) => {
+    // Evita duplicatas
+    if (document.querySelector('.update-banner')) return;
+
+    const banner = document.createElement('div');
+    banner.className = 'update-banner';
+    banner.innerHTML = `
+      <div class="update-banner-content">
+        <span class="update-banner-icon">⬆</span>
+        <span class="update-banner-text">Version <strong>${data.version}</strong> is available!</span>
+        <div class="update-banner-actions">
+          <button class="update-btn update-btn-primary" id="update-now-btn">Update</button>
+          <button class="update-btn update-btn-secondary" id="update-view-btn">View Release</button>
+          <button class="update-btn update-btn-dismiss" id="update-dismiss-btn">✕</button>
+        </div>
+      </div>
+      <div class="update-progress-bar" style="display: none;">
+        <div class="update-progress-fill"></div>
+      </div>
+    `;
+
+    const appContainer = document.querySelector('.app-container');
+    if (appContainer) {
+      appContainer.insertBefore(banner, appContainer.querySelector('#content'));
+    }
+
+    // Update Now
+    banner.querySelector('#update-now-btn').onclick = () => {
+      banner.querySelector('.update-banner-text').textContent = 'Downloading update...';
+      banner.querySelector('#update-now-btn').disabled = true;
+      banner.querySelector('#update-now-btn').textContent = 'Downloading...';
+      banner.querySelector('.update-progress-bar').style.display = 'block';
+      window.electronAPI.startUpdateDownload();
+    };
+
+    // View Release
+    banner.querySelector('#update-view-btn').onclick = () => {
+      window.electronAPI.openExternal(data.releaseUrl);
+    };
+
+    // Dismiss
+    banner.querySelector('#update-dismiss-btn').onclick = () => {
+      banner.remove();
+    };
+  });
+
+  window.electronAPI.onUpdateProgress((data) => {
+    const fill = document.querySelector('.update-progress-fill');
+    if (fill) {
+      fill.style.width = `${data.percent}%`;
+    }
+    const text = document.querySelector('.update-banner-text');
+    if (text) {
+      text.textContent = `Downloading update... ${data.percent}%`;
+    }
+  });
+
+  window.electronAPI.onUpdateDownloaded(() => {
+    const text = document.querySelector('.update-banner-text');
+    if (text) {
+      text.textContent = 'Update downloaded! Restarting...';
+    }
+    const btn = document.querySelector('#update-now-btn');
+    if (btn) {
+      btn.textContent = 'Installing...';
+    }
+  });
+}

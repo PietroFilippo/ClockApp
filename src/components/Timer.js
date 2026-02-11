@@ -17,6 +17,7 @@ export function Timer() {
 
     let isEditing = false;
     let recents = [];
+    let currentMode = null; // 'picker' | 'running'
 
     initDelegatedListeners();
 
@@ -27,24 +28,24 @@ export function Timer() {
     function render() {
         loadRecents();
         const state = timerManager.getState();
-        if (state.isRunning || state.isPaused) {
-            renderRunning(state);
+        const newMode = (state.isRunning || state.isPaused) ? 'running' : 'picker';
+
+        if (newMode !== currentMode) {
+            // Modo mudou: reconstrói o esqueleto completo
+            currentMode = newMode;
+            if (currentMode === 'running') {
+                initRunningView(state);
+            } else {
+                initPickerView(state);
+            }
         } else {
-            renderPicker(state);
+            // Mesmo modo: atualização granular
+            if (currentMode === 'running') {
+                updateRunningView(state);
+            } else {
+                updatePickerView(state);
+            }
         }
-    }
-
-    function attachRecentsListeners() {
-        const editBtn = container.querySelector('#edit-recents-btn');
-        if (editBtn) {
-            editBtn.onclick = () => {
-                isEditing = !isEditing;
-                render();
-            };
-        }
-
-        const recentsSection = container.querySelector('.recents-section');
-        if (!recentsSection) return;
     }
 
     // Move listeners para fora do render loop
@@ -52,6 +53,12 @@ export function Timer() {
         container.addEventListener('click', async (e) => {
             const target = e.target;
 
+            // Edit Recents Toggle
+            if (target.closest('#edit-recents-btn')) {
+                isEditing = !isEditing;
+                render();
+                return;
+            }
             // Recents Play
             if (target.closest('.recent-item-play')) {
                 e.stopPropagation();
@@ -112,7 +119,8 @@ export function Timer() {
         }
     }
 
-    function renderPicker(state) {
+    function initPickerView(state) {
+        const soundId = state.soundId || alarmManager.getLastUsedSound();
         container.innerHTML = `
       <div class="header">
         <button class="edit-btn" id="edit-recents-btn" style="visibility: ${recents.length > 0 ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
@@ -141,10 +149,10 @@ export function Timer() {
           </div>
           <div class="modal-row">
               <span>When Timer Ends</span>
-              <button id="timer-sound-trigger" class="sound-select-btn" data-sound="${state.soundId || alarmManager.getLastUsedSound()}" title="${getSoundName(state.soundId || alarmManager.getLastUsedSound())}">
-                  ${getSoundName(state.soundId || alarmManager.getLastUsedSound())}
+              <button id="timer-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${getSoundName(soundId)}">
+                  ${getSoundName(soundId)}
               </button>
-              <input type="hidden" id="timer-sound-value" value="${state.soundId || alarmManager.getLastUsedSound()}">
+              <input type="hidden" id="timer-sound-value" value="${soundId}">
           </div>
       </div>
 
@@ -152,8 +160,9 @@ export function Timer() {
         <button class="control-btn start" id="start-btn">Start</button>
       </div>
 
-      ${renderRecentsSection()}
+      <div class="recents-container"></div>
 `;
+        // Listeners (uma vez por init)
         container.querySelector('#start-btn').onclick = start;
         container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
 
@@ -184,9 +193,22 @@ export function Timer() {
         validateInput(hoursInput, 23);
         validateInput(minutesInput, 59);
         validateInput(secondsInput, 59);
+        // Atualiza recentes
+        updateRecentsSection();
+        updatePickerHeaderState();
+    }
 
-        // attachRecentsListeners - Deletado pois agora é usado delegação
-        attachRecentsListeners();
+    function updatePickerView(state) {
+        updatePickerHeaderState();
+        updateRecentsSection();
+    }
+
+    function updatePickerHeaderState() {
+        const editBtn = container.querySelector('#edit-recents-btn');
+        if (editBtn) {
+            editBtn.textContent = isEditing ? 'Done' : 'Edit';
+            editBtn.style.visibility = recents.length > 0 ? 'visible' : 'hidden';
+        }
     }
 
     function getSoundName(id) {
@@ -300,9 +322,7 @@ export function Timer() {
         }, 100);
     }
 
-
-
-    function renderRunning(state) {
+    function initRunningView(state) {
         container.innerHTML = `
     <div class="header">
         <button class="edit-btn" id="edit-recents-btn" style="visibility: ${recents.length > 0 ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
@@ -331,18 +351,47 @@ export function Timer() {
         </button>
       </div>
 
-      ${renderRecentsSection()}
+      <div class="recents-container"></div>
 `;
 
         updateProgress(state.remainingSeconds, state.totalSeconds);
         container.querySelector('#cancel-btn').onclick = () => timerManager.cancel();
         container.querySelector('#pause-btn').onclick = () => togglePause();
         container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
+
+        // Atualiza recentes e header
+        updateRecentsSection();
+        updatePickerHeaderState();
     }
 
-    function renderRecentsSection() {
-        if (recents.length === 0) return '';
-        return `
+    function updateRunningView(state) {
+        // Atualiza display e progresso granularmente
+        const textDisplay = container.querySelector('.timer-display-text');
+        if (textDisplay) textDisplay.textContent = formatTime(state.remainingSeconds);
+        updateProgress(state.remainingSeconds, state.totalSeconds);
+
+        // Atualiza botão de pause/resume
+        const pauseBtn = container.querySelector('#pause-btn');
+        if (pauseBtn) {
+            pauseBtn.textContent = state.isPaused ? 'Resume' : 'Pause';
+            pauseBtn.className = `control-btn ${state.isPaused ? 'start' : 'pause'}`;
+        }
+
+        // Atualiza header e recentes
+        updatePickerHeaderState();
+        updateRecentsSection();
+    }
+
+    function updateRecentsSection() {
+        const recentsContainer = container.querySelector('.recents-container');
+        if (!recentsContainer) return;
+
+        if (recents.length === 0) {
+            recentsContainer.innerHTML = '';
+            return;
+        }
+
+        recentsContainer.innerHTML = `
     <div class="recents-section">
               <h2 style="font-size: 18px; margin: 20px 20px 10px; color: var(--text-secondary);">Recents</h2>
               <div class="alarm-list ${isEditing ? 'edit-mode' : ''}">
@@ -396,35 +445,12 @@ export function Timer() {
     }
 
     function onTimerUpdated() {
-        const state = timerManager.getState();
-
-        if (!state.isRunning && !state.isPaused) {
-            render();
-            return;
-        }
-
-        const textDisplay = container.querySelector('.timer-display-text');
-        const circle = container.querySelector('.progress-ring__circle');
-        const pauseBtn = container.querySelector('#pause-btn');
-
-        if (textDisplay && circle && pauseBtn) {
-            textDisplay.textContent = formatTime(state.remainingSeconds);
-            updateProgress(state.remainingSeconds, state.totalSeconds);
-
-            pauseBtn.textContent = state.isPaused ? 'Resume' : 'Pause';
-            pauseBtn.className = `control-btn ${state.isPaused ? 'start' : 'pause'}`;
-        } else {
-            render();
-        }
+        // render() agora faz atualização granular via mode tracking
+        render();
     }
 
     function onRecentsUpdated() {
-        if (!isEditing) { // Opicional: não atualiza a interface enquanto está editando
-            render();
-        } else {
-            // mesmo assim atualiza a interface
-            render();
-        }
+        render();
     }
 
     function onTimerFinished() {
