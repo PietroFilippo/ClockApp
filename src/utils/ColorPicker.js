@@ -11,6 +11,12 @@ export class ColorPicker {
         this.maxCustomColors = options.maxCustomColors || 14;
         this.isDeletingCustom = false;
 
+        this.isDraggingSpectrum = false;
+        this.isDraggingBrightness = false;
+
+        this.boundHandleGlobalMouseMove = this.handleGlobalMouseMove.bind(this);
+        this.boundHandleGlobalMouseUp = this.handleGlobalMouseUp.bind(this);
+
         this.init();
     }
 
@@ -139,43 +145,50 @@ export class ColorPicker {
         this.renderCustomColors();
     }
 
+    handleSpectrum(e) {
+        const rect = this.spectrum.getBoundingClientRect();
+        const x = Math.max(0, Math.min(this.spectrum.width, e.clientX - rect.left));
+        const y = Math.max(0, Math.min(this.spectrum.height, e.clientY - rect.top));
+
+        this.currentHue = (x / this.spectrum.width) * 360;
+        this.currentLight = (1 - y / this.spectrum.height) * 100;
+
+        this.drawBrightnessSlider();
+        this.updateFromHSL();
+    }
+
+    handleBrightness(e) {
+        const rect = this.brightnessSlider.getBoundingClientRect();
+        const y = Math.max(0, Math.min(this.brightnessSlider.height, e.clientY - rect.top));
+        this.currentLight = (1 - y / this.brightnessSlider.height) * 100;
+        this.updateFromHSL();
+    }
+
+    handleGlobalMouseMove(e) {
+        if (this.isDraggingSpectrum) this.handleSpectrum(e);
+        if (this.isDraggingBrightness) this.handleBrightness(e);
+    }
+
+    handleGlobalMouseUp() {
+        this.isDraggingSpectrum = false;
+        this.isDraggingBrightness = false;
+    }
+
     attachListeners() {
         // Interacção com o espectro
-        let isDraggingSpectrum = false;
-        const handleSpectrum = (e) => {
-            const rect = this.spectrum.getBoundingClientRect();
-            const x = Math.max(0, Math.min(this.spectrum.width, e.clientX - rect.left));
-            const y = Math.max(0, Math.min(this.spectrum.height, e.clientY - rect.top));
-
-            this.currentHue = (x / this.spectrum.width) * 360;
-            this.currentLight = (1 - y / this.spectrum.height) * 100;
-
-            this.drawBrightnessSlider();
-            this.updateFromHSL();
-        };
-
         this.spectrum.addEventListener('mousedown', (e) => {
-            isDraggingSpectrum = true;
-            handleSpectrum(e);
+            this.isDraggingSpectrum = true;
+            this.handleSpectrum(e);
         });
-        document.addEventListener('mousemove', (e) => { if (isDraggingSpectrum) handleSpectrum(e); });
-        document.addEventListener('mouseup', () => { isDraggingSpectrum = false; });
 
         // Interacção com o brilho
-        let isDraggingBrightness = false;
-        const handleBrightness = (e) => {
-            const rect = this.brightnessSlider.getBoundingClientRect();
-            const y = Math.max(0, Math.min(this.brightnessSlider.height, e.clientY - rect.top));
-            this.currentLight = (1 - y / this.brightnessSlider.height) * 100;
-            this.updateFromHSL();
-        };
-
         this.brightnessSlider.addEventListener('mousedown', (e) => {
-            isDraggingBrightness = true;
-            handleBrightness(e);
+            this.isDraggingBrightness = true;
+            this.handleBrightness(e);
         });
-        document.addEventListener('mousemove', (e) => { if (isDraggingBrightness) handleBrightness(e); });
-        document.addEventListener('mouseup', () => { isDraggingBrightness = false; });
+
+        document.addEventListener('mousemove', this.boundHandleGlobalMouseMove);
+        document.addEventListener('mouseup', this.boundHandleGlobalMouseUp);
 
         // Inputs
         this.hexInput.addEventListener('input', (e) => {
@@ -345,6 +358,8 @@ export class ColorPicker {
     }
 
     destroy() {
+        document.removeEventListener('mousemove', this.boundHandleGlobalMouseMove);
+        document.removeEventListener('mouseup', this.boundHandleGlobalMouseUp);
         this.element.remove();
     }
 

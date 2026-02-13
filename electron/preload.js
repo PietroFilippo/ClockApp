@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     showCustomNotification: (data) => ipcRenderer.invoke('show-custom-notification', data),
     closeCustomNotification: () => ipcRenderer.invoke('close-custom-notification'),
     onNotificationAction: (callback) => ipcRenderer.on('notification-action', (event, data) => callback(data)),
+    removeNotificationActionListener: () => ipcRenderer.removeAllListeners('notification-action'),
     exitApp: () => ipcRenderer.invoke('exit-app'),
     minimizeWindow: () => ipcRenderer.send('window-minimize'),
     maximizeWindow: () => ipcRenderer.send('window-maximize'),
@@ -27,11 +28,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendNotificationAction: (data) => ipcRenderer.send('notification-action', data),
     saveCustomPosition: () => ipcRenderer.send('save-custom-position'),
     onUpdateContent: (callback) => ipcRenderer.on('update-content', (event, data) => callback(data)),
+    removeUpdateContentListener: () => ipcRenderer.removeAllListeners('update-content'),
 
     // Auto-Update API
     onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, data) => callback(data)),
+    removeUpdateAvailableListener: () => ipcRenderer.removeAllListeners('update-available'),
     onUpdateProgress: (callback) => ipcRenderer.on('update-progress', (event, data) => callback(data)),
+    removeUpdateProgressListener: () => ipcRenderer.removeAllListeners('update-progress'),
     onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', () => callback()),
+    removeUpdateDownloadedListener: () => ipcRenderer.removeAllListeners('update-downloaded'),
     startUpdateDownload: () => ipcRenderer.invoke('start-update-download'),
     openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

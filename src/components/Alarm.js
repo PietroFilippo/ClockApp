@@ -14,6 +14,7 @@ export function Alarm() {
 
   let isEditing = false;
   let ignoreNextUpdate = false;
+  let selectedAlarms = new Set();
 
   initDelegatedListeners();
 
@@ -40,12 +41,55 @@ export function Alarm() {
 
   function updateHeaderState() {
     const editBtn = container.querySelector('#edit-alarm-btn');
-    if (editBtn) editBtn.textContent = isEditing ? 'Done' : 'Edit';
+    if (editBtn) {
+      if (isEditing && selectedAlarms.size > 0) {
+        editBtn.textContent = `Delete (${selectedAlarms.size})`;
+        editBtn.style.color = 'var(--accent-red)';
+      } else {
+        editBtn.textContent = isEditing ? 'Done' : 'Edit';
+        editBtn.style.color = '';
+      }
+    }
 
     const audioBtn = container.querySelector('#audio-settings-btn');
     const addBtn = container.querySelector('#add-alarm-btn');
     if (audioBtn) audioBtn.style.visibility = isEditing ? 'hidden' : 'visible';
     if (addBtn) addBtn.style.visibility = isEditing ? 'hidden' : 'visible';
+  }
+
+  function buildAlarmItemHTML(alarm, snoozed) {
+    const isSnoozing = snoozed[alarm.id];
+    let labelText = escapeHtml(alarm.label || 'Alarm');
+    let htmlContent = labelText;
+    let snoozeText = '';
+
+    if (isSnoozing) {
+      snoozeText = `<span style="color: var(--accent-orange); font-size: 12px; display: block; margin-top: 2px;">Snoozing until ${isSnoozing} <button class="cancel-snooze-btn" data-id="${alarm.id}" title="Cancel Snooze" style="background:none; border:none; color:var(--text-secondary); cursor:pointer;">✕</button></span>`;
+    } else if (alarm.repeat && alarm.repeat.length > 0) {
+      htmlContent += `, <span style="font-size: 12px; color: var(--text-secondary);">${formatDays(alarm.repeat)}</span>`;
+    }
+
+    const titleText = labelText + (alarm.repeat && alarm.repeat.length > 0 ? `, ${formatDays(alarm.repeat)}` : '');
+
+    return `
+        <div class="alarm-item ${selectedAlarms.has(alarm.id) ? 'selected' : ''}" data-alarm-id="${alarm.id}" style="position:relative;">
+           ${isEditing ? `<button class="delete-clock-btn" data-id="${alarm.id}">−</button><input type="checkbox" class="select-checkbox" data-id="${alarm.id}" ${selectedAlarms.has(alarm.id) ? 'checked' : ''}>` : ''}
+           
+          <div class="alarm-info" data-id="${alarm.id}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
+            <span class="alarm-time ${!alarm.enabled ? 'disabled' : ''}">${alarm.time}</span>
+            <span class="alarm-label" title="${titleText}">${htmlContent}</span>
+            ${snoozeText}
+          </div>
+          
+          ${!isEditing ? `
+              <label class="switch">
+              <input type="checkbox" class="alarm-toggle" data-id="${alarm.id}" ${alarm.enabled ? 'checked' : ''}>
+              <span class="slider round"></span>
+              </label>
+          ` : `<div style="width: 50px;"></div>`}
+          
+        </div>
+      `;
   }
 
   function updateAlarmList() {
@@ -57,52 +101,81 @@ export function Alarm() {
     alarms.sort((a, b) => a.time.localeCompare(b.time));
 
     // Atualiza classe de modo de edição
-    if (isEditing) {
-      alarmList.classList.add('edit-mode');
-    } else {
-      alarmList.classList.remove('edit-mode');
-    }
+    alarmList.classList.toggle('edit-mode', isEditing);
 
-    // Reconstrói apenas o conteúdo da lista
+    // Estado vazio
+    const emptyMsg = alarmList.querySelector('.alarm-empty-msg');
     if (alarms.length === 0) {
-      alarmList.innerHTML = '<p style="text-align:center; color:var(--text-secondary); margin-top:50px;">No Alarms</p>';
+      // Remove todos os itens existentes
+      alarmList.querySelectorAll('.alarm-item').forEach(el => el.remove());
+      if (!emptyMsg) {
+        alarmList.innerHTML = '<p class="alarm-empty-msg" style="text-align:center; color:var(--text-secondary); margin-top:50px;">No Alarms</p>';
+      }
       return;
     }
+    // Remove mensagem de vazio se existir
+    if (emptyMsg) emptyMsg.remove();
 
-    alarmList.innerHTML = alarms.map(alarm => {
-      const isSnoozing = snoozed[alarm.id];
-      let labelText = escapeHtml(alarm.label || 'Alarm');
-      let htmlContent = labelText;
-      let snoozeText = '';
+    // Mapa de elementos existentes por alarm ID
+    const existingItems = new Map();
+    alarmList.querySelectorAll('.alarm-item[data-alarm-id]').forEach(el => {
+      existingItems.set(Number(el.dataset.alarmId), el);
+    });
 
-      if (isSnoozing) {
-        snoozeText = `<span style="color: var(--accent-orange); font-size: 12px; display: block; margin-top: 2px;">Snoozing until ${isSnoozing} <button class="cancel-snooze-btn" data-id="${alarm.id}" title="Cancel Snooze" style="background:none; border:none; color:var(--text-secondary); cursor:pointer;">✕</button></span>`;
-      } else if (alarm.repeat && alarm.repeat.length > 0) {
-        htmlContent += `, <span style="font-size: 12px; color: var(--text-secondary);">${formatDays(alarm.repeat)}</span>`;
+    // IDs dos alarmes atuais para detectar remoções
+    const currentIds = new Set(alarms.map(a => a.id));
+
+    // Remove itens que não existem mais
+    for (const [id, el] of existingItems) {
+      if (!currentIds.has(id)) {
+        el.remove();
+        existingItems.delete(id);
       }
+    }
 
-      const titleText = labelText + (alarm.repeat && alarm.repeat.length > 0 ? `, ${formatDays(alarm.repeat)}` : '');
+    // Atualiza ou cria cada item na ordem correta
+    let previousNode = null;
+    for (const alarm of alarms) {
+      const existingEl = existingItems.get(alarm.id);
+      const newHTML = buildAlarmItemHTML(alarm, snoozed);
 
-      return `
-          <div class="alarm-item" style="position:relative;">
-             ${isEditing ? `<button class="delete-clock-btn" data-id="${alarm.id}">−</button>` : ''}
-             
-            <div class="alarm-info" data-id="${alarm.id}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
-              <span class="alarm-time ${!alarm.enabled ? 'disabled' : ''}">${alarm.time}</span>
-              <span class="alarm-label" title="${titleText}">${htmlContent}</span>
-              ${snoozeText}
-            </div>
-            
-            ${!isEditing ? `
-                <label class="switch">
-                <input type="checkbox" class="alarm-toggle" data-id="${alarm.id}" ${alarm.enabled ? 'checked' : ''}>
-                <span class="slider round"></span>
-                </label>
-            ` : `<div style="width: 50px;"></div>`}
-            
-          </div>
-        `;
-    }).join('');
+      if (existingEl) {
+        // Atualiza o conteúdo se mudou
+        const temp = document.createElement('div');
+        temp.innerHTML = newHTML;
+        const newEl = temp.firstElementChild;
+
+        if (existingEl.innerHTML !== newEl.innerHTML ||
+          existingEl.className !== newEl.className) {
+          existingEl.className = newEl.className;
+          existingEl.innerHTML = newEl.innerHTML;
+        }
+
+        // Garante a ordem correta
+        const expectedPrev = previousNode;
+        const actualPrev = existingEl.previousElementSibling;
+        if (actualPrev !== expectedPrev) {
+          if (expectedPrev) {
+            expectedPrev.after(existingEl);
+          } else {
+            alarmList.prepend(existingEl);
+          }
+        }
+        previousNode = existingEl;
+      } else {
+        // Cria novo elemento
+        const temp = document.createElement('div');
+        temp.innerHTML = newHTML;
+        const newEl = temp.firstElementChild;
+
+        if (previousNode) {
+          previousNode.after(newEl);
+        } else {
+          alarmList.prepend(newEl);
+        }
+        previousNode = newEl;
+      }
+    }
   }
 
   function formatDays(days) {
@@ -134,8 +207,37 @@ export function Alarm() {
 
       // Edit Mode Toggle
       if (target.closest('#edit-alarm-btn')) {
-        isEditing = !isEditing;
-        render();
+        if (isEditing && selectedAlarms.size > 0) {
+          // Delete selected alarms
+          const count = selectedAlarms.size;
+          if (await confirmDelete(`${count} alarm${count > 1 ? 's' : ''}`, 'Selected')) {
+            for (const id of selectedAlarms) {
+              alarmManager.deleteAlarm(id);
+            }
+            selectedAlarms.clear();
+            render();
+          }
+        } else {
+          isEditing = !isEditing;
+          selectedAlarms.clear();
+          render();
+        }
+        return;
+      }
+
+      // Select checkbox in edit mode
+      if (target.classList.contains('select-checkbox')) {
+        e.stopPropagation();
+        const id = Number(target.dataset.id);
+        if (target.checked) {
+          selectedAlarms.add(id);
+        } else {
+          selectedAlarms.delete(id);
+        }
+        // Update visual state
+        const item = target.closest('.alarm-item');
+        if (item) item.classList.toggle('selected', target.checked);
+        updateHeaderState();
         return;
       }
 
@@ -219,9 +321,9 @@ export function Alarm() {
   }
 
   function getSoundName(id) {
-    const builtIn = alarmManager.getBuiltInSounds().find(s => s.id === id);
-    const custom = alarmManager.getCustomSounds().find(s => s.id === id);
-    return builtIn ? builtIn.name : (custom ? custom.name : DEFAULT_SOUND.NAME || 'Radar (Default)');
+    const builtIn = audioManager.getBuiltInSounds().find(s => s.id === id);
+    const custom = audioManager.getCustomSounds().find(s => s.id === id);
+    return builtIn ? builtIn.name : (custom ? custom.name : 'Radar (Default)');
   }
 
 
@@ -265,7 +367,7 @@ export function Alarm() {
             <div class="modal-section">
                 <div class="modal-row">
                     <span>Label</span>
-                    <input type="text" id="modal-label" value="${alarm.label === 'Alarm' ? '' : alarm.label}" placeholder="Alarm" maxlength="200">
+                    <input type="text" id="modal-label" value="${escapeHtml(alarm.label === 'Alarm' ? '' : alarm.label)}" placeholder="Alarm" maxlength="200">
                 </div>
                 <div class="modal-row">
                     <span>Sound</span>

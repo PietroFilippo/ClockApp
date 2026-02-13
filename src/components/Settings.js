@@ -119,7 +119,7 @@ export function Settings() {
 
         content += `
                 <div style="margin-top: 20px; text-align: center; color: #444; font-size: 12px;">
-                    Clock App v2.4.0
+                    Clock App v3.0.0
                 </div>
             </div>
         `;

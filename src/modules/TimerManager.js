@@ -1,4 +1,5 @@
 import { alarmManager } from './AlarmManager.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
 
 class TimerManager {
     constructor() {
@@ -35,7 +36,7 @@ class TimerManager {
     }
 
     loadState() {
-        const saved = localStorage.getItem('timer-state');
+        const saved = localStorage.getItem(STORAGE_KEYS.TIMER_STATE);
         if (saved) {
             const state = JSON.parse(saved);
             const now = Date.now();
@@ -79,12 +80,12 @@ class TimerManager {
             repeatCount: this.repeatCount,
             lastSaved: Date.now()
         };
-        localStorage.setItem('timer-state', JSON.stringify(state));
+        localStorage.setItem(STORAGE_KEYS.TIMER_STATE, JSON.stringify(state));
     }
 
     loadRecents() {
         try {
-            const saved = localStorage.getItem('timer-recents');
+            const saved = localStorage.getItem(STORAGE_KEYS.TIMER_RECENTS);
             return saved ? JSON.parse(saved) : [];
         } catch (e) {
             console.error('Failed to load recent timers', e);
@@ -93,7 +94,7 @@ class TimerManager {
     }
 
     saveRecents(recents) {
-        localStorage.setItem('timer-recents', JSON.stringify(recents));
+        localStorage.setItem(STORAGE_KEYS.TIMER_RECENTS, JSON.stringify(recents));
         this.notify('recents-updated');
     }
 

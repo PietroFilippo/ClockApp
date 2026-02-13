@@ -1,3 +1,5 @@
+import { STORAGE_KEYS } from '../utils/constants.js';
+
 class StopwatchManager {
     constructor() {
         this.startTime = 0;
@@ -10,7 +12,7 @@ class StopwatchManager {
     }
 
     loadState() {
-        const saved = localStorage.getItem('stopwatch-state');
+        const saved = localStorage.getItem(STORAGE_KEYS.STOPWATCH_STATE);
         if (saved) {
             const state = JSON.parse(saved);
             this.startTime = state.startTime || 0;
@@ -31,7 +33,7 @@ class StopwatchManager {
             previousLapTime: this.previousLapTime,
             speed: this.speed
         };
-        localStorage.setItem('stopwatch-state', JSON.stringify(state));
+        localStorage.setItem(STORAGE_KEYS.STOPWATCH_STATE, JSON.stringify(state));
         // Notifica a UI de mudanças
         window.dispatchEvent(new CustomEvent('stopwatch-update', { detail: state }));
     }

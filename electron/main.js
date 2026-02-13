@@ -167,8 +167,6 @@ function createTray() {
         console.error("Failed to create tray icon:", error);
         // Desabilita minimize to tray se não conseguir criar a UI pra ele
         appSettings.minimizeToTray = false;
-        if (win) {
-        }
     }
 }
 
@@ -439,12 +437,12 @@ ipcMain.handle('delete-file', async (event, filename) => {
     const safeName = path.basename(filename);
     const targetPath = path.join(soundsDir, safeName);
     try {
-        if (fs.existsSync(targetPath)) {
-            fs.unlinkSync(targetPath);
-        }
+        await fs.promises.unlink(targetPath);
     } catch (e) {
-        console.error('Failed to unlink file:', e);
-        return false;
+        if (e.code !== 'ENOENT') {
+            console.error('Failed to delete file:', e);
+            return false;
+        }
     }
     return true;
 });

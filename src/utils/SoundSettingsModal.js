@@ -5,7 +5,7 @@ import { showAlert, showConfirm, truncate } from './notification.js';
 import { LIMITS } from './constants.js';
 
 export function openSoundSettingsModal(onSave) {
-    const volume = alarmManager.getVolume();
+    const volume = audioManager.getVolume();
     const limit = window.electronAPI ? LIMITS.MAX_CUSTOM_SOUNDS_ELECTRON : LIMITS.MAX_CUSTOM_SOUNDS_BROWSER;
     let currentTab = 'pre-installed';
 
@@ -31,7 +31,7 @@ export function openSoundSettingsModal(onSave) {
 
         <div class="sound-picker-tabs">
           <div class="picker-tab active" data-tab="pre-installed">Pre-installed</div>
-          <div class="picker-tab" data-tab="custom">Custom (<span id="custom-count">${alarmManager.getCustomSounds().length}</span>/${limit})</div>
+          <div class="picker-tab" data-tab="custom">Custom (<span id="custom-count">${audioManager.getCustomSounds().length}</span>/${limit})</div>
         </div>
 
         <div class="sound-picker-list" id="sound-list-container">
@@ -88,8 +88,8 @@ export function openSoundSettingsModal(onSave) {
         const container = overlay.querySelector('#sound-list-container');
         const uploadSection = overlay.querySelector('#upload-section');
         const sounds = currentTab === 'pre-installed'
-            ? alarmManager.getBuiltInSounds()
-            : alarmManager.getCustomSounds();
+            ? audioManager.getBuiltInSounds()
+            : audioManager.getCustomSounds();
         const isBuiltIn = currentTab === 'pre-installed';
 
         container.innerHTML = renderSoundListHTML(sounds, isBuiltIn);
@@ -97,12 +97,12 @@ export function openSoundSettingsModal(onSave) {
         // Atualiza contador
         const countSpan = overlay.querySelector('#custom-count');
         if (countSpan) {
-            countSpan.textContent = alarmManager.getCustomSounds().length;
+            countSpan.textContent = audioManager.getCustomSounds().length;
         }
 
         // Mostra upload apenas na aba custom
         if (currentTab === 'custom') {
-            const customSounds = alarmManager.getCustomSounds();
+            const customSounds = audioManager.getCustomSounds();
             const reached = (window.electronAPI && customSounds.length >= LIMITS.MAX_CUSTOM_SOUNDS_ELECTRON) || (!window.electronAPI && customSounds.length >= LIMITS.MAX_CUSTOM_SOUNDS_BROWSER);
 
             if (!reached) {
@@ -155,7 +155,6 @@ export function openSoundSettingsModal(onSave) {
     const volumeSlider = overlay.querySelector('#master-volume');
     volumeSlider.oninput = (e) => {
         const newVol = Number(e.target.value);
-        alarmManager.setVolume(newVol);
         audioManager.setVolume(newVol);
     };
 
@@ -176,7 +175,7 @@ export function openSoundSettingsModal(onSave) {
             const handleResult = (soundData) => {
                 const name = file.name.split('.')[0];
                 stopPreview();
-                const success = alarmManager.addCustomSound(name, soundData);
+                const success = audioManager.addCustomSound(name, soundData);
                 if (success && success.then) {
                     success.then((res) => { if (res) renderList(); });
                 } else if (success) {
@@ -269,7 +268,7 @@ export function openSoundSettingsModal(onSave) {
                         stopPreview();
                     }
 
-                    const result = alarmManager.deleteCustomSound(id);
+                    const result = audioManager.deleteCustomSound(id);
                     if (result && result.then) {
                         result.then(() => renderList());
                     } else {

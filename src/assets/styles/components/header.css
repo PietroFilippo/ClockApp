@@ -5,8 +5,16 @@
     /* Center the title */
     align-items: center;
     margin-bottom: 25px;
-    position: relative;
     min-height: 50px;
+
+    /* Sticky behavior */
+    position: sticky;
+    top: -20px;
+    z-index: 100;
+    background-color: var(--bg-color);
+    margin-left: -20px;
+    margin-right: -20px;
+    padding: 20px 20px 0;
 }
 
 .header h1 {
@@ -16,13 +24,13 @@
 
 .header>.edit-btn {
     position: absolute;
-    left: 0;
+    left: 20px;
 }
 
 .header>.add-btn,
 .header>.add-btn-container {
     position: absolute;
-    right: 0;
+    right: 20px;
     display: flex;
     align-items: center;
     gap: 10px;

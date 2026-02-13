@@ -60,11 +60,31 @@
         button:hover {
             background: #ffb347;
         }
+
+        .close-btn {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 2px 6px;
+            width: auto;
+            -webkit-app-region: no-drag;
+        }
+
+        .close-btn:hover {
+            color: white;
+            background: none;
+        }
     </style>
 </head>
 
 <body>
-    <div class="container">
+    <div class="container" style="position: relative;">
+        <button class="close-btn" id="close-btn" title="Cancel">✕</button>
         <h3>Notification Position</h3>
         <p>Drag this window to where you want notifications to appear.</p>
         <button id="save-btn">Save Position</button>
@@ -73,6 +93,9 @@
     <script>
         document.getElementById('save-btn').onclick = () => {
             window.electronAPI.saveCustomPosition();
+        };
+        document.getElementById('close-btn').onclick = () => {
+            window.close();
         };
     </script>
 </body>

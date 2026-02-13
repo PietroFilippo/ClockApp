@@ -1,4 +1,5 @@
 import { showAlert } from './notification.js';
+import { STORAGE_KEYS, LIMITS } from './constants.js';
 
 class AudioManager {
     constructor() {
@@ -18,8 +19,8 @@ class AudioManager {
             { id: 'sci-fi-confirmation', name: 'Sci-Fi Confirmation', data: 'sounds/sci-fi-confirmation.wav' }
         ];
 
-        this.customSounds = JSON.parse(localStorage.getItem('customSounds')) || [];
-        this.volume = parseFloat(localStorage.getItem('alarmVolume')) || 1.0;
+        this.customSounds = JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOM_SOUNDS)) || [];
+        this.volume = parseFloat(localStorage.getItem(STORAGE_KEYS.ALARM_VOLUME)) || 1.0;
 
         // Audio principal para alarmes e timers
         this.mainAudio = new Audio();
@@ -54,7 +55,7 @@ class AudioManager {
         this.volume = Math.max(0, Math.min(1, value));
         this.mainAudio.volume = this.volume;
         this.previewAudio.volume = this.volume;
-        localStorage.setItem('alarmVolume', this.volume);
+        localStorage.setItem(STORAGE_KEYS.ALARM_VOLUME, this.volume);
     }
 
     getSoundSrc(soundId) {
@@ -97,7 +98,7 @@ class AudioManager {
     // Gerenciamento de sons personalizados
     async addCustomSound(name, data) {
         const isElectron = !!window.electronAPI;
-        const limit = isElectron ? 20 : 10;
+        const limit = isElectron ? LIMITS.MAX_CUSTOM_SOUNDS_ELECTRON : LIMITS.MAX_CUSTOM_SOUNDS_BROWSER;
 
         if (this.customSounds.length >= limit) {
             showAlert(`Maximum of ${limit} custom sounds allowed.`, 'Limit Reached');
@@ -152,10 +153,8 @@ class AudioManager {
     }
 
     saveCustomSounds() {
-        localStorage.setItem('customSounds', JSON.stringify(this.customSounds));
-        document.dispatchEvent(new CustomEvent('sounds-updated')); // Novo event name
-        // Suporte legacy se necessário
-        document.dispatchEvent(new CustomEvent('alarms-updated'));
+        localStorage.setItem(STORAGE_KEYS.CUSTOM_SOUNDS, JSON.stringify(this.customSounds));
+        document.dispatchEvent(new CustomEvent('sounds-updated'));
     }
 }
 

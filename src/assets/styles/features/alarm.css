@@ -89,3 +89,21 @@
     color: black;
     border-color: var(--accent-orange);
 }
+
+/* ─── Multi-select checkboxes in edit mode ────── */
+.select-checkbox {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent-orange);
+    cursor: pointer;
+    z-index: 2;
+}
+
+.alarm-item.selected {
+    background: rgba(255, 159, 10, 0.08);
+    border-radius: 10px;
+}

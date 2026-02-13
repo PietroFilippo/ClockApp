@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
     STOPWATCH_FASTEST_COLOR: 'stopwatch-fastest-color',
     STOPWATCH_SLOWEST_COLOR: 'stopwatch-slowest-color',
     STOPWATCH_CUSTOM_COLORS: 'stopwatch-custom-colors',
+    STOPWATCH_KEYBINDS: 'stopwatch-keybinds',
     SETTINGS: 'app-settings'
 };
 

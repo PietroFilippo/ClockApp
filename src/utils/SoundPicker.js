@@ -4,8 +4,8 @@ import { showModal } from './modal.js';
 import { truncate } from './notification.js';
 
 export function openSoundPicker(currentSoundId, onSelect) {
-    const builtInSounds = alarmManager.getBuiltInSounds();
-    const customSounds = alarmManager.getCustomSounds();
+    const builtInSounds = audioManager.getBuiltInSounds();
+    const customSounds = audioManager.getCustomSounds();
     let currentTab = 'pre-installed';
     let playingId = null;
 
@@ -22,14 +22,8 @@ export function openSoundPicker(currentSoundId, onSelect) {
         `,
         onSave: () => {
             stopPreview();
-        },
-        footer: '' // não precisa de botão de salvar, seleção é imediata ou o footer é removido
+        }
     });
-
-    // Remove o footer padrão para uma experiência mais limpa de pick and close
-    const modalContent = overlay.querySelector('.modal-content');
-    const footer = modalContent.querySelector('.modal-footer');
-    if (footer) footer.remove();
 
     // Para o audio quando o modal é fechado clicando fora ou pressionando esc
     const observer = new MutationObserver((mutations) => {

@@ -17,6 +17,7 @@ export function Timer() {
 
     let isEditing = false;
     let recents = [];
+    let selectedRecents = new Set();
     let currentMode = null; // 'picker' | 'running'
 
     initDelegatedListeners();
@@ -55,8 +56,34 @@ export function Timer() {
 
             // Edit Recents Toggle
             if (target.closest('#edit-recents-btn')) {
-                isEditing = !isEditing;
-                render();
+                if (isEditing && selectedRecents.size > 0) {
+                    const count = selectedRecents.size;
+                    if (await confirmDelete(`${count} timer${count > 1 ? 's' : ''}`, 'Selected')) {
+                        for (const id of selectedRecents) {
+                            timerManager.deleteRecentTimer(id);
+                        }
+                        selectedRecents.clear();
+                        render();
+                    }
+                } else {
+                    isEditing = !isEditing;
+                    selectedRecents.clear();
+                    render();
+                }
+                return;
+            }
+            // Select checkbox in edit mode
+            if (target.classList.contains('select-checkbox')) {
+                e.stopPropagation();
+                const id = target.dataset.id;
+                if (target.checked) {
+                    selectedRecents.add(id);
+                } else {
+                    selectedRecents.delete(id);
+                }
+                const item = target.closest('.alarm-item');
+                if (item) item.classList.toggle('selected', target.checked);
+                updatePickerHeaderState();
                 return;
             }
             // Recents Play
@@ -145,7 +172,7 @@ export function Timer() {
       <div class="modal-section" style="margin: 0 auto 30px;">
           <div class="modal-row">
               <span>Label</span>
-              <input type="text" id="timer-label" value="${state.label || ''}" placeholder="Timer" maxlength="200">
+              <input type="text" id="timer-label" value="${escapeHtml(state.label || '')}" placeholder="Timer" maxlength="200">
           </div>
           <div class="modal-row">
               <span>When Timer Ends</span>
@@ -206,7 +233,13 @@ export function Timer() {
     function updatePickerHeaderState() {
         const editBtn = container.querySelector('#edit-recents-btn');
         if (editBtn) {
-            editBtn.textContent = isEditing ? 'Done' : 'Edit';
+            if (isEditing && selectedRecents.size > 0) {
+                editBtn.textContent = `Delete (${selectedRecents.size})`;
+                editBtn.style.color = 'var(--accent-red)';
+            } else {
+                editBtn.textContent = isEditing ? 'Done' : 'Edit';
+                editBtn.style.color = '';
+            }
             editBtn.style.visibility = recents.length > 0 ? 'visible' : 'hidden';
         }
     }
@@ -227,8 +260,8 @@ export function Timer() {
         if (recent.seconds > 0) durationParts.push(`${recent.seconds} s`);
 
         return `
-          <div class="alarm-item recent-item" style="position:relative;">
-            ${isEditing ? `<button class="delete-clock-btn delete-recent-btn" data-id="${recent.id}">−</button>` : ''}
+          <div class="alarm-item recent-item ${selectedRecents.has(recent.id) ? 'selected' : ''}" style="position:relative;">
+            ${isEditing ? `<button class="delete-clock-btn delete-recent-btn" data-id="${recent.id}">−</button><input type="checkbox" class="select-checkbox" data-id="${recent.id}" ${selectedRecents.has(recent.id) ? 'checked' : ''}>` : ''}
             <div class="alarm-info recent-item-info" data-id="${recent.id}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
               <span class="alarm-time" style="font-size: 32px;">${timeString}</span>
               <span class="alarm-label" title="${escapeHtml(recent.label || 'Timer')}">${escapeHtml(recent.label || 'Timer')}</span>
@@ -268,7 +301,7 @@ export function Timer() {
     <div class="modal-section">
         <div class="modal-row">
             <span>Label</span>
-            <input type="text" id="modal-label" value="${recent.label || ''}" placeholder="Timer" maxlength="200">
+            <input type="text" id="modal-label" value="${escapeHtml(recent.label || '')}" placeholder="Timer" maxlength="200">
         </div>
         <div class="modal-row">
             <span>Sound</span>

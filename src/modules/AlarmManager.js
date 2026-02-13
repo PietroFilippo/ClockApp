@@ -1,11 +1,12 @@
 import { audioManager } from '../utils/AudioManager.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
 
 export class AlarmManager {
     constructor() {
-        this.alarms = JSON.parse(localStorage.getItem('alarms')) || [];
+        this.alarms = JSON.parse(localStorage.getItem(STORAGE_KEYS.ALARMS)) || [];
         this.permissionsGranted = false;
         this.checkTimeout = null;
-        this.snoozedAlarms = JSON.parse(localStorage.getItem('snoozed-alarms')) || {};
+        this.snoozedAlarms = JSON.parse(localStorage.getItem(STORAGE_KEYS.SNOOZED_ALARMS)) || {};
         this.activeAlerts = []; // Queue/Stack para notificações ativas
         this.lastUsedSound = localStorage.getItem('lastUsedSound') || 'default';
     }
@@ -377,8 +378,8 @@ export class AlarmManager {
     }
 
     saveAlarms() {
-        localStorage.setItem('alarms', JSON.stringify(this.alarms));
-        localStorage.setItem('snoozed-alarms', JSON.stringify(this.snoozedAlarms));
+        localStorage.setItem(STORAGE_KEYS.ALARMS, JSON.stringify(this.alarms));
+        localStorage.setItem(STORAGE_KEYS.SNOOZED_ALARMS, JSON.stringify(this.snoozedAlarms));
         document.dispatchEvent(new CustomEvent('alarms-updated'));
     }
 
@@ -388,29 +389,6 @@ export class AlarmManager {
 
     getSnoozedAlarms() {
         return this.snoozedAlarms;
-    }
-
-    // getters/setters do proxy
-    getVolume() {
-        return audioManager.getVolume();
-    }
-
-    setVolume(value) {
-        audioManager.setVolume(value);
-    }
-
-    // métodos proxy para custom sound
-    async addCustomSound(name, data) {
-        return audioManager.addCustomSound(name, data);
-    }
-
-    async deleteCustomSound(id) {
-        return audioManager.deleteCustomSound(id);
-    }
-
-    // método legacy
-    saveCustomSounds() {
-        // audioManager gerencia o salvamento
     }
 }
 

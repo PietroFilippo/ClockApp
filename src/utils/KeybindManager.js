@@ -16,7 +16,10 @@ const DEFAULT_KEYBINDS = {
     reset: 'Alt+R'
 };
 
-const STORAGE_KEY = 'stopwatch-keybinds';
+
+
+
+import { STORAGE_KEYS } from './constants.js';
 
 export class KeybindManager {
     constructor({ onAction, onUpdate }) {
@@ -24,13 +27,13 @@ export class KeybindManager {
         this.onUpdate = onUpdate;
 
         // State
-        this.keybinds = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { ...DEFAULT_KEYBINDS };
+        this.keybinds = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_KEYBINDS)) || { ...DEFAULT_KEYBINDS };
         this.isListeningForKey = null;
 
         // Carrega configurações de atalhos globais
         let storedSettings = {};
         try {
-            storedSettings = JSON.parse(localStorage.getItem('app-settings')) || {};
+            storedSettings = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS)) || {};
         } catch (e) { }
         this.useGlobalShortcuts = storedSettings.globalShortcuts !== false;
 
@@ -169,7 +172,7 @@ export class KeybindManager {
     // --- Private ---
 
     _save() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.keybinds));
+        localStorage.setItem(STORAGE_KEYS.STOPWATCH_KEYBINDS, JSON.stringify(this.keybinds));
     }
 
     _handleLocalKeydown(e) {

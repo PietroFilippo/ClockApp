@@ -1,4 +1,5 @@
 import { showModal } from '../utils/modal.js';
+import { escapeHtml } from '../utils/sanitize.js';
 
 /**
  * Mostra ringing overlay pra Alarmes ou Timers.
@@ -14,11 +15,13 @@ import { showModal } from '../utils/modal.js';
  * @returns {HTMLElement} overlay element.
  */
 export function showRingOverlay({ title, timeDisplay, label, actionButton, onStop }) {
+    const safeTimeDisplay = escapeHtml(timeDisplay);
+    const safeLabel = escapeHtml(label);
     const content = `
     <div style="text-align:center;">
-        <h1 style="font-size:48px; margin:20px 0; overflow-wrap:break-word; word-wrap:break-word; text-align:center;">${timeDisplay}</h1>
-        <p style="color:var(--text-secondary); font-size:24px; margin-bottom:15px; overflow-wrap:break-word; word-wrap:break-word;" title="${label}">${label}</p>
-        ${actionButton ? `<button class="modal-btn action-btn" style="background:var(--accent-orange); color:black; width:100%; margin-bottom:10px;">${actionButton.text}</button>` : ''}
+        <h1 style="font-size:48px; margin:20px 0; overflow-wrap:break-word; word-wrap:break-word; text-align:center;">${safeTimeDisplay}</h1>
+        <p style="color:var(--text-secondary); font-size:24px; margin-bottom:15px; overflow-wrap:break-word; word-wrap:break-word;" title="${safeLabel}">${safeLabel}</p>
+        ${actionButton ? `<button class="modal-btn action-btn" style="background:var(--accent-orange); color:black; width:100%; margin-bottom:10px;">${escapeHtml(actionButton.text)}</button>` : ''}
     </div>
   `;
 

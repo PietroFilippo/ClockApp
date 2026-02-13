@@ -95,12 +95,134 @@
 }
 
 .edit-mode .drag-handle {
-    transform: translateY(-50%) translateX(0);
+    position: static;
+    transform: none;
     opacity: 1;
     pointer-events: auto;
+    margin-left: 12px;
 }
 
 .clock-card.dragging {
     opacity: 0.5;
     background: #333;
+}
+
+.clock-card.selected {
+    background: rgba(255, 159, 10, 0.08);
+}
+
+.clock-card .select-checkbox {
+    position: static;
+    transform: none;
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent-orange);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+/* ─── City Search Filter Bar ─────────────────────── */
+.city-filter-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.city-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.city-sort-dropdown select {
+    background: #2c2c2e;
+    color: var(--text-primary);
+    border: 1px solid #48484a;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: var(--font-family);
+    cursor: pointer;
+    outline: none;
+    min-width: 80px;
+}
+
+.city-sort-dropdown select:hover {
+    border-color: var(--accent-orange);
+}
+
+.city-clear-btn {
+    background: rgba(255, 69, 58, 0.15);
+    color: var(--accent-red);
+    border: 1px solid rgba(255, 69, 58, 0.3);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: var(--font-family);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.city-clear-btn:hover {
+    background: rgba(255, 69, 58, 0.3);
+    border-color: var(--accent-red);
+}
+
+.city-letter-index {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    justify-content: center;
+}
+
+.letter-btn {
+    background: none;
+    border: none;
+    color: var(--accent-orange);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-family);
+    cursor: pointer;
+    width: 22px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.letter-btn:hover:not(.disabled) {
+    background: rgba(255, 159, 10, 0.15);
+}
+
+.letter-btn.active {
+    background: var(--accent-orange);
+    color: #000;
+}
+
+.letter-btn.disabled {
+    color: #48484a;
+    cursor: default;
+    pointer-events: none;
+}
+
+.city-list-container {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-height: 100px;
+}
+
+.city-item-btn:hover {
+    background: #3a3a3c !important;
 }
