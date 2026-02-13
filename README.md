@@ -18,8 +18,10 @@ O **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina
 
 ### 🌍 Relógio Mundial
 - Adicione múltiplos relógios de diferentes fusos horários
-- Pesquisa de cidades integrada com suporte a vários idiomas
+- **350+ cidades** geradas dinamicamente via `Intl.supportedValuesOf('timeZone')`
+- **Busca avançada**: Filtro por continente, índice de letras (multi-select), ordenação por nome (A-Z, Z-A) e fuso horário (GMT±)
 - **Drag & Drop**: Reordene os relógios arrastando e soltando
+- **Seleção múltipla**: Selecione e delete vários relógios de uma vez
 - Visualização clara da diferença de horário (Offset GMT)
 - Menu de contexto (clique direito) para editar ou deletar
 
@@ -29,6 +31,7 @@ O **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina
 - **Sons Personalizados**: Escolha entre 13 sons inclusos ou adicione seus próprios arquivos de áudio
 - **Soneca (Snooze)**: Adie alarmes com intervalos configuráveis (1–30 min)
 - **Persistência**: Alarmes, estados de soneca e configurações são salvos automaticamente
+- **Seleção múltipla**: Selecione e delete vários alarmes de uma vez
 - Menu de contexto para edição e exclusão rápida
 
 ### ⏱️ Cronômetro
@@ -45,6 +48,7 @@ O **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina
 - **Repetir**: Repita o último timer diretamente da notificação
 - Seleção direta de horas, minutos e segundos com validação
 - Modo de edição para gerenciar lista de recentes
+- **Seleção múltipla**: Selecione e delete vários timers recentes de uma vez
 
 ### ⚙️ Configurações
 | Configuração | Descrição |
@@ -127,7 +131,7 @@ clockapp/
 │   │   └── sanitize.js             # Escape de HTML
 │   │
 │   ├── data/
-│   │   └── timezones.js            # Lista de fusos horários
+│   │   └── timezones.js            # 350+ fusos horários gerados via Intl API
 │   │
 │   └── assets/styles/              # Estilos CSS
 │       ├── index.css               # Entry point de estilos (@import)
@@ -149,7 +153,7 @@ clockapp/
 ├── public/                         # Assets estáticos
 │   ├── icon.png                    # Ícone do app
 │   ├── manifest.json               # PWA manifest
-│   ├── sw.js                       # Service Worker
+│   ├── sw.js                       # Service Worker (network-first caching)
 │   └── sounds/                     # 13 sons inclusos (alarmes e notificações)
 │
 ├── release/                        # Saída dos builds de produção
@@ -161,14 +165,15 @@ clockapp/
 ### Padrões de Renderização
 
 Os componentes utilizam um padrão otimizado de renderização:
-- **Skeleton estático**: A estrutura HTML é criada uma única vez no `container`
-- **Updates granulares**: Apenas os elementos dinâmicos (listas, contadores, estados de botões) são atualizados
+- **Skeleton estático**: A estrutura HTML (header, containers) é criada uma única vez no `container`
+- **Reconciliação DOM por chave**: Listas (alarmes, relógios) usam `data-alarm-id` / `data-index` para atualizar, criar ou remover apenas os elementos que mudaram, sem rebuilds via `innerHTML`
+- **Updates granulares**: Apenas os elementos dinâmicos (contadores, estados de botões) são atualizados
 - **Delegação de eventos**: Event listeners são registrados uma vez no container via delegação
 - **Tracking de modo**: Timer.js rastreia o modo (picker/running) para evitar rebuilds desnecessários
 
 ### Comunicação IPC
 
-A comunicação entre Main ↔ Renderer é feita exclusivamente via `contextBridge` + `ipcRenderer` (exposto como `window.electronAPI`), garantindo isolamento de contexto (`contextIsolation: true`).
+A comunicação entre Main ↔ Renderer é feita exclusivamente via `contextBridge` + `ipcRenderer` (exposto como `window.electronAPI`), garantindo isolamento de contexto (`contextIsolation: true`). O `preload.js` inclui funções de remoção de listeners para evitar vazamentos de memória.
 
 ---
 
