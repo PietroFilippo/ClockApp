@@ -67,3 +67,106 @@
     transition: stroke-dashoffset 0.1s linear;
     transform-origin: 50% 50%;
 }
+
+.timer-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin: 20px 0 10px;
+}
+
+.timer-tab {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.timer-tab:hover {
+    color: white;
+}
+
+.timer-tab.active {
+    color: var(--accent-orange);
+    border-bottom-color: var(--accent-orange);
+}
+
+.save-timer-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.save-timer-btn:hover {
+    color: #ffd60a;
+}
+
+/* Replace Timer Modal */
+.replace-timer-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    /* Add spacing between items */
+}
+
+.replace-item {
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.05);
+    /* Slight background to distinguish items */
+    border-radius: 8px;
+    /* Rounded corners */
+    padding: 10px 15px;
+    /* Comfortable padding */
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    align-items: center;
+    /* Ensure flex from alarm-item doesn't break */
+    display: flex;
+    justify-content: space-between;
+}
+
+.replace-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.replace-item .alarm-info {
+    margin-right: 0;
+    /* No switch/delete button here */
+    display: flex;
+    flex-direction: row;
+    /* Align time and label horizontally if space permits, or stick to column */
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.replace-item .alarm-time {
+    font-size: 24px;
+    /* Reduced from 32px for modal context */
+    font-weight: 300;
+}
+
+.replace-item .alarm-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    max-width: 150px;
+    /* Limit label width */
+    text-align: right;
+}

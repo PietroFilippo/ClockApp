@@ -1,5 +1,5 @@
 import { alarmManager } from './AlarmManager.js';
-import { STORAGE_KEYS } from '../utils/constants.js';
+import { STORAGE_KEYS, LIMITS } from '../utils/constants.js';
 
 class TimerManager {
     constructor() {
@@ -140,6 +140,64 @@ class TimerManager {
         recents = recents.filter(r => r.id !== id);
         this.saveRecents(recents);
     }
+
+    // Timers salvos
+
+    loadSaved() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEYS.TIMER_SAVED);
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            console.error('Failed to load saved timers', e);
+            return [];
+        }
+    }
+
+    saveSaved(saved) {
+        localStorage.setItem(STORAGE_KEYS.TIMER_SAVED, JSON.stringify(saved));
+        this.notify('saved-updated');
+    }
+
+    getSaved() {
+        return this.loadSaved();
+    }
+
+    addSavedTimer(timer) {
+        let saved = this.loadSaved();
+        if (saved.length >= LIMITS.MAX_TIMER_SAVED) {
+            return { success: false, saved };
+        }
+        saved.push({ ...timer, id: Date.now().toString(), savedAt: Date.now() });
+        this.saveSaved(saved);
+        return { success: true, saved };
+    }
+
+    updateSavedTimer(id, updates) {
+        let saved = this.loadSaved();
+        const index = saved.findIndex(s => s.id === id);
+        if (index !== -1) {
+            saved[index] = { ...saved[index], ...updates };
+            this.saveSaved(saved);
+        }
+    }
+
+    deleteSavedTimer(id) {
+        let saved = this.loadSaved();
+        saved = saved.filter(s => s.id !== id);
+        this.saveSaved(saved);
+    }
+
+    replaceSavedTimer(oldId, newTimer) {
+        let saved = this.loadSaved();
+        const index = saved.findIndex(s => s.id === oldId);
+        if (index !== -1) {
+            saved[index] = { ...newTimer, id: Date.now().toString(), savedAt: Date.now() };
+            this.saveSaved(saved);
+            return true;
+        }
+        return false;
+    }
+
 
     async updatePowerBlocker() {
         if (window.electronAPI) {

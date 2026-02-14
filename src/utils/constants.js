@@ -3,6 +3,7 @@ export const STORAGE_KEYS = {
     SNOOZED_ALARMS: 'snoozedAlarms',
     TIMER_STATE: 'timer-state',
     TIMER_RECENTS: 'timer-recents',
+    TIMER_SAVED: 'timer-saved',
     STOPWATCH_STATE: 'stopwatch-state',
     WORLD_CLOCKS: 'worldClocks',
     CUSTOM_SOUNDS: 'customSounds',
@@ -20,8 +21,8 @@ export const COLORS = {
     ACCENT_GREEN: '#30d158',
     TEXT_PRIMARY: '#ffffff',
     TEXT_SECONDARY: '#8e8e93',
-    DEFAULT_FASTEST_LAP: '#30d158', // verde
-    DEFAULT_SLOWEST_LAP: '#ff453a'  // vermelho
+    DEFAULT_FASTEST_LAP: '#30d158',
+    DEFAULT_SLOWEST_LAP: '#ff453a'
 };
 
 export const LIMITS = {
@@ -29,6 +30,7 @@ export const LIMITS = {
     MAX_CUSTOM_SOUNDS_ELECTRON: 20,
     MAX_CUSTOM_COLORS: 10,
     MAX_TIMER_RECENTS: 20,
+    MAX_TIMER_SAVED: 10,
     MAX_FILE_SIZE_BYTES_BROWSER: 2 * 1024 * 1024, // 2MB
     MAX_FILE_SIZE_BYTES_ELECTRON: 100 * 1024 * 1024, // 100MB
     MAX_FILE_SIZE_MB_BROWSER: 2,

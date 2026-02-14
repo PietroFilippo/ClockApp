@@ -1,12 +1,13 @@
 import { alarmManager } from '../modules/AlarmManager.js';
 import { timerManager } from '../modules/TimerManager.js';
+import { audioManager } from '../utils/AudioManager.js';
 import { showModal } from '../utils/modal.js';
 import { showAlert, showConfirm, truncate, confirmDelete } from '../utils/notification.js';
 import { escapeHtml } from '../utils/sanitize.js';
 import { openSoundPicker } from '../utils/SoundPicker.js';
 import { openSoundSettingsModal } from '../utils/SoundSettingsModal.js';
 import { contextMenu } from '../utils/contextMenu.js';
-import { STORAGE_KEYS, DEFAULT_SOUND } from '../utils/constants.js';
+import { STORAGE_KEYS, DEFAULT_SOUND, LIMITS } from '../utils/constants.js';
 
 export function Timer() {
     const container = document.createElement('div');
@@ -17,13 +18,19 @@ export function Timer() {
 
     let isEditing = false;
     let recents = [];
+    let savedTimers = [];
     let selectedRecents = new Set();
     let currentMode = null; // 'picker' | 'running'
+    let activeTab = 'recents'; // 'recents' | 'saved'
 
     initDelegatedListeners();
 
     function loadRecents() {
         recents = timerManager.getRecents();
+    }
+
+    function loadSaved() {
+        savedTimers = timerManager.getSaved();
     }
 
     function render() {
@@ -54,13 +61,30 @@ export function Timer() {
         container.addEventListener('click', async (e) => {
             const target = e.target;
 
-            // Edit Recents Toggle
+            // Tab switching
+            if (target.closest('.timer-tab')) {
+                const tab = target.closest('.timer-tab');
+                const newTab = tab.dataset.tab;
+                if (newTab && newTab !== activeTab) {
+                    activeTab = newTab;
+                    isEditing = false;
+                    selectedRecents.clear();
+                    render();
+                }
+                return;
+            }
+
+            // Edit Toggle
             if (target.closest('#edit-recents-btn')) {
                 if (isEditing && selectedRecents.size > 0) {
                     const count = selectedRecents.size;
                     if (await confirmDelete(`${count} timer${count > 1 ? 's' : ''}`, 'Selected')) {
                         for (const id of selectedRecents) {
-                            timerManager.deleteRecentTimer(id);
+                            if (activeTab === 'saved') {
+                                timerManager.deleteSavedTimer(id);
+                            } else {
+                                timerManager.deleteRecentTimer(id);
+                            }
                         }
                         selectedRecents.clear();
                         render();
@@ -72,7 +96,8 @@ export function Timer() {
                 }
                 return;
             }
-            // Select checkbox in edit mode
+
+            // Seleciona checkbox no modo de edição
             if (target.classList.contains('select-checkbox')) {
                 e.stopPropagation();
                 const id = target.dataset.id;
@@ -86,31 +111,60 @@ export function Timer() {
                 updatePickerHeaderState();
                 return;
             }
-            // Recents Play
+
+            // Botão de play
             if (target.closest('.recent-item-play')) {
                 e.stopPropagation();
                 const btn = target.closest('.recent-item-play');
                 const id = btn.dataset.id;
-                startRecent(id);
+                const isSaved = btn.dataset.type === 'saved';
+                if (isSaved) {
+                    startSaved(id);
+                } else {
+                    startRecent(id);
+                }
                 return;
             }
 
-            // Delete Recent
+            // Botão de salvar (ícone de marcador nos recents)
+            if (target.closest('.save-timer-btn')) {
+                e.stopPropagation();
+                const btn = target.closest('.save-timer-btn');
+                const id = btn.dataset.id;
+                saveRecentTimer(id);
+                return;
+            }
+
+            // Botão de deletar (modo de edição)
             if (target.closest('.delete-recent-btn')) {
                 e.stopPropagation();
                 const btn = target.closest('.delete-recent-btn');
                 const id = btn.dataset.id;
-                await confirmAndDeleteRecent(id);
+                if (activeTab === 'saved') {
+                    await confirmAndDeleteSaved(id);
+                } else {
+                    await confirmAndDeleteRecent(id);
+                }
                 return;
             }
 
+            // Clicar no item de info (editar ou tocar)
             const recentInfo = target.closest('.recent-item-info');
             if (recentInfo) {
                 const id = recentInfo.dataset.id;
+                const isSaved = recentInfo.dataset.type === 'saved';
                 if (isEditing) {
-                    openRecentEditModal(id);
+                    if (isSaved) {
+                        openSavedEditModal(id);
+                    } else {
+                        openRecentEditModal(id);
+                    }
                 } else {
-                    startRecent(id);
+                    if (isSaved) {
+                        startSaved(id);
+                    } else {
+                        startRecent(id);
+                    }
                 }
             }
         });
@@ -120,19 +174,30 @@ export function Timer() {
             if (recentInfo) {
                 e.preventDefault();
                 const id = recentInfo.dataset.id;
+                const isSaved = recentInfo.dataset.type === 'saved';
 
-                contextMenu.show(e.clientX, e.clientY, [
+                const items = [
                     {
                         label: 'Edit',
                         primary: true,
-                        action: () => openRecentEditModal(id)
+                        action: () => isSaved ? openSavedEditModal(id) : openRecentEditModal(id)
                     },
                     {
                         label: 'Delete',
                         danger: true,
-                        action: () => confirmAndDeleteRecent(id)
+                        action: () => isSaved ? confirmAndDeleteSaved(id) : confirmAndDeleteRecent(id)
                     }
-                ]);
+                ];
+
+                // Adiciona "Salvar" para recents que ainda não estão salvos
+                if (!isSaved) {
+                    items.splice(1, 0, {
+                        label: 'Save',
+                        action: () => saveRecentTimer(id)
+                    });
+                }
+
+                contextMenu.show(e.clientX, e.clientY, items);
             }
         });
     }
@@ -146,7 +211,46 @@ export function Timer() {
         }
     }
 
+    async function confirmAndDeleteSaved(id) {
+        const saved = savedTimers.find(s => s.id === id);
+        const label = saved ? (saved.label || 'Timer') : 'this timer';
+        if (await confirmDelete(label, 'Saved Timer')) {
+            timerManager.deleteSavedTimer(id);
+            render();
+        }
+    }
+
+    function saveRecentTimer(id) {
+        const recent = recents.find(r => r.id === id);
+        if (!recent) return;
+
+        const timerData = {
+            hours: recent.hours,
+            minutes: recent.minutes,
+            seconds: recent.seconds,
+            label: recent.label,
+            soundId: recent.soundId
+        };
+
+        const result = timerManager.addSavedTimer(timerData);
+        if (result.success) {
+            showAlert('Timer saved!', 'Success');
+            render();
+        } else {
+            // Limite atingido — abre o modal de substituição
+            openReplaceModal(timerData);
+        }
+    }
+
+    function startSaved(id) {
+        const saved = savedTimers.find(s => s.id === id);
+        if (saved) {
+            timerManager.start(saved.hours, saved.minutes, saved.seconds, saved.label, saved.soundId);
+        }
+    }
+
     function initPickerView(state) {
+        loadSaved();
         const soundId = state.soundId || alarmManager.getLastUsedSound();
         container.innerHTML = `
       <div class="header">
@@ -226,6 +330,7 @@ export function Timer() {
     }
 
     function updatePickerView(state) {
+        loadSaved();
         updatePickerHeaderState();
         updateRecentsSection();
     }
@@ -240,36 +345,36 @@ export function Timer() {
                 editBtn.textContent = isEditing ? 'Done' : 'Edit';
                 editBtn.style.color = '';
             }
-            editBtn.style.visibility = recents.length > 0 ? 'visible' : 'hidden';
+            const hasItems = activeTab === 'saved' ? savedTimers.length > 0 : recents.length > 0;
+            editBtn.style.visibility = hasItems ? 'visible' : 'hidden';
         }
     }
 
     function getSoundName(id) {
-        const builtIn = alarmManager.getBuiltInSounds().find(s => s.id === id);
-        const custom = alarmManager.getCustomSounds().find(s => s.id === id);
-        return builtIn ? builtIn.name : (custom ? custom.name : DEFAULT_SOUND.NAME);
+        const builtIn = audioManager.getBuiltInSounds().find(s => s.id === id);
+        const custom = audioManager.getCustomSounds().find(s => s.id === id);
+        return builtIn ? builtIn.name : (custom ? custom.name : 'Radar (Default)');
     }
 
-    function renderRecentItem(recent) {
-        const totalSecs = (recent.hours || 0) * 3600 + (recent.minutes || 0) * 60 + (recent.seconds || 0);
+    function renderTimerItem(timer, type = 'recent') {
+        const totalSecs = (timer.hours || 0) * 3600 + (timer.minutes || 0) * 60 + (timer.seconds || 0);
         const timeString = formatTime(totalSecs);
-
-        let durationParts = [];
-        if (recent.hours > 0) durationParts.push(`${recent.hours} h`);
-        if (recent.minutes > 0) durationParts.push(`${recent.minutes} min`);
-        if (recent.seconds > 0) durationParts.push(`${recent.seconds} s`);
+        const isSaved = type === 'saved';
 
         return `
-          <div class="alarm-item recent-item ${selectedRecents.has(recent.id) ? 'selected' : ''}" style="position:relative;">
-            ${isEditing ? `<button class="delete-clock-btn delete-recent-btn" data-id="${recent.id}">−</button><input type="checkbox" class="select-checkbox" data-id="${recent.id}" ${selectedRecents.has(recent.id) ? 'checked' : ''}>` : ''}
-            <div class="alarm-info recent-item-info" data-id="${recent.id}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
+          <div class="alarm-item recent-item ${selectedRecents.has(timer.id) ? 'selected' : ''}" style="position:relative;">
+            ${isEditing ? `<button class="delete-clock-btn delete-recent-btn" data-id="${timer.id}">−</button><input type="checkbox" class="select-checkbox" data-id="${timer.id}" ${selectedRecents.has(timer.id) ? 'checked' : ''}>` : ''}
+            <div class="alarm-info recent-item-info" data-id="${timer.id}" data-type="${type}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
               <span class="alarm-time" style="font-size: 32px;">${timeString}</span>
-              <span class="alarm-label" title="${escapeHtml(recent.label || 'Timer')}">${escapeHtml(recent.label || 'Timer')}</span>
+              <span class="alarm-label" title="${escapeHtml(timer.label || 'Timer')}">${escapeHtml(timer.label || 'Timer')}</span>
             </div>
             ${!isEditing ? `
-                <button class="control-btn start recent-item-play" data-id="${recent.id}" style="width: 40px; height: 40px; min-width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;">
-                  ▶
-                </button>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  ${!isSaved ? `<button class="save-timer-btn" data-id="${timer.id}" title="Save Timer">★</button>` : ''}
+                  <button class="control-btn start recent-item-play" data-id="${timer.id}" data-type="${type}" style="width: 40px; height: 40px; min-width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                    ▶
+                  </button>
+                </div>
             ` : `<div style="width: 40px;"></div>`
             }
           </div>
@@ -419,16 +524,29 @@ export function Timer() {
         const recentsContainer = container.querySelector('.recents-container');
         if (!recentsContainer) return;
 
-        if (recents.length === 0) {
+        const hasRecents = recents.length > 0;
+        const hasSaved = savedTimers.length > 0;
+
+        // Não mostra nada se ambas as listas estão vazias
+        if (!hasRecents && !hasSaved) {
             recentsContainer.innerHTML = '';
             return;
         }
 
+        const currentItems = activeTab === 'saved' ? savedTimers : recents;
+        const itemType = activeTab === 'saved' ? 'saved' : 'recent';
+
         recentsContainer.innerHTML = `
     <div class="recents-section">
-              <h2 style="font-size: 18px; margin: 20px 20px 10px; color: var(--text-secondary);">Recents</h2>
+              <div class="timer-tabs">
+                  <button class="timer-tab ${activeTab === 'recents' ? 'active' : ''}" data-tab="recents">Recents</button>
+                  <button class="timer-tab ${activeTab === 'saved' ? 'active' : ''}" data-tab="saved">Saved${hasSaved ? ` (${savedTimers.length})` : ''}</button>
+              </div>
               <div class="alarm-list ${isEditing ? 'edit-mode' : ''}">
-                  ${recents.map(renderRecentItem).join('')}
+                  ${currentItems.length > 0
+                ? currentItems.map(item => renderTimerItem(item, itemType)).join('')
+                : `<p style="text-align:center; color:var(--text-secondary); margin-top:20px;">${activeTab === 'saved' ? 'No saved timers' : 'No recent timers'}</p>`
+            }
               </div>
           </div>
     `;
@@ -460,6 +578,129 @@ export function Timer() {
         }
     }
 
+    function openSavedEditModal(id) {
+        const saved = savedTimers.find(s => s.id === id);
+        if (!saved) return;
+
+        const content = `
+      <div class="modal-section">
+        <div class="timer-picker" style="transform: scale(0.8);">
+            <div class="picker-col">
+                <input type="number" id="modal-hours" class="timer-input" min="0" max="23" value="${saved.hours}">
+                    <div class="timer-label">hours</div>
+            </div>
+            <div class="picker-col">
+                <input type="number" id="modal-minutes" class="timer-input" min="0" max="59" value="${saved.minutes}">
+                    <div class="timer-label">min</div>
+            </div>
+            <div class="picker-col">
+                <input type="number" id="modal-seconds" class="timer-input" min="0" max="59" value="${saved.seconds}">
+                    <div class="timer-label">sec</div>
+            </div>
+        </div>
+      </div>
+
+    <div class="modal-section">
+        <div class="modal-row">
+            <span>Label</span>
+            <input type="text" id="modal-label" value="${escapeHtml(saved.label || '')}" placeholder="Timer" maxlength="200">
+        </div>
+        <div class="modal-row">
+            <span>Sound</span>
+            <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${saved.soundId}" title="${getSoundName(saved.soundId)}">
+                ${getSoundName(saved.soundId)}
+            </button>
+            <input type="hidden" id="modal-sound-value" value="${saved.soundId}">
+        </div>
+    </div>
+`;
+
+        showModal({
+            title: 'Edit Saved Timer',
+            content,
+            onSave: (overlay) => {
+                const hours = Number(overlay.querySelector('#modal-hours').value);
+                const minutes = Number(overlay.querySelector('#modal-minutes').value);
+                const seconds = Number(overlay.querySelector('#modal-seconds').value);
+                const label = overlay.querySelector('#modal-label').value;
+                const soundId = overlay.querySelector('#modal-sound-value').value;
+
+                timerManager.updateSavedTimer(id, { hours, minutes, seconds, label, soundId });
+                alarmManager.setLastUsedSound(soundId);
+                render();
+            }
+        });
+
+        setTimeout(() => {
+            const overlay = document.querySelector('.modal-overlay');
+            if (!overlay) return;
+
+            ['modal-hours', 'modal-minutes', 'modal-seconds'].forEach(inputId => {
+                const input = overlay.querySelector('#' + inputId);
+                const max = inputId.includes('hours') ? 23 : 59;
+                input.oninput = () => {
+                    let val = parseInt(input.value);
+                    if (val > max) input.value = max;
+                    if (val < 0) input.value = 0;
+                };
+            });
+            const soundTrigger = overlay.querySelector('#modal-sound-trigger');
+            const soundValue = overlay.querySelector('#modal-sound-value');
+            if (soundTrigger) {
+                soundTrigger.onclick = () => {
+                    openSoundPicker(soundValue.value, (selectedId) => {
+                        soundValue.value = selectedId;
+                        soundTrigger.textContent = getSoundName(selectedId);
+                    });
+                };
+            }
+        }, 100);
+    }
+
+    function openReplaceModal(newTimer) {
+        loadSaved();
+        const content = `
+            <p style="color: var(--text-secondary); margin-bottom: 15px;">Saved timers are full (${LIMITS.MAX_TIMER_SAVED}/${LIMITS.MAX_TIMER_SAVED}). Choose a timer to replace:</p>
+            <div class="replace-timer-list">
+                ${savedTimers.map(s => {
+            const totalSecs = (s.hours || 0) * 3600 + (s.minutes || 0) * 60 + (s.seconds || 0);
+            return `
+                        <div class="replace-item" data-id="${s.id}">
+                            <div class="alarm-info">
+                                <span class="alarm-time">${formatTime(totalSecs)}</span>
+                                <span class="alarm-label">${escapeHtml(s.label || 'Timer')}</span>
+                            </div>
+                        </div>
+                    `;
+        }).join('')}
+            </div>
+        `;
+
+        showModal({
+            title: 'Replace Saved Timer',
+            content,
+            onSave: () => { }
+        });
+
+        setTimeout(() => {
+            const overlay = document.querySelector('.modal-overlay');
+            if (!overlay) return;
+
+            const saveBtn = overlay.querySelector('.save');
+            if (saveBtn) saveBtn.style.display = 'none';
+
+            overlay.querySelectorAll('.replace-item').forEach(item => {
+                item.onclick = () => {
+                    const oldId = item.dataset.id;
+                    timerManager.replaceSavedTimer(oldId, newTimer);
+                    document.body.removeChild(overlay);
+                    showAlert('Timer replaced!', 'Success');
+                    render();
+                };
+            });
+        }, 100);
+    }
+
     function updateProgress(remaining, total) {
         const circle = container.querySelector('.progress-ring__circle');
         if (circle) {
@@ -486,12 +727,18 @@ export function Timer() {
         render();
     }
 
+    function onSavedUpdated() {
+        loadSaved();
+        render();
+    }
+
     function onTimerFinished() {
         render();
     }
 
     document.addEventListener('timer-updated', onTimerUpdated);
     document.addEventListener('recents-updated', onRecentsUpdated);
+    document.addEventListener('saved-updated', onSavedUpdated);
     document.addEventListener('timer-finished', onTimerFinished);
 
     render();
@@ -501,6 +748,7 @@ export function Timer() {
         cleanup: () => {
             document.removeEventListener('timer-updated', onTimerUpdated);
             document.removeEventListener('recents-updated', onRecentsUpdated);
+            document.removeEventListener('saved-updated', onSavedUpdated);
             document.removeEventListener('timer-finished', onTimerFinished);
         }
     };
