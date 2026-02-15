@@ -594,7 +594,9 @@ export function WorldClock() {
                 const city = btn.dataset.city;
                 const country = btn.dataset.country;
                 addClock({ timezone: zone, label: city, country: country });
-                document.body.removeChild(overlay);
+                if (document.body.contains(overlay)) {
+                    document.body.removeChild(overlay);
+                }
             };
         });
     }

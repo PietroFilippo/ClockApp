@@ -15,7 +15,11 @@ export function Settings() {
         notificationPosition: 'bottom-right',
         notificationDuration: 30,
         stealFocus: true,
-        globalShortcuts: true
+        globalShortcuts: true,
+        alarmAutoActionDuration: 0,
+        timerAutoActionDuration: 0,
+        timerTimeoutAction: 'stop',
+        alarmTimeoutAction: 'stop'
     };
 
     function render() {
@@ -77,24 +81,42 @@ export function Settings() {
                     ` : ''}
                 </div>
 
+                ${renderDurationSelector('notificationDuration', 'Auto-Close Duration', 'How long the external notification stays on screen.')}
+
+                <h3 style="color: var(--text-secondary); margin: 20px 0 10px;">Auto-Actions</h3>
+                
+                <h4 style="color: var(--text-secondary); margin: 15px 0 5px; font-size: 14px; text-transform: uppercase;">Timer Settings</h4>
+                
+                ${renderDurationSelector('timerAutoActionDuration', 'Timer Auto-Action Duration', 'Time before automatically repeating/stopping the timer.')}
+
                 <div class="setting-item" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size: 16px;">Auto-Close Duration</span>
-                        <select id="notificationDuration" style="background: #333; color: white; border: none; padding: 5px 10px; border-radius: 6px; outline: none;">
-                            <option value="0" ${settings.notificationDuration === 0 ? 'selected' : ''}>Never</option>
-                            <option value="5" ${settings.notificationDuration === 5 ? 'selected' : ''}>5 Seconds</option>
-                            <option value="10" ${settings.notificationDuration === 10 ? 'selected' : ''}>10 Seconds</option>
-                            <option value="30" ${settings.notificationDuration === 30 ? 'selected' : ''}>30 Seconds</option>
-                            <option value="60" ${settings.notificationDuration === 60 ? 'selected' : ''}>1 Minute</option>
+                        <span style="font-size: 16px;">Timeout Action</span>
+                        <select id="timerTimeoutAction" style="background: #333; color: white; border: none; padding: 5px 10px; border-radius: 6px; outline: none;">
+                            <option value="stop" ${settings.timerTimeoutAction === 'stop' ? 'selected' : ''}>Stop</option>
+                            <option value="repeat" ${settings.timerTimeoutAction === 'repeat' ? 'selected' : ''}>Repeat</option>
                         </select>
                     </div>
-                    <div style="font-size: 12px; color: #888; margin-top: 5px;">How long the notification stays on screen.</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 5px;">Action to take when auto-action timer expires.</div>
+                </div>
+
+                <h4 style="color: var(--text-secondary); margin: 15px 0 5px; font-size: 14px; text-transform: uppercase;">Alarm Settings</h4>
+
+                ${renderDurationSelector('alarmAutoActionDuration', 'Alarm Auto-Action Duration', 'Time before automatically snoozing/stopping the alarm.')}
+
+                <div class="setting-item" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size: 16px;">Timeout Action</span>
+                        <select id="alarmTimeoutAction" style="background: #333; color: white; border: none; padding: 5px 10px; border-radius: 6px; outline: none;">
+                            <option value="stop" ${settings.alarmTimeoutAction === 'stop' ? 'selected' : ''}>Stop</option>
+                            <option value="snooze" ${settings.alarmTimeoutAction === 'snooze' ? 'selected' : ''}>Snooze</option>
+                        </select>
+                    </div>
+                    <div style="font-size: 12px; color: #888; margin-top: 5px;">Action to take when auto-action timer expires.</div>
                 </div>
                 
                 <h3 style="color: var(--text-secondary); margin: 20px 0 10px;">Shortcuts</h3>
                 ${renderToggle('globalShortcuts', 'Global Shortcuts', 'Enable shortcuts (Alt+S, Alt+R, etc) even when app is minimized.')}
-
-
 
                 <div class="setting-item" style="background: rgba(255, 69, 58, 0.1); padding: 15px; border-radius: 12px; margin-top: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;" id="exit-btn">
                     <span style="color: #ff453a; font-weight: 500;">Exit Application</span>
@@ -146,7 +168,44 @@ export function Settings() {
         `;
     }
 
+    function renderDurationSelector(key, label, description) {
+        const value = settings[key];
+        const isCustom = ![0, 5, 10, 30, 60, 300, 600].includes(value);
+
+        return `
+            <div class="setting-item" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size: 16px;">${label}</span>
+                    <select class="duration-select" data-key="${key}" style="background: #333; color: white; border: none; padding: 5px 10px; border-radius: 6px; outline: none;">
+                        <option value="0" ${value === 0 ? 'selected' : ''}>Never</option>
+                        <option value="5" ${value === 5 ? 'selected' : ''}>5 Seconds</option>
+                        <option value="10" ${value === 10 ? 'selected' : ''}>10 Seconds</option>
+                        <option value="30" ${value === 30 ? 'selected' : ''}>30 Seconds</option>
+                        <option value="60" ${value === 60 ? 'selected' : ''}>1 Minute</option>
+                        <option value="300" ${value === 300 ? 'selected' : ''}>5 Minutes</option>
+                        <option value="600" ${value === 600 ? 'selected' : ''}>10 Minutes</option>
+                        <option value="custom" ${isCustom ? 'selected' : ''}>Custom...</option>
+                    </select>
+                </div>
+                
+                <div class="custom-duration-input" id="custom-${key}" style="display: ${isCustom ? 'flex' : 'none'}; align-items: center; margin-top: 10px; gap: 10px;">
+                    <input type="number" 
+                        class="duration-input" 
+                        data-key="${key}"
+                        value="${isCustom ? value : ''}" 
+                        placeholder="Seconds" 
+                        min="1"
+                        style="background: #222; border: 1px solid #444; color: white; padding: 8px; border-radius: 6px; width: 100px;">
+                    <span style="font-size: 14px; color: #aaa;">seconds</span>
+                </div>
+
+                <div style="font-size: 12px; color: #888; margin-top: 5px;">${description}</div>
+            </div>
+        `;
+    }
+
     function attachListeners() {
+        // Toggles
         container.querySelectorAll('.setting-toggle').forEach(toggle => {
             toggle.onchange = async (e) => {
                 const key = e.target.dataset.key;
@@ -155,9 +214,7 @@ export function Settings() {
 
                 if (window.electronAPI) {
                     await window.electronAPI.saveSetting(key, value);
-                    // Efeitos imediatos que não precisam de reload
                     if (key === 'preventSuspend') {
-                        // Notifica outros módulos (como TimerManager) para reavaliar bloqueio de energia imediatamente
                         document.dispatchEvent(new CustomEvent('settings-updated', { detail: { key, value } }));
                     }
                     if (key === 'globalShortcuts') {
@@ -172,21 +229,58 @@ export function Settings() {
                         } else {
                             window.electronAPI.unregisterGlobalShortcuts();
                         }
-                        // Notifica stopwatch se estiver aberto
-                        localStorage.setItem('app-settings', JSON.stringify(settings)); // Sync local mirror
+                        localStorage.setItem('app-settings', JSON.stringify(settings));
                     }
                 }
             };
         });
 
+        // Duração dos seletores
+        container.querySelectorAll('.duration-select').forEach(select => {
+            select.onchange = async (e) => {
+                const key = e.target.dataset.key;
+                const value = e.target.value;
+                const inputDiv = container.querySelector(`#custom-${key}`);
+
+                if (value === 'custom') {
+                    inputDiv.style.display = 'flex';
+                    const input = inputDiv.querySelector('input');
+                    input.focus();
+                } else {
+                    inputDiv.style.display = 'none';
+                    const numValue = Number(value);
+                    settings[key] = numValue;
+                    if (window.electronAPI) {
+                        await window.electronAPI.saveSetting(key, numValue);
+                    }
+                }
+            };
+        });
+
+        // Inputs customs dos seletores
+        container.querySelectorAll('.duration-input').forEach(input => {
+            input.onchange = async (e) => {
+                const key = e.target.dataset.key;
+                let value = Math.max(1, Number(e.target.value));
+
+                settings[key] = value;
+                if (window.electronAPI) {
+                    await window.electronAPI.saveSetting(key, value);
+                }
+            };
+        });
+
+        // Outros seletores
         const notifSelect = container.querySelector('#notificationType');
-        notifSelect.onchange = async (e) => {
-            const value = e.target.value;
-            settings.notificationType = value;
-            if (window.electronAPI) {
-                await window.electronAPI.saveSetting('notificationType', value);
-            }
-        };
+        if (notifSelect) {
+            notifSelect.onchange = async (e) => {
+                const value = e.target.value;
+                settings.notificationType = value;
+                if (window.electronAPI) {
+                    await window.electronAPI.saveSetting('notificationType', value);
+                }
+            };
+        }
 
         const posSelect = container.querySelector('#notificationPosition');
         if (posSelect) {
@@ -195,7 +289,7 @@ export function Settings() {
                 settings.notificationPosition = value;
                 if (window.electronAPI) {
                     await window.electronAPI.saveSetting('notificationPosition', value);
-                    render(); // Renderiza novamente para mostrar/esconder o botão "Set Custom Position"
+                    render();
                 }
             };
         }
@@ -209,13 +303,24 @@ export function Settings() {
             };
         }
 
-        const durSelect = container.querySelector('#notificationDuration');
-        if (durSelect) {
-            durSelect.onchange = async (e) => {
-                const value = Number(e.target.value);
-                settings.notificationDuration = value;
+        const timerActionSelect = container.querySelector('#timerTimeoutAction');
+        if (timerActionSelect) {
+            timerActionSelect.onchange = async (e) => {
+                const value = e.target.value;
+                settings.timerTimeoutAction = value;
                 if (window.electronAPI) {
-                    await window.electronAPI.saveSetting('notificationDuration', value);
+                    await window.electronAPI.saveSetting('timerTimeoutAction', value);
+                }
+            };
+        }
+
+        const alarmActionSelect = container.querySelector('#alarmTimeoutAction');
+        if (alarmActionSelect) {
+            alarmActionSelect.onchange = async (e) => {
+                const value = e.target.value;
+                settings.alarmTimeoutAction = value;
+                if (window.electronAPI) {
+                    await window.electronAPI.saveSetting('alarmTimeoutAction', value);
                 }
             };
         }
@@ -227,7 +332,6 @@ export function Settings() {
                     if (window.electronAPI) {
                         window.electronAPI.exitApp();
                     } else {
-                        // Fallback pro navegador (normalmente não funciona, mas bom para testes)
                         window.close();
                     }
                 }
@@ -237,7 +341,19 @@ export function Settings() {
 
     async function loadSettings() {
         if (window.electronAPI) {
-            settings = await window.electronAPI.getSettings();
+            const loaded = await window.electronAPI.getSettings();
+            settings = { ...settings, ...loaded };
+
+            // Migração se autoActionDuration existir mas os specifics não
+            if (loaded.autoActionDuration > 0) {
+                if (settings.alarmAutoActionDuration === undefined || settings.alarmAutoActionDuration === 0) {
+                    settings.alarmAutoActionDuration = loaded.autoActionDuration;
+                }
+                if (settings.timerAutoActionDuration === undefined || settings.timerAutoActionDuration === 0) {
+                    settings.timerAutoActionDuration = loaded.autoActionDuration;
+                }
+            }
+
             render();
         }
     }

@@ -19,7 +19,9 @@ export function showModal({ title, content, onSave }) {
   document.body.appendChild(overlay);
 
   const close = () => {
-    document.body.removeChild(overlay);
+    if (document.body.contains(overlay)) {
+      document.body.removeChild(overlay);
+    }
     window.removeEventListener('keydown', handleEsc);
   };
 

@@ -12,7 +12,11 @@ export const STORAGE_KEYS = {
     STOPWATCH_SLOWEST_COLOR: 'stopwatch-slowest-color',
     STOPWATCH_CUSTOM_COLORS: 'stopwatch-custom-colors',
     STOPWATCH_KEYBINDS: 'stopwatch-keybinds',
-    SETTINGS: 'app-settings'
+    SETTINGS: 'app-settings',
+    TIMER_TIMEOUT_ACTION: 'timerTimeoutAction',
+    ALARM_TIMEOUT_ACTION: 'alarmTimeoutAction',
+    ALARM_AUTO_ACTION_DURATION: 'alarmAutoActionDuration',
+    TIMER_AUTO_ACTION_DURATION: 'timerAutoActionDuration'
 };
 
 export const COLORS = {

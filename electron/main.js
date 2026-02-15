@@ -545,6 +545,16 @@ if (!gotTheLock) {
                     event.preventDefault();
                 }
             }
+            // Bloqueia Ctrl+R em Produção
+            if (input.control && input.key.toLowerCase() === 'r') {
+                if (app.isPackaged) {
+                    event.preventDefault();
+                } else {
+                    // reload em Dev
+                    // win.reload() ou contents.reload()
+                    contents.reload();
+                }
+            }
         });
     });
 }

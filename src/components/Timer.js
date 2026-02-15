@@ -693,7 +693,9 @@ export function Timer() {
                 item.onclick = () => {
                     const oldId = item.dataset.id;
                     timerManager.replaceSavedTimer(oldId, newTimer);
-                    document.body.removeChild(overlay);
+                    if (document.body.contains(overlay)) {
+                        document.body.removeChild(overlay);
+                    }
                     showAlert('Timer replaced!', 'Success');
                     render();
                 };

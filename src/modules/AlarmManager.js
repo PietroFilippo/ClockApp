@@ -224,8 +224,69 @@ export class AlarmManager {
         // Pega o último (topo da pilha)
         const currentAlert = this.activeAlerts[this.activeAlerts.length - 1];
 
+        // Limpa qualquer timeout de ação existente para este alerta para evitar duplicatas se atualizado
+        if (currentAlert.actionTimeoutId) {
+            clearTimeout(currentAlert.actionTimeoutId);
+            currentAlert.actionTimeoutId = null;
+        }
+
         // Toca o som do alerta atual
         audioManager.playAlarm(currentAlert.soundId);
+
+        // Setup Auto-Action Timeout
+        if (window.electronAPI) {
+            window.electronAPI.getSettings().then(settings => {
+                let autoDuration = 0;
+
+                if (currentAlert.type === 'alarm') {
+                    autoDuration = settings.alarmAutoActionDuration !== undefined ? settings.alarmAutoActionDuration : 0;
+                } else if (currentAlert.type === 'timer') {
+                    autoDuration = settings.timerAutoActionDuration !== undefined ? settings.timerAutoActionDuration : 0;
+                }
+
+                // Fallback para configuração antiga se as novas não estiverem definidas
+                if (autoDuration === 0 && settings.autoActionDuration > 0) {
+                    autoDuration = settings.autoActionDuration;
+                }
+
+                if (autoDuration > 0) {
+                    console.log(`Scheduling auto-action for ${currentAlert.type} in ${autoDuration}s`);
+                    currentAlert.actionTimeoutId = setTimeout(() => {
+                        console.log(`Auto-action triggered for ${currentAlert.type} ${currentAlert.id}`);
+
+                        // Checa se o alerta ainda está ativo
+                        const isStillActive = this.activeAlerts.some(a => a.id === currentAlert.id);
+                        if (!isStillActive) return;
+
+                        if (currentAlert.type === 'alarm') {
+                            const action = settings.alarmTimeoutAction || 'stop';
+                            if (action === 'snooze') {
+                                this.snoozeAlarm(currentAlert.id);
+                                document.dispatchEvent(new CustomEvent('alarm-snooze-requested', { detail: { id: currentAlert.id } }));
+                            } else {
+                                this.stopAlarm(currentAlert.id);
+                                document.dispatchEvent(new CustomEvent('alarm-stop-requested', { detail: { id: currentAlert.id } }));
+                            }
+                        } else if (currentAlert.type === 'timer') {
+                            const action = settings.timerTimeoutAction || 'stop';
+                            if (action === 'repeat') {
+                                this.stopTimer();
+                                document.dispatchEvent(new CustomEvent('timer-repeat-requested'));
+                            } else {
+                                this.stopTimer();
+                                document.dispatchEvent(new CustomEvent('timer-stop-requested'));
+                            }
+                        }
+
+                        // Força o fechamento da janela de notificação
+                        if (window.electronAPI) {
+                            window.electronAPI.closeCustomNotification();
+                        }
+
+                    }, autoDuration * 1000);
+                }
+            });
+        }
 
         // Atualiza a notificação externa
         this.handleNotification(currentAlert.title, currentAlert.body, {
@@ -286,6 +347,9 @@ export class AlarmManager {
 
     stopAlarm(alarmId) {
         if (alarmId) {
+            const alert = this.activeAlerts.find(a => a.id === alarmId);
+            if (alert && alert.actionTimeoutId) clearTimeout(alert.actionTimeoutId);
+
             this.activeAlerts = this.activeAlerts.filter(a => a.id !== alarmId);
             this.clearSnooze(alarmId);
             this.saveAlarms();
@@ -295,6 +359,11 @@ export class AlarmManager {
 
     // Chamado quando um timer é parado
     stopTimer() {
+        this.activeAlerts.forEach(a => {
+            if (String(a.id).indexOf('timer-') !== -1 && a.actionTimeoutId) {
+                clearTimeout(a.actionTimeoutId);
+            }
+        });
         this.activeAlerts = this.activeAlerts.filter(a => String(a.id).indexOf('timer-') === -1);
         this.updateActiveAlert(true);
     }
@@ -304,6 +373,13 @@ export class AlarmManager {
     }
 
     stopAudio() {
+        // Limpa timeouts
+        this.activeAlerts.forEach(alert => {
+            if (alert.actionTimeoutId) {
+                clearTimeout(alert.actionTimeoutId);
+            }
+        });
+
         this.activeAlerts = [];
         audioManager.stopAlarm();
         document.dispatchEvent(new CustomEvent('all-alerts-stopped'));
@@ -314,6 +390,9 @@ export class AlarmManager {
     }
 
     snoozeAlarm(alarmId) {
+        const alert = this.activeAlerts.find(a => a.id === alarmId);
+        if (alert && alert.actionTimeoutId) clearTimeout(alert.actionTimeoutId);
+
         this.activeAlerts = this.activeAlerts.filter(a => a.id !== alarmId);
         this.updateActiveAlert(true);
 

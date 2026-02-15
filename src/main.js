@@ -21,7 +21,9 @@ function onAlarmRing(e) {
 
   // Cleanup de overlay existente (evita empilhamento)
   if (currentOverlay && currentOverlay.element) {
-    currentOverlay.element.remove();
+    if (currentOverlay.element.isConnected) {
+      currentOverlay.element.remove();
+    }
     currentOverlay = null;
   }
 
@@ -39,8 +41,10 @@ function onAlarmRing(e) {
       text: `Snooze (${alarm.snoozeInterval || 9} min)`,
       onClick: (ovl) => {
         alarmManager.snoozeAlarm(alarm.id);
-        ovl.remove();
-        currentOverlay = null;
+        setTimeout(() => {
+          if (ovl.isConnected) ovl.remove();
+          currentOverlay = null;
+        }, 0);
       }
     } : null,
     onStop: () => {
@@ -59,7 +63,9 @@ function onTimerRing(e) {
 
   // Cleanup de overlay existente
   if (currentOverlay && currentOverlay.element) {
-    currentOverlay.element.remove();
+    if (currentOverlay.element.isConnected) {
+      currentOverlay.element.remove();
+    }
     currentOverlay = null;
   }
 
@@ -75,8 +81,10 @@ function onTimerRing(e) {
       onClick: (ovl) => {
         alarmManager.stopTimer(); // Usa stoptimer para verificar o estado do audio
         timerManager.repeat();
-        ovl.remove();
-        currentOverlay = null;
+        setTimeout(() => {
+          if (ovl.isConnected) ovl.remove();
+          currentOverlay = null;
+        }, 0);
       }
     },
     onStop: () => {
@@ -95,37 +103,36 @@ document.addEventListener('timer-ring', onTimerRing);
 
 // Listener pra requisições externas de parada (ex: de Notificação)
 document.addEventListener('timer-stop-requested', () => {
-  if (currentOverlay && currentOverlay.type === 'timer') {
-    currentOverlay.element.remove();
+  if (currentOverlay && currentOverlay.type === 'timer' && currentOverlay.element) {
+    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
     currentOverlay = null;
   }
 });
 
 document.addEventListener('timer-repeat-requested', () => {
-  if (currentOverlay && currentOverlay.type === 'timer') {
-    currentOverlay.element.remove();
+  if (currentOverlay && currentOverlay.type === 'timer' && currentOverlay.element) {
+    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
     currentOverlay = null;
   }
 });
 
 document.addEventListener('alarm-stop-requested', (e) => {
-  if (currentOverlay && currentOverlay.type === 'alarm' && currentOverlay.id === e.detail.id) {
-    currentOverlay.element.remove();
+  if (currentOverlay && currentOverlay.type === 'alarm' && currentOverlay.id === e.detail.id && currentOverlay.element) {
+    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
     currentOverlay = null;
-  } else if (currentOverlay && currentOverlay.type === 'alarm') {
   }
 });
 
 document.addEventListener('alarm-snooze-requested', (e) => {
-  if (currentOverlay && currentOverlay.type === 'alarm' && currentOverlay.id === e.detail.id) {
-    currentOverlay.element.remove();
+  if (currentOverlay && currentOverlay.type === 'alarm' && currentOverlay.id === e.detail.id && currentOverlay.element) {
+    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
     currentOverlay = null;
   }
 });
 
 document.addEventListener('all-alerts-stopped', () => {
   if (currentOverlay && currentOverlay.element) {
-    currentOverlay.element.remove();
+    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
     currentOverlay = null;
   }
 });
@@ -176,9 +183,6 @@ function render() {
       }
     });
 
-    // Listen for global shortcuts (ALWAYS active)
-    // Removemos listener anterior para evitar duplicatas em re-renders (embora main.js rode uma vez só, render() pode rodar mais?)
-    // render() roda uma vez. updateView roda varias.
     window.electronAPI.removeGlobalShortcutListener(); // Limpa prévios
     window.electronAPI.onGlobalShortcut((action) => {
       // Mapeia ações para o StopwatchManager
@@ -198,11 +202,7 @@ function render() {
       }
     });
 
-    // Listen for setting changes from Settings.js
     window.electronAPI.onSettingsUpdated && window.electronAPI.onSettingsUpdated((data) => {
-      // Se settings mudaram no backend (ex: outra janela), podemos reagir. 
-      // Mas Settings.js salva e aplica. Se precisarmos reagir a "Global Shortcuts" toggle aqui:
-      // A lógica de toggle no Settings.js deve reenviar o registro.
     });
   }
 
@@ -211,6 +211,13 @@ function render() {
   // Render Navigation
   navContainer.appendChild(Navigation(currentTab, (newTab) => {
     if (currentTab === newTab) return;
+
+    // Salva posição do scroll da aba atual antes de trocar
+    const contentArea = document.querySelector('#content');
+    if (contentArea) {
+      scrollPositions[currentTab] = contentArea.scrollTop;
+    }
+
     currentTab = newTab;
     localStorage.setItem('activeTab', currentTab);
     updateView();
@@ -219,6 +226,8 @@ function render() {
 
   updateView();
 }
+
+const scrollPositions = {};
 
 function updateView() {
   const contentArea = document.querySelector('#content');
@@ -250,6 +259,15 @@ function updateView() {
       activeComponentCleanup = componentResult.cleanup;
     }
   }
+
+  // Restaura posição do scroll
+  if (scrollPositions[currentTab] !== undefined) {
+    setTimeout(() => {
+      contentArea.scrollTop = scrollPositions[currentTab];
+    }, 0);
+  } else {
+    contentArea.scrollTop = 0;
+  }
 }
 
 function updateNav() {
@@ -257,6 +275,13 @@ function updateNav() {
   navContainer.innerHTML = '';
   navContainer.appendChild(Navigation(currentTab, (newTab) => {
     if (currentTab === newTab) return;
+
+    // Salva posição do scroll da aba atual antes de trocar
+    const contentArea = document.querySelector('#content');
+    if (contentArea) {
+      scrollPositions[currentTab] = contentArea.scrollTop;
+    }
+
     currentTab = newTab;
     localStorage.setItem('activeTab', currentTab);
     updateView();
