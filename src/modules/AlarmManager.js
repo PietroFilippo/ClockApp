@@ -244,11 +244,6 @@ export class AlarmManager {
                     autoDuration = settings.timerAutoActionDuration !== undefined ? settings.timerAutoActionDuration : 0;
                 }
 
-                // Fallback para configuração antiga se as novas não estiverem definidas
-                if (autoDuration === 0 && settings.autoActionDuration > 0) {
-                    autoDuration = settings.autoActionDuration;
-                }
-
                 if (autoDuration > 0) {
                     console.log(`Scheduling auto-action for ${currentAlert.type} in ${autoDuration}s`);
                     currentAlert.actionTimeoutId = setTimeout(() => {

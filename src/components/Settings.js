@@ -344,16 +344,6 @@ export function Settings() {
             const loaded = await window.electronAPI.getSettings();
             settings = { ...settings, ...loaded };
 
-            // Migração se autoActionDuration existir mas os specifics não
-            if (loaded.autoActionDuration > 0) {
-                if (settings.alarmAutoActionDuration === undefined || settings.alarmAutoActionDuration === 0) {
-                    settings.alarmAutoActionDuration = loaded.autoActionDuration;
-                }
-                if (settings.timerAutoActionDuration === undefined || settings.timerAutoActionDuration === 0) {
-                    settings.timerAutoActionDuration = loaded.autoActionDuration;
-                }
-            }
-
             render();
         }
     }
