@@ -223,6 +223,64 @@
     min-height: 100px;
 }
 
+.city-item-btn {
+    background: #2c2c2e;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    color: white;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s, color 0.2s;
+    width: 100%;
+}
+
 .city-item-btn:hover {
-    background: #3a3a3c !important;
+    background: #3a3a3c;
+}
+
+.city-item-btn.selected {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Checkbox wrapper */
+.city-select-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.city-select-checkbox {
+    pointer-events: none;
+    accent-color: var(--accent-orange);
+}
+
+.city-meta {
+    color: #8e8e93;
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.city-item-btn.selected .city-meta {
+    color: var(--text-secondary);
+}
+
+.city-offset {
+    opacity: 0.7;
+    font-size: 0.9em;
+    margin-left: 4px;
+}
+
+.city-added-tag {
+    margin-left: 5px;
+    font-size: 0.8em;
+    opacity: 0.6;
+}
+
+.city-item-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
 }

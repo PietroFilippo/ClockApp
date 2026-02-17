@@ -261,6 +261,7 @@ class TimerManager {
 
     resume() {
         this.isPaused = false;
+        this.startTicking();
         this.saveState();
         this.notify();
         this.updatePowerBlocker();

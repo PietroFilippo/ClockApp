@@ -388,11 +388,13 @@ export function WorldClock() {
         let activeLetters = new Set(); // Letras selecionadas
         let searchTerm = '';
 
+        let selectedCitiesMap = new Map(); // Stores zone -> { timezone, label, country }
+
         const continents = ['All', 'Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
         showModal({
-            title: 'Choose City',
+            title: 'Choose Cities',
             content: `
                 <input type="text" id="city-search" class="modal-input" placeholder="Search city or country..." style="width: 100%; margin-bottom: 12px;">
                 
@@ -422,14 +424,20 @@ export function WorldClock() {
                     <!-- populated by JS -->
                 </div>
             `,
-            onSave: () => { }
+            onSave: () => {
+                selectedCitiesMap.forEach(data => addClock(data));
+                selectedCitiesMap.clear();
+            }
         });
 
         const overlay = document.querySelector('.modal-overlay');
         if (!overlay) return;
 
         const saveBtn = overlay.querySelector('.save');
-        if (saveBtn) saveBtn.style.display = 'none';
+        if (saveBtn) {
+            saveBtn.textContent = 'Add Selected (0)';
+            saveBtn.disabled = true;
+        }
 
         const searchInput = overlay.querySelector('#city-search');
         const cityListEl = overlay.querySelector('#city-list');
@@ -446,6 +454,14 @@ export function WorldClock() {
 
         function updateClearButton() {
             clearBtn.style.display = hasActiveFilters() ? 'flex' : 'none';
+        }
+
+        function updateSaveButton() {
+            if (saveBtn) {
+                const count = selectedCitiesMap.size;
+                saveBtn.textContent = `Add Selected (${count})`;
+                saveBtn.disabled = count === 0;
+            }
         }
 
         function applyFilters() {
@@ -565,40 +581,56 @@ export function WorldClock() {
             applyFilters();
         };
 
+        function renderCityList(list) {
+            if (list.length === 0) return '<div style="text-align:center; padding: 20px; color: #8e8e93;">No results</div>';
+            return list.map(tz => {
+                const offset = getGMTOffset(tz.zone);
+                const isSelected = selectedCitiesMap.has(tz.zone);
+                const isAlreadyAdded = clocks.some(c => c.timezone === tz.zone);
+
+                return `
+            <button class="city-item-btn ${isSelected ? 'selected' : ''}" 
+                data-zone="${tz.zone}" 
+                data-city="${escapeHtml(tz.city)}" 
+                data-country="${escapeHtml(tz.country)}"
+                ${isAlreadyAdded ? 'disabled' : ''}>
+                <div class="city-select-wrapper">
+                    <input type="checkbox" class="city-select-checkbox" ${isSelected ? 'checked' : ''} ${isAlreadyAdded ? 'disabled' : ''}>
+                    <span style="font-weight: 500;">${escapeHtml(tz.city)}</span>
+                </div>
+                <span class="city-meta">
+                    ${escapeHtml(tz.country)} 
+                    <span class="city-offset">${offset}</span>
+                </span>
+            </button>
+          `}).join('');
+        }
+
+        function attachCityListeners(overlay) {
+            const btns = overlay.querySelectorAll('.city-item-btn:not(:disabled)');
+            btns.forEach(btn => {
+                btn.onclick = () => {
+                    const zone = btn.dataset.zone;
+                    const city = btn.dataset.city;
+                    const country = btn.dataset.country;
+                    const checkbox = btn.querySelector('.city-select-checkbox');
+
+                    if (selectedCitiesMap.has(zone)) {
+                        selectedCitiesMap.delete(zone);
+                        btn.classList.remove('selected');
+                        if (checkbox) checkbox.checked = false;
+                    } else {
+                        selectedCitiesMap.set(zone, { timezone: zone, label: city, country: country });
+                        btn.classList.add('selected');
+                        if (checkbox) checkbox.checked = true;
+                    }
+                    updateSaveButton();
+                };
+            });
+        }
+
         // Renderização inicial
         applyFilters();
-    }
-
-    function renderCityList(list) {
-        if (list.length === 0) return '<div style="text-align:center; padding: 20px; color: #8e8e93;">No results</div>';
-        return list.map(tz => {
-            const offset = getGMTOffset(tz.zone);
-            return `
-        <button class="city-item-btn" data-zone="${tz.zone}" data-city="${escapeHtml(tz.city)}" data-country="${escapeHtml(tz.country)}"
-            style="
-                background: #2c2c2e; border: none; padding: 12px; border-radius: 8px; 
-                color: white; text-align: left; cursor: pointer; display: flex; justify-content: space-between;
-                align-items: center;
-            ">
-            <span style="font-weight: 500;">${escapeHtml(tz.city)}</span>
-            <span style="color: #8e8e93; font-size: 14px;">${escapeHtml(tz.country)} <span style="opacity: 0.7; font-size: 0.9em; margin-left: 4px;">${offset}</span></span>
-        </button>
-      `}).join('');
-    }
-
-    function attachCityListeners(overlay) {
-        const btns = overlay.querySelectorAll('.city-item-btn');
-        btns.forEach(btn => {
-            btn.onclick = () => {
-                const zone = btn.dataset.zone;
-                const city = btn.dataset.city;
-                const country = btn.dataset.country;
-                addClock({ timezone: zone, label: city, country: country });
-                if (document.body.contains(overlay)) {
-                    document.body.removeChild(overlay);
-                }
-            };
-        });
     }
 
     function addClock(clockData) {
