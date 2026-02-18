@@ -10,6 +10,7 @@
 @import './components/form.css';
 @import './components/modal.css';
 @import './components/context-menu.css';
+@import './components/swipe-delete.css';
 
 /* Features */
 @import './features/world-clock.css';

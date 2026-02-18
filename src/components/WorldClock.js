@@ -4,6 +4,7 @@ import { showConfirm, truncate, confirmDelete } from '../utils/notification.js';
 import { escapeHtml } from '../utils/sanitize.js';
 import { contextMenu } from '../utils/contextMenu.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
+import { SwipeToDelete } from '../utils/SwipeToDelete.js';
 
 export function WorldClock() {
     const container = document.createElement('div');
@@ -19,6 +20,20 @@ export function WorldClock() {
 
     initDelegatedListeners();
 
+    const swipe = new SwipeToDelete({
+        container,
+        itemSelector: '.clock-card',
+        onDelete: async (item) => {
+            const index = Number(item.dataset.index);
+            const clock = clocks[index];
+            if (!clock) return;
+            if (await confirmDelete(clock.label, 'Clock')) {
+                deleteClock(index);
+            }
+        },
+        isDisabled: () => isEditing
+    });
+
     function renderClocks() {
         // Cria a estrutura estática apenas uma vez
         if (!container.querySelector('.header')) {
@@ -26,7 +41,10 @@ export function WorldClock() {
           <div class="header">
             <button class="edit-btn" id="edit-clock-btn">Edit</button>
             <h1>World Clock</h1>
-            <button class="add-btn add-btn-container" id="add-clock-btn">+</button>
+            <div class="add-btn-container" style="display: flex; gap: 10px;">
+              <button class="add-btn" id="cancel-edit-clock-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
+              <button class="add-btn" id="add-clock-btn">+</button>
+            </div>
           </div>
           <div class="clock-list"></div>
         `;
@@ -51,7 +69,9 @@ export function WorldClock() {
         }
 
         const addBtn = container.querySelector('#add-clock-btn');
-        if (addBtn) addBtn.style.visibility = isEditing ? 'hidden' : 'visible';
+        const cancelBtn = container.querySelector('#cancel-edit-clock-btn');
+        if (addBtn) addBtn.style.display = isEditing ? 'none' : '';
+        if (cancelBtn) cancelBtn.style.display = isEditing ? '' : 'none';
     }
 
     function updateClockList() {
@@ -167,17 +187,20 @@ export function WorldClock() {
         } catch (e) { }
 
         return `
-      <div class="clock-card ${selectedClocks.has(index) ? 'selected' : ''}" data-index="${index}" draggable="${isEditing}">
-        <button class="delete-clock-btn" data-index="${index}">−</button>
-        <div class="clock-card-inner">
-            <div class="clock-info">
-            <span class="clock-label">${escapeHtml(clock.label)}</span>
-            <span class="clock-timezone">${clock.country || clock.timezone} <span style="opacity: 0.6; font-size: 0.9em; margin-left: 5px;">${offsetString}</span></span>
-            </div>
-            <div class="clock-time">${timeString}</div>
+      <div class="clock-card swipe-container ${selectedClocks.has(index) ? 'selected' : ''}" data-index="${index}" draggable="${isEditing}">
+        <div class="swipe-content">
+          <button class="delete-clock-btn" data-index="${index}">−</button>
+          <div class="clock-card-inner">
+              <div class="clock-info">
+              <span class="clock-label">${escapeHtml(clock.label)}</span>
+              <span class="clock-timezone">${clock.country || clock.timezone} <span style="opacity: 0.6; font-size: 0.9em; margin-left: 5px;">${offsetString}</span></span>
+              </div>
+              <div class="clock-time">${timeString}</div>
+          </div>
+          ${isEditing ? `<input type="checkbox" class="select-checkbox" data-index="${index}" ${selectedClocks.has(index) ? 'checked' : ''} style="margin-left:12px;">` : ''}
+          ${isEditing ? `<div class="drag-handle" draggable="true">≡</div>` : ''}
         </div>
-        ${isEditing ? `<input type="checkbox" class="select-checkbox" data-index="${index}" ${selectedClocks.has(index) ? 'checked' : ''} style="margin-left:12px;">` : ''}
-        ${isEditing ? `<div class="drag-handle" draggable="true">≡</div>` : ''}
+        <button class="swipe-delete-btn"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
       </div>
     `;
     }
@@ -210,6 +233,14 @@ export function WorldClock() {
                     selectedClocks.clear();
                     renderClocks();
                 }
+                return;
+            }
+
+            // Cancela edição
+            if (target.closest('#cancel-edit-clock-btn')) {
+                isEditing = false;
+                selectedClocks.clear();
+                renderClocks();
                 return;
             }
 
@@ -643,9 +674,6 @@ export function WorldClock() {
         updateTimes();
     }
 
-
-
-
     renderClocks();
 
     const intervalId = setInterval(updateTimes, 1000);
@@ -654,6 +682,7 @@ export function WorldClock() {
         element: container,
         cleanup: () => {
             clearInterval(intervalId);
+            swipe.destroy();
         }
     };
 }

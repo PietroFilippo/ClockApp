@@ -7,6 +7,7 @@ import { openSoundPicker } from '../utils/SoundPicker.js';
 import { openSoundSettingsModal } from '../utils/SoundSettingsModal.js';
 import { contextMenu } from '../utils/contextMenu.js';
 import { STORAGE_KEYS, DEFAULT_SOUND } from '../utils/constants.js';
+import { SwipeToDelete } from '../utils/SwipeToDelete.js';
 
 export function Alarm() {
   const container = document.createElement('div');
@@ -18,6 +19,17 @@ export function Alarm() {
 
   initDelegatedListeners();
 
+  const swipe = new SwipeToDelete({
+    container,
+    itemSelector: '.alarm-item',
+    onDelete: async (item) => {
+      const id = Number(item.dataset.alarmId);
+      const alarm = alarmManager.getAlarms().find(a => a.id === id);
+      await confirmAndDelete(id, alarm);
+    },
+    isDisabled: () => isEditing
+  });
+
   function render() {
     // Cria a estrutura estática apenas uma vez (padrão Stopwatch)
     if (!container.querySelector('.header')) {
@@ -26,6 +38,7 @@ export function Alarm() {
           <button class="edit-btn" id="edit-alarm-btn">Edit</button>
           <h1>Alarm</h1>
           <div class="add-btn-container" style="display: flex; gap: 10px;">
+              <button class="add-btn" id="cancel-edit-alarm-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
               <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
               <button class="add-btn" id="add-alarm-btn">+</button>
           </div>
@@ -53,8 +66,10 @@ export function Alarm() {
 
     const audioBtn = container.querySelector('#audio-settings-btn');
     const addBtn = container.querySelector('#add-alarm-btn');
-    if (audioBtn) audioBtn.style.visibility = isEditing ? 'hidden' : 'visible';
-    if (addBtn) addBtn.style.visibility = isEditing ? 'hidden' : 'visible';
+    const cancelBtn = container.querySelector('#cancel-edit-alarm-btn');
+    if (audioBtn) audioBtn.style.display = isEditing ? 'none' : '';
+    if (addBtn) addBtn.style.display = isEditing ? 'none' : '';
+    if (cancelBtn) cancelBtn.style.display = isEditing ? '' : 'none';
   }
 
   function buildAlarmItemHTML(alarm, snoozed) {
@@ -72,22 +87,24 @@ export function Alarm() {
     const titleText = labelText + (alarm.repeat && alarm.repeat.length > 0 ? `, ${formatDays(alarm.repeat)}` : '');
 
     return `
-        <div class="alarm-item ${selectedAlarms.has(alarm.id) ? 'selected' : ''}" data-alarm-id="${alarm.id}" style="position:relative;">
+        <div class="alarm-item swipe-container ${selectedAlarms.has(alarm.id) ? 'selected' : ''}" data-alarm-id="${alarm.id}" style="position:relative;">
+          <div class="swipe-content">
            ${isEditing ? `<button class="delete-clock-btn" data-id="${alarm.id}">−</button><input type="checkbox" class="select-checkbox" data-id="${alarm.id}" ${selectedAlarms.has(alarm.id) ? 'checked' : ''}>` : ''}
            
-          <div class="alarm-info" data-id="${alarm.id}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
-            <span class="alarm-time ${!alarm.enabled ? 'disabled' : ''}">${alarm.time}</span>
-            <span class="alarm-label" title="${titleText}">${htmlContent}</span>
-            ${snoozeText}
+            <div class="alarm-info" data-id="${alarm.id}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
+              <span class="alarm-time ${!alarm.enabled ? 'disabled' : ''}">${alarm.time}</span>
+              <span class="alarm-label" title="${titleText}">${htmlContent}</span>
+              ${snoozeText}
+            </div>
+            
+            ${!isEditing ? `
+                <label class="switch">
+                <input type="checkbox" class="alarm-toggle" data-id="${alarm.id}" ${alarm.enabled ? 'checked' : ''}>
+                <span class="slider round"></span>
+                </label>
+            ` : `<div style="width: 50px;"></div>`}
           </div>
-          
-          ${!isEditing ? `
-              <label class="switch">
-              <input type="checkbox" class="alarm-toggle" data-id="${alarm.id}" ${alarm.enabled ? 'checked' : ''}>
-              <span class="slider round"></span>
-              </label>
-          ` : `<div style="width: 50px;"></div>`}
-          
+          <button class="swipe-delete-btn"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
         </div>
       `;
   }
@@ -193,22 +210,22 @@ export function Alarm() {
     container.addEventListener('click', async (e) => {
       const target = e.target;
 
-      // Add Alarm
+      // Adiciona Alarme
       if (target.closest('#add-alarm-btn')) {
         openAlarmModal();
         return;
       }
 
-      // Audio Settings
+      // Configurações de áudio
       if (target.closest('#audio-settings-btn')) {
         openSoundSettingsModal(() => render());
         return;
       }
 
-      // Edit Mode Toggle
+      // Edita alarmes
       if (target.closest('#edit-alarm-btn')) {
         if (isEditing && selectedAlarms.size > 0) {
-          // Delete selected alarms
+          // Deleta alarmes selecionados
           const count = selectedAlarms.size;
           if (await confirmDelete(`${count} alarm${count > 1 ? 's' : ''}`, 'Selected')) {
             for (const id of selectedAlarms) {
@@ -225,7 +242,15 @@ export function Alarm() {
         return;
       }
 
-      // Select checkbox in edit mode
+      // Cancela edição
+      if (target.closest('#cancel-edit-alarm-btn')) {
+        isEditing = false;
+        selectedAlarms.clear();
+        render();
+        return;
+      }
+
+      // Seleciona checkbox no modo de editar
       if (target.classList.contains('select-checkbox')) {
         e.stopPropagation();
         const id = Number(target.dataset.id);
@@ -502,6 +527,7 @@ export function Alarm() {
     element: container,
     cleanup: () => {
       document.removeEventListener('alarms-updated', onAlarmsUpdated);
+      swipe.destroy();
     }
   };
 }

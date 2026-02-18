@@ -8,6 +8,7 @@ import { openSoundPicker } from '../utils/SoundPicker.js';
 import { openSoundSettingsModal } from '../utils/SoundSettingsModal.js';
 import { contextMenu } from '../utils/contextMenu.js';
 import { STORAGE_KEYS, DEFAULT_SOUND, LIMITS } from '../utils/constants.js';
+import { SwipeToDelete } from '../utils/SwipeToDelete.js';
 
 export function Timer() {
     const container = document.createElement('div');
@@ -24,6 +25,23 @@ export function Timer() {
     let activeTab = 'recents'; // 'recents' | 'saved'
 
     initDelegatedListeners();
+
+    const swipe = new SwipeToDelete({
+        container,
+        itemSelector: '.alarm-item',
+        onDelete: async (item) => {
+            const info = item.querySelector('.recent-item-info');
+            if (!info) return;
+            const id = info.dataset.id;
+            const isSaved = info.dataset.type === 'saved';
+            if (isSaved) {
+                await confirmAndDeleteSaved(id);
+            } else {
+                await confirmAndDeleteRecent(id);
+            }
+        },
+        isDisabled: () => isEditing
+    });
 
     function loadRecents() {
         recents = timerManager.getRecents();
@@ -94,6 +112,14 @@ export function Timer() {
                     selectedRecents.clear();
                     render();
                 }
+                return;
+            }
+
+            // Cancel Edit
+            if (target.closest('#cancel-edit-timer-btn')) {
+                isEditing = false;
+                selectedRecents.clear();
+                render();
                 return;
             }
 
@@ -256,7 +282,10 @@ export function Timer() {
       <div class="header">
         <button class="edit-btn" id="edit-recents-btn" style="visibility: ${recents.length > 0 ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
         <h1>Timers</h1>
-        <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
+        <div class="add-btn-container" style="display: flex; gap: 10px;">
+          <button class="add-btn" id="cancel-edit-timer-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
+          <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
+        </div>
       </div>
       <div class="timer-picker">
         <div class="picker-col">
@@ -348,6 +377,10 @@ export function Timer() {
             const hasItems = activeTab === 'saved' ? savedTimers.length > 0 : recents.length > 0;
             editBtn.style.visibility = hasItems ? 'visible' : 'hidden';
         }
+        const audioBtn = container.querySelector('#audio-settings-btn');
+        const cancelBtn = container.querySelector('#cancel-edit-timer-btn');
+        if (audioBtn) audioBtn.style.display = isEditing ? 'none' : '';
+        if (cancelBtn) cancelBtn.style.display = isEditing ? '' : 'none';
     }
 
     function getSoundName(id) {
@@ -362,21 +395,24 @@ export function Timer() {
         const isSaved = type === 'saved';
 
         return `
-          <div class="alarm-item recent-item ${selectedRecents.has(timer.id) ? 'selected' : ''}" style="position:relative;">
-            ${isEditing ? `<button class="delete-clock-btn delete-recent-btn" data-id="${timer.id}">−</button><input type="checkbox" class="select-checkbox" data-id="${timer.id}" ${selectedRecents.has(timer.id) ? 'checked' : ''}>` : ''}
-            <div class="alarm-info recent-item-info" data-id="${timer.id}" data-type="${type}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
-              <span class="alarm-time" style="font-size: 32px;">${timeString}</span>
-              <span class="alarm-label" title="${escapeHtml(timer.label || 'Timer')}">${escapeHtml(timer.label || 'Timer')}</span>
-            </div>
-            ${!isEditing ? `
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  ${!isSaved ? `<button class="save-timer-btn" data-id="${timer.id}" title="Save Timer">★</button>` : ''}
-                  <button class="control-btn start recent-item-play" data-id="${timer.id}" data-type="${type}" style="width: 40px; height: 40px; min-width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;">
-                    ▶
-                  </button>
-                </div>
-            ` : `<div style="width: 40px;"></div>`
+          <div class="alarm-item recent-item swipe-container ${selectedRecents.has(timer.id) ? 'selected' : ''}" style="position:relative;">
+            <div class="swipe-content">
+              ${isEditing ? `<button class="delete-clock-btn delete-recent-btn" data-id="${timer.id}">−</button><input type="checkbox" class="select-checkbox" data-id="${timer.id}" ${selectedRecents.has(timer.id) ? 'checked' : ''}>` : ''}
+              <div class="alarm-info recent-item-info" data-id="${timer.id}" data-type="${type}" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
+                <span class="alarm-time" style="font-size: 32px;">${timeString}</span>
+                <span class="alarm-label" title="${escapeHtml(timer.label || 'Timer')}">${escapeHtml(timer.label || 'Timer')}</span>
+              </div>
+              ${!isEditing ? `
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    ${!isSaved ? `<button class="save-timer-btn" data-id="${timer.id}" title="Save Timer">★</button>` : ''}
+                    <button class="control-btn start recent-item-play" data-id="${timer.id}" data-type="${type}" style="width: 40px; height: 40px; min-width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                      ▶
+                    </button>
+                  </div>
+              ` : `<div style="width: 40px;"></div>`
             }
+            </div>
+            <button class="swipe-delete-btn"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
           </div>
     `;
     }
@@ -465,7 +501,10 @@ export function Timer() {
     <div class="header">
         <button class="edit-btn" id="edit-recents-btn" style="visibility: ${recents.length > 0 ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
         <h1>Timers</h1>
-        <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
+        <div class="add-btn-container" style="display: flex; gap: 10px;">
+          <button class="add-btn" id="cancel-edit-timer-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
+          <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
+        </div>
       </div>
       <div class="timer-display-container">
         <svg class="progress-ring" width="300" height="300">
@@ -752,6 +791,7 @@ export function Timer() {
             document.removeEventListener('recents-updated', onRecentsUpdated);
             document.removeEventListener('saved-updated', onSavedUpdated);
             document.removeEventListener('timer-finished', onTimerFinished);
+            swipe.destroy();
         }
     };
 }
