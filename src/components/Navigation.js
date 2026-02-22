@@ -7,6 +7,7 @@ export function Navigation(activeTab, onTabChange) {
         { id: 'alarm', label: 'Alarm', icon: '⏰' },
         { id: 'stopwatch', label: 'Stopwatch', icon: '⏱️' },
         { id: 'timer', label: 'Timer', icon: '⏲️' },
+        { id: 'interval', label: 'Intervals', icon: '🔄' },
         { id: 'settings', label: 'Settings', icon: '⚙️' },
     ];
 

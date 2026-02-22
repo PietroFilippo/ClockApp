@@ -31,11 +31,24 @@ export function showModal({ title, content, onSave }) {
 
   window.addEventListener('keydown', handleEsc);
 
-  overlay.querySelector('.cancel').onclick = close;
-  overlay.querySelector('.save').onclick = () => {
-    onSave(overlay);
-    close();
-  };
+  const saveBtn = overlay.querySelector('.save');
+  const cancelBtn = overlay.querySelector('.cancel');
+
+  if (onSave) {
+    saveBtn.onclick = () => {
+      onSave(overlay);
+      close();
+    };
+  } else {
+    saveBtn.style.display = 'none';
+    if (cancelBtn) {
+      cancelBtn.textContent = 'OK';
+      cancelBtn.classList.add('primary'); // faz parecer como um botão primário se for o único
+      cancelBtn.style.width = '100%';
+    }
+  }
+
+  cancelBtn.onclick = close;
 
   overlay.onclick = (e) => {
     if (e.target === overlay) close();

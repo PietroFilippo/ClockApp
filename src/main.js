@@ -4,6 +4,7 @@ import { WorldClock } from './components/WorldClock.js';
 import { Alarm } from './components/Alarm.js';
 import { Stopwatch } from './components/Stopwatch.js';
 import { Timer } from './components/Timer.js';
+import { Interval } from './components/Interval.js';
 import { Settings } from './components/Settings.js';
 import { alarmManager } from './modules/AlarmManager.js';
 import { timerManager } from './modules/TimerManager.js';
@@ -246,6 +247,7 @@ function updateView() {
     case 'alarm': componentResult = Alarm(); break;
     case 'stopwatch': componentResult = Stopwatch(); break;
     case 'timer': componentResult = Timer(); break;
+    case 'interval': componentResult = Interval(); break;
     case 'settings': componentResult = Settings(); break;
     default: componentResult = WorldClock();
   }

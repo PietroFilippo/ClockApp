@@ -137,7 +137,7 @@ class TimerManager {
 
     deleteRecentTimer(id) {
         let recents = this.loadRecents();
-        recents = recents.filter(r => r.id !== id);
+        recents = recents.filter(r => String(r.id) !== String(id));
         this.saveRecents(recents);
     }
 
@@ -183,7 +183,7 @@ class TimerManager {
 
     deleteSavedTimer(id) {
         let saved = this.loadSaved();
-        saved = saved.filter(s => s.id !== id);
+        saved = saved.filter(s => String(s.id) !== String(id));
         this.saveSaved(saved);
     }
 

@@ -31,6 +31,8 @@ function createModalBase(title, message, buttons) {
     if (message instanceof Node) {
         bodyEl.innerHTML = '';
         bodyEl.appendChild(message);
+    } else if (typeof message === 'string' && message.trim().startsWith('<')) {
+        bodyEl.innerHTML = message;
     } else {
         bodyEl.textContent = message;
     }
@@ -48,7 +50,16 @@ function cleanup(overlay, handleKey) {
 
 export function showAlert(message, title = 'Notification') {
     return new Promise((resolve) => {
-        const overlay = createModalBase(title, message, [
+        const isSuccess = title.toLowerCase() === 'success';
+        const content = isSuccess ? `
+            <div style="text-align: center; padding: 10px 0;">
+                <div style="font-size: 40px; margin-bottom: 15px;">✅</div>
+                <h3 style="margin-bottom: 10px; font-weight: 600;">${title}</h3>
+                <div style="color: var(--text-secondary); margin-bottom: 5px;">${message}</div>
+            </div>
+        ` : message;
+
+        const overlay = createModalBase(isSuccess ? '' : title, content, [
             { label: 'OK', className: 'save', id: 'notif-ok' }
         ]);
 

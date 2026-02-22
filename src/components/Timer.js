@@ -9,6 +9,7 @@ import { openSoundSettingsModal } from '../utils/SoundSettingsModal.js';
 import { contextMenu } from '../utils/contextMenu.js';
 import { STORAGE_KEYS, DEFAULT_SOUND, LIMITS } from '../utils/constants.js';
 import { SwipeToDelete } from '../utils/SwipeToDelete.js';
+import { formatTime } from '../utils/time.js';
 
 export function Timer() {
     const container = document.createElement('div');
@@ -22,7 +23,7 @@ export function Timer() {
     let savedTimers = [];
     let selectedRecents = new Set();
     let currentMode = null; // 'picker' | 'running'
-    let activeTab = 'recents'; // 'recents' | 'saved'
+    let activeTab = localStorage.getItem(STORAGE_KEYS.TIMER_ACTIVE_TAB) || 'recents'; // 'recents' | 'saved'
 
     initDelegatedListeners();
 
@@ -33,8 +34,8 @@ export function Timer() {
             const info = item.querySelector('.recent-item-info');
             if (!info) return;
             const id = info.dataset.id;
-            const isSaved = info.dataset.type === 'saved';
-            if (isSaved) {
+            const type = info.dataset.type;
+            if (type === 'saved') {
                 await confirmAndDeleteSaved(id);
             } else {
                 await confirmAndDeleteRecent(id);
@@ -54,10 +55,15 @@ export function Timer() {
     function render() {
         loadRecents();
         const state = timerManager.getState();
-        const newMode = (state.isRunning || state.isPaused) ? 'running' : 'picker';
+
+        let newMode;
+        if (state.isRunning || state.isPaused) {
+            newMode = 'running';
+        } else {
+            newMode = 'picker';
+        }
 
         if (newMode !== currentMode) {
-            // Modo mudou: reconstrói o esqueleto completo
             currentMode = newMode;
             if (currentMode === 'running') {
                 initRunningView(state);
@@ -65,7 +71,6 @@ export function Timer() {
                 initPickerView(state);
             }
         } else {
-            // Mesmo modo: atualização granular
             if (currentMode === 'running') {
                 updateRunningView(state);
             } else {
@@ -85,6 +90,7 @@ export function Timer() {
                 const newTab = tab.dataset.tab;
                 if (newTab && newTab !== activeTab) {
                     activeTab = newTab;
+                    localStorage.setItem(STORAGE_KEYS.TIMER_ACTIVE_TAB, activeTab);
                     isEditing = false;
                     selectedRecents.clear();
                     render();
@@ -143,8 +149,8 @@ export function Timer() {
                 e.stopPropagation();
                 const btn = target.closest('.recent-item-play');
                 const id = btn.dataset.id;
-                const isSaved = btn.dataset.type === 'saved';
-                if (isSaved) {
+                const type = btn.dataset.type;
+                if (type === 'saved') {
                     startSaved(id);
                 } else {
                     startRecent(id);
@@ -178,15 +184,15 @@ export function Timer() {
             const recentInfo = target.closest('.recent-item-info');
             if (recentInfo) {
                 const id = recentInfo.dataset.id;
-                const isSaved = recentInfo.dataset.type === 'saved';
+                const type = recentInfo.dataset.type;
                 if (isEditing) {
-                    if (isSaved) {
+                    if (type === 'saved') {
                         openSavedEditModal(id);
                     } else {
                         openRecentEditModal(id);
                     }
                 } else {
-                    if (isSaved) {
+                    if (type === 'saved') {
                         startSaved(id);
                     } else {
                         startRecent(id);
@@ -200,23 +206,23 @@ export function Timer() {
             if (recentInfo) {
                 e.preventDefault();
                 const id = recentInfo.dataset.id;
-                const isSaved = recentInfo.dataset.type === 'saved';
+                const type = recentInfo.dataset.type;
 
                 const items = [
                     {
                         label: 'Edit',
                         primary: true,
-                        action: () => isSaved ? openSavedEditModal(id) : openRecentEditModal(id)
+                        action: () => type === 'saved' ? openSavedEditModal(id) : openRecentEditModal(id)
                     },
                     {
                         label: 'Delete',
                         danger: true,
-                        action: () => isSaved ? confirmAndDeleteSaved(id) : confirmAndDeleteRecent(id)
+                        action: () => type === 'saved' ? confirmAndDeleteSaved(id) : confirmAndDeleteRecent(id)
                     }
                 ];
 
                 // Adiciona "Salvar" para recents que ainda não estão salvos
-                if (!isSaved) {
+                if (type === 'recent') {
                     items.splice(1, 0, {
                         label: 'Save',
                         action: () => saveRecentTimer(id)
@@ -250,21 +256,22 @@ export function Timer() {
         const recent = recents.find(r => r.id === id);
         if (!recent) return;
 
-        const timerData = {
-            hours: recent.hours,
-            minutes: recent.minutes,
-            seconds: recent.seconds,
-            label: recent.label,
-            soundId: recent.soundId
-        };
+        loadSaved();
+        if (savedTimers.length >= LIMITS.MAX_TIMER_SAVED) {
+            openReplaceModal({
+                hours: recent.hours,
+                minutes: recent.minutes,
+                seconds: recent.seconds,
+                label: recent.label,
+                soundId: recent.soundId,
+            });
+            return;
+        }
 
-        const result = timerManager.addSavedTimer(timerData);
+        const result = timerManager.addSavedTimer(recent);
         if (result.success) {
             showAlert('Timer saved!', 'Success');
             render();
-        } else {
-            // Limite atingido — abre o modal de substituição
-            openReplaceModal(timerData);
         }
     }
 
@@ -277,7 +284,13 @@ export function Timer() {
 
     function initPickerView(state) {
         loadSaved();
-        const soundId = state.soundId || alarmManager.getLastUsedSound();
+        const soundId = localStorage.getItem(STORAGE_KEYS.TIMER_SELECTED_SOUND) || state.soundId || alarmManager.getLastUsedSound();
+
+        const pickerH = state.initialHours;
+        const pickerM = state.initialMinutes;
+        const pickerS = state.initialSeconds;
+        const labelVal = state.label || '';
+
         container.innerHTML = `
       <div class="header">
         <button class="edit-btn" id="edit-recents-btn" style="visibility: ${recents.length > 0 ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
@@ -289,15 +302,15 @@ export function Timer() {
       </div>
       <div class="timer-picker">
         <div class="picker-col">
-           <input type="number" id="hours" class="timer-input" min="0" max="23" value="${state.initialHours}">
+           <input type="number" id="hours" class="timer-input" min="0" max="23" value="${pickerH}">
            <div class="timer-label">hours</div>
         </div>
         <div class="picker-col">
-           <input type="number" id="minutes" class="timer-input" min="0" max="59" value="${state.initialMinutes}">
+           <input type="number" id="minutes" class="timer-input" min="0" max="59" value="${pickerM}">
            <div class="timer-label">min</div>
         </div>
         <div class="picker-col">
-           <input type="number" id="seconds" class="timer-input" min="0" max="59" value="${state.initialSeconds}">
+           <input type="number" id="seconds" class="timer-input" min="0" max="59" value="${pickerS}">
            <div class="timer-label">sec</div>
         </div>
       </div>
@@ -305,7 +318,7 @@ export function Timer() {
       <div class="modal-section" style="margin: 0 auto 30px;">
           <div class="modal-row">
               <span>Label</span>
-              <input type="text" id="timer-label" value="${escapeHtml(state.label || '')}" placeholder="Timer" maxlength="200">
+              <input type="text" id="timer-label" value="${escapeHtml(labelVal)}" placeholder="Timer" maxlength="200">
           </div>
           <div class="modal-row">
               <span>When Timer Ends</span>
@@ -323,7 +336,8 @@ export function Timer() {
       <div class="recents-container"></div>
 `;
         // Listeners (uma vez por init)
-        container.querySelector('#start-btn').onclick = start;
+        const startBtn = container.querySelector('#start-btn');
+        if (startBtn) startBtn.onclick = start;
         container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
 
         const soundTrigger = container.querySelector('#timer-sound-trigger');
@@ -333,6 +347,7 @@ export function Timer() {
                 openSoundPicker(soundValue.value, (selectedId) => {
                     soundValue.value = selectedId;
                     soundTrigger.textContent = getSoundName(selectedId);
+                    localStorage.setItem(STORAGE_KEYS.TIMER_SELECTED_SOUND, selectedId);
                 });
             };
         }
@@ -353,6 +368,7 @@ export function Timer() {
         validateInput(hoursInput, 23);
         validateInput(minutesInput, 59);
         validateInput(secondsInput, 59);
+
         // Atualiza recentes
         updateRecentsSection();
         updatePickerHeaderState();
@@ -405,7 +421,7 @@ export function Timer() {
               ${!isEditing ? `
                   <div style="display: flex; align-items: center; gap: 6px;">
                     ${!isSaved ? `<button class="save-timer-btn" data-id="${timer.id}" title="Save Timer">★</button>` : ''}
-                    <button class="control-btn start recent-item-play" data-id="${timer.id}" data-type="${type}" style="width: 40px; height: 40px; min-width: 40px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                    <button class="control-btn start recent-item-play" data-id="${timer.id}" data-type="${type}" style="width: 40px; height: 40px; min-width: 40px; padding: 0 0 0 3px; display: flex; align-items: center; justify-content: center;">
                       ▶
                     </button>
                   </div>
@@ -566,7 +582,7 @@ export function Timer() {
         const hasRecents = recents.length > 0;
         const hasSaved = savedTimers.length > 0;
 
-        // Não mostra nada se ambas as listas estão vazias
+        // Não mostra nada se todas as listas estão vazias
         if (!hasRecents && !hasSaved) {
             recentsContainer.innerHTML = '';
             return;
@@ -574,6 +590,9 @@ export function Timer() {
 
         const currentItems = activeTab === 'saved' ? savedTimers : recents;
         const itemType = activeTab === 'saved' ? 'saved' : 'recent';
+        const currentItemsHTML = currentItems.length > 0
+            ? currentItems.map(item => renderTimerItem(item, itemType)).join('')
+            : `<p style="text-align:center; color:var(--text-secondary); margin-top:20px;">${activeTab === 'saved' ? 'No saved timers' : 'No recent timers'}</p>`;
 
         recentsContainer.innerHTML = `
     <div class="recents-section">
@@ -582,22 +601,13 @@ export function Timer() {
                   <button class="timer-tab ${activeTab === 'saved' ? 'active' : ''}" data-tab="saved">Saved${hasSaved ? ` (${savedTimers.length})` : ''}</button>
               </div>
               <div class="alarm-list ${isEditing ? 'edit-mode' : ''}">
-                  ${currentItems.length > 0
-                ? currentItems.map(item => renderTimerItem(item, itemType)).join('')
-                : `<p style="text-align:center; color:var(--text-secondary); margin-top:20px;">${activeTab === 'saved' ? 'No saved timers' : 'No recent timers'}</p>`
-            }
+                  ${currentItemsHTML}
               </div>
           </div>
     `;
     }
 
-    function formatTime(totalSecs) {
-        const h = Math.floor(totalSecs / 3600);
-        const m = Math.floor((totalSecs % 3600) / 60);
-        const s = totalSecs % 60;
-        if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} `;
-        return `${m}:${String(s).padStart(2, '0')} `;
-    }
+    // formatTime imported from utils/time.js
 
     function start() {
         const h = Number(container.querySelector('#hours').value);
@@ -699,15 +709,19 @@ export function Timer() {
     function openReplaceModal(newTimer) {
         loadSaved();
         const content = `
-            <p style="color: var(--text-secondary); margin-bottom: 15px;">Saved timers are full (${LIMITS.MAX_TIMER_SAVED}/${LIMITS.MAX_TIMER_SAVED}). Choose a timer to replace:</p>
-            <div class="replace-timer-list">
+            <div style="text-align: center; padding: 10px 0;">
+                <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
+                <h3 style="margin-bottom: 10px;">Replace Timer</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">Saved timers are full (${LIMITS.MAX_TIMER_SAVED}/${LIMITS.MAX_TIMER_SAVED}).<br>Choose a timer to replace:</p>
+            </div>
+            <div class="replace-timer-list" style="max-height: 300px; overflow-y: auto;">
                 ${savedTimers.map(s => {
             const totalSecs = (s.hours || 0) * 3600 + (s.minutes || 0) * 60 + (s.seconds || 0);
             return `
-                        <div class="replace-item" data-id="${s.id}">
+                        <div class="replace-item" data-id="${s.id}" style="padding: 12px; margin-bottom: 8px; background: var(--bg-secondary); border-radius: 12px; cursor: pointer;">
                             <div class="alarm-info">
-                                <span class="alarm-time">${formatTime(totalSecs)}</span>
-                                <span class="alarm-label">${escapeHtml(s.label || 'Timer')}</span>
+                                <span class="alarm-time" style="font-size: 20px;">${formatTime(totalSecs)}</span>
+                                <span class="alarm-label" style="font-size: 14px;">${escapeHtml(s.label || 'Timer')}</span>
                             </div>
                         </div>
                     `;
@@ -760,7 +774,6 @@ export function Timer() {
     }
 
     function onTimerUpdated() {
-        // render() agora faz atualização granular via mode tracking
         render();
     }
 

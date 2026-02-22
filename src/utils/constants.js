@@ -16,7 +16,12 @@ export const STORAGE_KEYS = {
     TIMER_TIMEOUT_ACTION: 'timerTimeoutAction',
     ALARM_TIMEOUT_ACTION: 'alarmTimeoutAction',
     ALARM_AUTO_ACTION_DURATION: 'alarmAutoActionDuration',
-    TIMER_AUTO_ACTION_DURATION: 'timerAutoActionDuration'
+    TIMER_AUTO_ACTION_DURATION: 'timerAutoActionDuration',
+    INTERVAL_TIMERS: 'interval-timers',
+    INTERVAL_TIMER_STATE: 'interval-timer-state',
+    TIMER_ACTIVE_TAB: 'timer-active-tab',
+    TIMER_SELECTED_SOUND: 'timer-selected-sound',
+    INTERVAL_SELECTED_SOUND: 'interval-selected-sound'
 };
 
 export const COLORS = {
@@ -38,7 +43,9 @@ export const LIMITS = {
     MAX_FILE_SIZE_BYTES_BROWSER: 2 * 1024 * 1024, // 2MB
     MAX_FILE_SIZE_BYTES_ELECTRON: 100 * 1024 * 1024, // 100MB
     MAX_FILE_SIZE_MB_BROWSER: 2,
-    MAX_FILE_SIZE_MB_ELECTRON: 100
+    MAX_FILE_SIZE_MB_ELECTRON: 100,
+    MAX_INTERVAL_STEPS: 30,
+    MAX_INTERVAL_PRESETS: 10
 };
 
 export const DEFAULT_SOUND = 'default';

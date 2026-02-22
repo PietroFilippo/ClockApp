@@ -491,6 +491,8 @@ export function Alarm() {
           openSoundPicker(soundValue.value, (selectedId) => {
             soundValue.value = selectedId;
             soundTrigger.textContent = getSoundName(selectedId);
+            // Salva som imediatamente ao selecionar
+            alarmManager.setLastUsedSound(selectedId);
           });
         };
       }
