@@ -21,7 +21,8 @@ export const STORAGE_KEYS = {
     INTERVAL_TIMER_STATE: 'interval-timer-state',
     TIMER_ACTIVE_TAB: 'timer-active-tab',
     TIMER_SELECTED_SOUND: 'timer-selected-sound',
-    INTERVAL_SELECTED_SOUND: 'interval-selected-sound'
+    INTERVAL_SELECTED_SOUND: 'interval-selected-sound',
+    INTERVAL_DRAFT_STATE: 'clockapp_interval_draft_state'
 };
 
 export const COLORS = {

@@ -29,6 +29,36 @@ export function Interval() {
     let draftPickerSeconds = 0;
     let draftLabel = '';
 
+    function loadDraft() {
+        const saved = localStorage.getItem(STORAGE_KEYS.INTERVAL_DRAFT_STATE);
+        if (saved) {
+            try {
+                const state = JSON.parse(saved);
+                draftSteps = state.steps || [];
+                draftPickerHours = state.hours ?? 0;
+                draftPickerMinutes = state.minutes ?? 5;
+                draftPickerSeconds = state.seconds ?? 0;
+                draftLabel = state.label || '';
+            } catch (e) {
+                console.error('Failed to parse interval draft', e);
+            }
+        }
+    }
+
+    function saveDraft() {
+        const state = {
+            steps: draftSteps,
+            hours: draftPickerHours,
+            minutes: draftPickerMinutes,
+            seconds: draftPickerSeconds,
+            label: draftLabel
+        };
+        localStorage.setItem(STORAGE_KEYS.INTERVAL_DRAFT_STATE, JSON.stringify(state));
+    }
+
+    // Carrega o rascunho antes da renderização
+    loadDraft();
+
     initDelegatedListeners();
 
     const swipe = new SwipeToDelete({
@@ -284,6 +314,62 @@ export function Interval() {
         }, 100);
     }
 
+    function openReplaceModal(newPreset) {
+        const presets = intervalTimerManager.getPresets();
+        const content = `
+            <div style="text-align: center; padding: 10px 0;">
+                <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
+                <h3 style="margin-bottom: 10px;">Replace Interval</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 20px;">Saved Intervals are full (${LIMITS.MAX_INTERVAL_PRESETS}/${LIMITS.MAX_INTERVAL_PRESETS}).<br>Choose an interval to replace:</p>
+            </div>
+            <div class="replace-timer-list" style="max-height: 300px; overflow-y: auto;">
+                ${presets.map(s => {
+            const totalSecs = intervalTimerManager.getTotalTime(s.steps);
+            const stepCount = s.steps.length;
+            return `
+                        <div class="replace-item" data-id="${s.id}" style="padding: 12px; margin-bottom: 8px; background: var(--bg-secondary); border-radius: 12px; cursor: pointer;">
+                            <div class="alarm-info">
+                                <span class="alarm-time" style="font-size: 20px;">${escapeHtml(s.label || 'Interval')}</span>
+                                <span class="alarm-label" style="font-size: 14px;">${stepCount} step${stepCount !== 1 ? 's' : ''} · ${formatTime(totalSecs)}</span>
+                            </div>
+                        </div>
+                    `;
+        }).join('')}
+            </div>
+        `;
+
+        showModal({
+            title: 'Replace Saved Interval',
+            content,
+            onSave: () => { }
+        });
+
+        setTimeout(() => {
+            const overlay = document.querySelector('.modal-overlay');
+            if (!overlay) return;
+
+            const saveBtn = overlay.querySelector('.save');
+            if (saveBtn) saveBtn.style.display = 'none';
+
+            overlay.querySelectorAll('.replace-item').forEach(item => {
+                item.onclick = () => {
+                    const oldId = item.dataset.id;
+                    intervalTimerManager.replacePreset(oldId, newPreset);
+                    if (document.body.contains(overlay)) {
+                        document.body.removeChild(overlay);
+                    }
+                    showAlert('Interval replaced!', 'Success');
+
+                    draftSteps = [];
+                    draftLabel = '';
+                    saveDraft();
+
+                    render();
+                };
+            });
+        }, 100);
+    }
+
     // Render
     function render() {
         const state = intervalTimerManager.getState();
@@ -379,6 +465,19 @@ export function Interval() {
         const hoursInput = container.querySelector('#hours');
         const minutesInput = container.querySelector('#minutes');
         const secondsInput = container.querySelector('#seconds');
+        const labelInput = container.querySelector('#interval-label');
+
+        const updateDraftState = () => {
+            draftPickerHours = Number(hoursInput.value) || 0;
+            draftPickerMinutes = Number(minutesInput.value) || 0;
+            draftPickerSeconds = Number(secondsInput.value) || 0;
+            draftLabel = labelInput.value || '';
+            saveDraft();
+        };
+
+        if (labelInput) {
+            labelInput.addEventListener('input', updateDraftState);
+        }
 
         const validateInput = (input, max) => {
             input.oninput = () => {
@@ -386,6 +485,7 @@ export function Interval() {
                 if (val > max) input.value = max;
                 if (val < 0) input.value = 0;
                 if (input.value.length > 2) input.value = input.value.slice(0, 2);
+                updateDraftState();
             };
         };
 
@@ -416,6 +516,7 @@ export function Interval() {
                 draftPickerSeconds = s;
                 draftLabel = '';
 
+                saveDraft();
                 renderDraftSteps();
             };
         }
@@ -429,6 +530,7 @@ export function Interval() {
                 intervalTimerManager.start(draftSteps, soundId, '');
                 draftSteps = [];
                 draftLabel = '';
+                saveDraft();
             };
         }
 
@@ -451,18 +553,23 @@ export function Interval() {
                     `,
                     onSave: (overlay) => {
                         const name = overlay.querySelector('#interval-preset-name').value || 'Interval';
-                        const result = intervalTimerManager.addPreset({
+                        const presetData = {
                             label: name,
                             soundId,
                             steps: [...draftSteps]
-                        });
+                        };
+                        const result = intervalTimerManager.addPreset(presetData);
                         if (result.success) {
                             showAlert('Interval saved!', 'Success');
                             draftSteps = [];
                             draftLabel = '';
+                            saveDraft();
                             render();
                         } else {
-                            showAlert(`Maximum of ${LIMITS.MAX_INTERVAL_PRESETS} presets allowed.`, 'Limit Reached');
+                            if (document.body.contains(overlay)) {
+                                document.body.removeChild(overlay);
+                            }
+                            openReplaceModal(presetData);
                         }
                     }
                 });
@@ -535,6 +642,7 @@ export function Interval() {
                 e.stopPropagation();
                 const idx = parseInt(btn.dataset.stepIndex);
                 draftSteps.splice(idx, 1);
+                saveDraft();
                 renderDraftSteps();
             };
         });
@@ -783,16 +891,20 @@ export function Interval() {
                     `,
                     onSave: (saveOverlay) => {
                         const name = saveOverlay.querySelector('#finish-interval-name').value || 'Interval';
-                        const result = intervalTimerManager.addPreset({
+                        const presetData = {
                             label: name,
                             soundId: state.soundId,
                             steps: state.steps
-                        });
+                        };
+                        const result = intervalTimerManager.addPreset(presetData);
                         if (result.success) {
                             showAlert('Interval saved!', 'Success');
                             render();
                         } else {
-                            showAlert(`Maximum of ${LIMITS.MAX_INTERVAL_PRESETS} presets allowed.`, 'Limit Reached');
+                            if (document.body.contains(saveOverlay)) {
+                                document.body.removeChild(saveOverlay);
+                            }
+                            openReplaceModal(presetData);
                         }
                     }
                 });

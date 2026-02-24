@@ -116,6 +116,20 @@ class IntervalTimerManager {
         }
     }
 
+    replacePreset(idToReplace, preset) {
+        let presets = this.loadPresets();
+        const index = presets.findIndex(p => p.id === idToReplace);
+        if (index !== -1) {
+            presets[index] = {
+                ...preset,
+                id: presets[index].id,
+                createdAt: presets[index].createdAt
+            };
+            this.savePresets(presets);
+        }
+        return { success: true, presets };
+    }
+
     deletePreset(id) {
         let presets = this.loadPresets();
         presets = presets.filter(p => String(p.id) !== String(id));
