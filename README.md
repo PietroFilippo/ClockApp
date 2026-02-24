@@ -10,7 +10,7 @@ Um aplicativo de desktop moderno e elegante para gerenciamento de tempo e produt
 
 ## 📋 Visão Geral
 
-O **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina funcionalidades essenciais como Relógio Mundial, Alarmes, Cronômetro e Temporizador em uma interface limpa e intuitiva, com tema escuro. O aplicativo foi projetado para se integrar perfeitamente ao ambiente de trabalho, oferecendo notificações personalizáveis, minimização para a bandeja do sistema (System Tray), atalhos globais configuráveis, atualização automática e persistência de dados.
+Aplication **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina funcionalidades essenciais como Relógio Mundial, Alarmes, Cronômetro, Temporizador e Intervalos em uma interface limpa e intuitiva, com tema escuro. O aplicativo foi projetado para se integrar perfeitamente ao ambiente de trabalho, oferecendo notificações personalizáveis, minimização para a bandeja do sistema (System Tray), atalhos globais configuráveis, atualização automática e persistência de dados.
 
 ---
 
@@ -21,7 +21,8 @@ O **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina
 - **350+ cidades** geradas dinamicamente via `Intl.supportedValuesOf('timeZone')`
 - **Busca avançada**: Filtro por continente, índice de letras (multi-select), ordenação por nome (A-Z, Z-A) e fuso horário (GMT±)
 - **Drag & Drop**: Reordene os relógios arrastando e soltando
-- **Seleção múltipla**: Selecione e delete vários relógios de uma vez
+- **Seleção múltipla**: Selecione e delete vários relógios simultaneamente
+- **Swipe-to-Delete**: Deslize um item para o lado para revelar opções rápidas de exclusão
 - Visualização clara da diferença de horário (Offset GMT)
 - Menu de contexto (clique direito) para editar ou deletar
 
@@ -31,7 +32,7 @@ O **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina
 - **Sons Personalizados**: Escolha entre 13 sons inclusos ou adicione seus próprios arquivos de áudio
 - **Soneca (Snooze)**: Adie alarmes com intervalos configuráveis (1–30 min)
 - **Persistência**: Alarmes, estados de soneca e configurações são salvos automaticamente
-- **Seleção múltipla**: Selecione e delete vários alarmes de uma vez
+- **Seleção múltipla e Swipe**: Delete alarmes em lote ou com gestos de deslize rápidos
 - Menu de contexto para edição e exclusão rápida
 
 ### ⏱️ Cronômetro
@@ -48,7 +49,14 @@ O **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina
 - **Repetir**: Repita o último timer diretamente da notificação
 - Seleção direta de horas, minutos e segundos com validação
 - Modo de edição para gerenciar lista de recentes
-- **Seleção múltipla**: Selecione e delete vários timers recentes de uma vez
+- **Seleção múltipla e Swipe-to-Delete**: Gerencie seu histórico de timers facilmente
+- **Limites e Substituição**: Ao atingir o limite de presets, escolha rapidamente um timer ou intervalo antigo para substituir
+
+### ⏳ Intervalos
+- Crie ciclos de trabalho personalizados com múltiplos passos e alarmes independentes
+- **Rascunhos Persistentes (Draft State)**: Seu progresso (tempos e passos) na criação de intervalos é salvo automaticamente em tempo real, permitindo navegar pelo app sem perdas
+- **Substituição Inteligente**: Quando o limite de intervalos salvos é atingido, o app exibe um modal intuitivo para substituir presets
+- Interface visual dedicada mostrando o progresso atual, a etapa ativa, e os próximos passos do ciclo
 
 ### ⚙️ Configurações
 | Configuração | Descrição |
@@ -60,6 +68,7 @@ O **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina
 | **Notification Style** | Sistema (Windows), App Custom, Ambos ou Nenhum |
 | **Notification Position** | 4 cantos pré-definidos ou posição customizada (picker visual) |
 | **Auto-Close Duration** | Tempo até a notificação fechar automaticamente (5s – 1min ou Nunca) |
+| **Auto Action Settings** | Novas opções de engajamento automático após eventos (ex: auto-repetir) |
 | **Global Shortcuts** | Atalhos funcionam mesmo com o app minimizado |
 
 ### 🔔 Notificações
@@ -74,6 +83,10 @@ O **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina
 - Banner com botão **Update** (baixa e instala automaticamente) e **View Release** (abre a página no navegador)
 - Barra de progresso animada durante o download
 - Powered by `electron-updater`
+
+### 📱 Experiência de Uso Global
+- **Persistência de Scroll**: A posição de rolagem de cada seção principal (Alarmes, Timers, Relógio Mundial, Intervalos) é mantida perfeitamente ao mudar de abas.
+- **Gestos de Swipe**: Integração avançada de física de arremesso (`translateX`) para deletar elementos.
 
 ---
 
@@ -185,7 +198,7 @@ A forma mais fácil de instalar é baixar o instalador mais recente diretamente 
 
 **[Baixar última versão (.exe)](https://github.com/PietroFilippo/ClockApp/releases/latest)**
 
-Basta executar o instalador e seguir as instruções. O app receberá atualizações automaticamente.
+Basta executar o instalador e seguir as instruções. O assistente criará automaticamente um **atalho na sua Área de Trabalho (Desktop)** durante a instalação. O app receberá atualizações automaticamente.
 
 ---
 
@@ -236,6 +249,7 @@ npm run electron:build
 | `Alt+L` | Registrar volta* |
 | `Alt+S` | Parar cronômetro* |
 | `Alt+R` | Reset do cronômetro* |
+| `Ctrl+R` | Recarregar aplicação (apenas em desenvolvimento) |
 | `Ctrl+Shift+I` | DevTools (apenas em desenvolvimento) |
 | `Ctrl+Q` | Encerrar totalmente o aplicativo |
 
