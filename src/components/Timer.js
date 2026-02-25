@@ -470,15 +470,15 @@ export function Timer() {
     </div>
 `;
 
-        showModal({
+        const overlay = showModal({
             title: 'Edit Timer',
             content,
-            onSave: (overlay) => {
-                const hours = Number(overlay.querySelector('#modal-hours').value);
-                const minutes = Number(overlay.querySelector('#modal-minutes').value);
-                const seconds = Number(overlay.querySelector('#modal-seconds').value);
-                const label = overlay.querySelector('#modal-label').value;
-                const soundId = overlay.querySelector('#modal-sound-value').value;
+            onSave: (ov) => {
+                const hours = Number(ov.querySelector('#modal-hours').value);
+                const minutes = Number(ov.querySelector('#modal-minutes').value);
+                const seconds = Number(ov.querySelector('#modal-seconds').value);
+                const label = ov.querySelector('#modal-label').value;
+                const soundId = ov.querySelector('#modal-sound-value').value;
 
                 timerManager.updateRecentTimer(id, { hours, minutes, seconds, label, soundId });
                 alarmManager.setLastUsedSound(soundId);
@@ -486,30 +486,26 @@ export function Timer() {
             }
         });
 
-        setTimeout(() => {
-            const overlay = document.querySelector('.modal-overlay');
-            if (!overlay) return;
-
-            ['modal-hours', 'modal-minutes', 'modal-seconds'].forEach(id => {
-                const input = overlay.querySelector('#' + id);
-                const max = id.includes('hours') ? 23 : 59;
-                input.oninput = () => {
-                    let val = parseInt(input.value);
-                    if (val > max) input.value = max;
-                    if (val < 0) input.value = 0;
-                };
-            });
-            const soundTrigger = overlay.querySelector('#modal-sound-trigger');
-            const soundValue = overlay.querySelector('#modal-sound-value');
-            if (soundTrigger) {
-                soundTrigger.onclick = () => {
-                    openSoundPicker(soundValue.value, (selectedId) => {
-                        soundValue.value = selectedId;
-                        soundTrigger.textContent = getSoundName(selectedId);
-                    });
-                };
-            }
-        }, 100);
+        // Usa referência direta do overlay
+        ['modal-hours', 'modal-minutes', 'modal-seconds'].forEach(inputId => {
+            const input = overlay.querySelector('#' + inputId);
+            const max = inputId.includes('hours') ? 23 : 59;
+            input.oninput = () => {
+                let val = parseInt(input.value);
+                if (val > max) input.value = max;
+                if (val < 0) input.value = 0;
+            };
+        });
+        const soundTrigger = overlay.querySelector('#modal-sound-trigger');
+        const soundValue = overlay.querySelector('#modal-sound-value');
+        if (soundTrigger) {
+            soundTrigger.onclick = () => {
+                openSoundPicker(soundValue.value, (selectedId) => {
+                    soundValue.value = selectedId;
+                    soundTrigger.textContent = getSoundName(selectedId);
+                });
+            };
+        }
     }
 
     function initRunningView(state) {
@@ -570,9 +566,8 @@ export function Timer() {
             pauseBtn.className = `control-btn ${state.isPaused ? 'start' : 'pause'}`;
         }
 
-        // Atualiza header e recentes
-        updatePickerHeaderState();
-        updateRecentsSection();
+        // Nota: NÃO atualiza recents/header aqui — são atualizados apenas quando
+        // dados mudam (via onRecentsUpdated/onSavedUpdated), não a cada tick.
     }
 
     function updateRecentsSection() {
@@ -664,15 +659,15 @@ export function Timer() {
     </div>
 `;
 
-        showModal({
+        const overlay = showModal({
             title: 'Edit Saved Timer',
             content,
-            onSave: (overlay) => {
-                const hours = Number(overlay.querySelector('#modal-hours').value);
-                const minutes = Number(overlay.querySelector('#modal-minutes').value);
-                const seconds = Number(overlay.querySelector('#modal-seconds').value);
-                const label = overlay.querySelector('#modal-label').value;
-                const soundId = overlay.querySelector('#modal-sound-value').value;
+            onSave: (ov) => {
+                const hours = Number(ov.querySelector('#modal-hours').value);
+                const minutes = Number(ov.querySelector('#modal-minutes').value);
+                const seconds = Number(ov.querySelector('#modal-seconds').value);
+                const label = ov.querySelector('#modal-label').value;
+                const soundId = ov.querySelector('#modal-sound-value').value;
 
                 timerManager.updateSavedTimer(id, { hours, minutes, seconds, label, soundId });
                 alarmManager.setLastUsedSound(soundId);
@@ -680,30 +675,26 @@ export function Timer() {
             }
         });
 
-        setTimeout(() => {
-            const overlay = document.querySelector('.modal-overlay');
-            if (!overlay) return;
-
-            ['modal-hours', 'modal-minutes', 'modal-seconds'].forEach(inputId => {
-                const input = overlay.querySelector('#' + inputId);
-                const max = inputId.includes('hours') ? 23 : 59;
-                input.oninput = () => {
-                    let val = parseInt(input.value);
-                    if (val > max) input.value = max;
-                    if (val < 0) input.value = 0;
-                };
-            });
-            const soundTrigger = overlay.querySelector('#modal-sound-trigger');
-            const soundValue = overlay.querySelector('#modal-sound-value');
-            if (soundTrigger) {
-                soundTrigger.onclick = () => {
-                    openSoundPicker(soundValue.value, (selectedId) => {
-                        soundValue.value = selectedId;
-                        soundTrigger.textContent = getSoundName(selectedId);
-                    });
-                };
-            }
-        }, 100);
+        // Usa referência direta do overlay
+        ['modal-hours', 'modal-minutes', 'modal-seconds'].forEach(inputId => {
+            const input = overlay.querySelector('#' + inputId);
+            const max = inputId.includes('hours') ? 23 : 59;
+            input.oninput = () => {
+                let val = parseInt(input.value);
+                if (val > max) input.value = max;
+                if (val < 0) input.value = 0;
+            };
+        });
+        const soundTrigger = overlay.querySelector('#modal-sound-trigger');
+        const soundValue = overlay.querySelector('#modal-sound-value');
+        if (soundTrigger) {
+            soundTrigger.onclick = () => {
+                openSoundPicker(soundValue.value, (selectedId) => {
+                    soundValue.value = selectedId;
+                    soundTrigger.textContent = getSoundName(selectedId);
+                });
+            };
+        }
     }
 
     function openReplaceModal(newTimer) {
@@ -729,31 +720,27 @@ export function Timer() {
             </div>
         `;
 
-        showModal({
+        const overlay = showModal({
             title: 'Replace Saved Timer',
             content,
             onSave: () => { }
         });
 
-        setTimeout(() => {
-            const overlay = document.querySelector('.modal-overlay');
-            if (!overlay) return;
+        // Usa referência direta do overlay
+        const saveBtn = overlay.querySelector('.save');
+        if (saveBtn) saveBtn.style.display = 'none';
 
-            const saveBtn = overlay.querySelector('.save');
-            if (saveBtn) saveBtn.style.display = 'none';
-
-            overlay.querySelectorAll('.replace-item').forEach(item => {
-                item.onclick = () => {
-                    const oldId = item.dataset.id;
-                    timerManager.replaceSavedTimer(oldId, newTimer);
-                    if (document.body.contains(overlay)) {
-                        document.body.removeChild(overlay);
-                    }
-                    showAlert('Timer replaced!', 'Success');
-                    render();
-                };
-            });
-        }, 100);
+        overlay.querySelectorAll('.replace-item').forEach(item => {
+            item.onclick = () => {
+                const oldId = item.dataset.id;
+                timerManager.replaceSavedTimer(oldId, newTimer);
+                if (document.body.contains(overlay)) {
+                    document.body.removeChild(overlay);
+                }
+                showAlert('Timer replaced!', 'Success');
+                render();
+            };
+        });
     }
 
     function updateProgress(remaining, total) {
