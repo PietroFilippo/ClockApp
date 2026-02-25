@@ -1,4 +1,4 @@
-import { alarmManager } from '../modules/AlarmManager.js';
+
 import { timerManager } from '../modules/TimerManager.js';
 import { audioManager } from '../utils/AudioManager.js';
 import { showModal } from '../utils/modal.js';
@@ -187,9 +187,9 @@ export function Timer() {
                 const type = recentInfo.dataset.type;
                 if (isEditing) {
                     if (type === 'saved') {
-                        openSavedEditModal(id);
+                        openTimerEditModal(id, 'saved');
                     } else {
-                        openRecentEditModal(id);
+                        openTimerEditModal(id, 'recent');
                     }
                 } else {
                     if (type === 'saved') {
@@ -212,7 +212,7 @@ export function Timer() {
                     {
                         label: 'Edit',
                         primary: true,
-                        action: () => type === 'saved' ? openSavedEditModal(id) : openRecentEditModal(id)
+                        action: () => openTimerEditModal(id, type)
                     },
                     {
                         label: 'Delete',
@@ -284,7 +284,7 @@ export function Timer() {
 
     function initPickerView(state) {
         loadSaved();
-        const soundId = localStorage.getItem(STORAGE_KEYS.TIMER_SELECTED_SOUND) || state.soundId || alarmManager.getLastUsedSound();
+        const soundId = localStorage.getItem(STORAGE_KEYS.TIMER_SELECTED_SOUND) || state.soundId || audioManager.getLastUsedSound();
 
         const pickerH = state.initialHours;
         const pickerM = state.initialMinutes;
@@ -322,8 +322,8 @@ export function Timer() {
           </div>
           <div class="modal-row">
               <span>When Timer Ends</span>
-              <button id="timer-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${getSoundName(soundId)}">
-                  ${getSoundName(soundId)}
+              <button id="timer-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${audioManager.getSoundName(soundId)}">
+                  ${audioManager.getSoundName(soundId)}
               </button>
               <input type="hidden" id="timer-sound-value" value="${soundId}">
           </div>
@@ -346,7 +346,7 @@ export function Timer() {
             soundTrigger.onclick = () => {
                 openSoundPicker(soundValue.value, (selectedId) => {
                     soundValue.value = selectedId;
-                    soundTrigger.textContent = getSoundName(selectedId);
+                    soundTrigger.textContent = audioManager.getSoundName(selectedId);
                     localStorage.setItem(STORAGE_KEYS.TIMER_SELECTED_SOUND, selectedId);
                 });
             };
@@ -399,11 +399,7 @@ export function Timer() {
         if (cancelBtn) cancelBtn.style.display = isEditing ? '' : 'none';
     }
 
-    function getSoundName(id) {
-        const builtIn = audioManager.getBuiltInSounds().find(s => s.id === id);
-        const custom = audioManager.getCustomSounds().find(s => s.id === id);
-        return builtIn ? builtIn.name : (custom ? custom.name : 'Radar (Default)');
-    }
+
 
     function renderTimerItem(timer, type = 'recent') {
         const totalSecs = (timer.hours || 0) * 3600 + (timer.minutes || 0) * 60 + (timer.seconds || 0);
@@ -433,23 +429,26 @@ export function Timer() {
     `;
     }
 
-    function openRecentEditModal(id) {
-        const recent = recents.find(r => r.id === id);
-        if (!recent) return;
+    function openTimerEditModal(id, type) {
+        const isSaved = type === 'saved';
+        const timer = isSaved
+            ? savedTimers.find(s => s.id === id)
+            : recents.find(r => r.id === id);
+        if (!timer) return;
 
         const content = `
       <div class="modal-section">
         <div class="timer-picker" style="transform: scale(0.8);">
             <div class="picker-col">
-                <input type="number" id="modal-hours" class="timer-input" min="0" max="23" value="${recent.hours}">
+                <input type="number" id="modal-hours" class="timer-input" min="0" max="23" value="${timer.hours}">
                     <div class="timer-label">hours</div>
             </div>
             <div class="picker-col">
-                <input type="number" id="modal-minutes" class="timer-input" min="0" max="59" value="${recent.minutes}">
+                <input type="number" id="modal-minutes" class="timer-input" min="0" max="59" value="${timer.minutes}">
                     <div class="timer-label">min</div>
             </div>
             <div class="picker-col">
-                <input type="number" id="modal-seconds" class="timer-input" min="0" max="59" value="${recent.seconds}">
+                <input type="number" id="modal-seconds" class="timer-input" min="0" max="59" value="${timer.seconds}">
                     <div class="timer-label">sec</div>
             </div>
         </div>
@@ -458,20 +457,20 @@ export function Timer() {
     <div class="modal-section">
         <div class="modal-row">
             <span>Label</span>
-            <input type="text" id="modal-label" value="${escapeHtml(recent.label || '')}" placeholder="Timer" maxlength="200">
+            <input type="text" id="modal-label" value="${escapeHtml(timer.label || '')}" placeholder="Timer" maxlength="200">
         </div>
         <div class="modal-row">
             <span>Sound</span>
-            <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${recent.soundId}" title="${getSoundName(recent.soundId)}">
-                ${getSoundName(recent.soundId)}
+            <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${timer.soundId}" title="${audioManager.getSoundName(timer.soundId)}">
+                ${audioManager.getSoundName(timer.soundId)}
             </button>
-            <input type="hidden" id="modal-sound-value" value="${recent.soundId}">
+            <input type="hidden" id="modal-sound-value" value="${timer.soundId}">
         </div>
     </div>
 `;
 
         const overlay = showModal({
-            title: 'Edit Timer',
+            title: isSaved ? 'Edit Saved Timer' : 'Edit Timer',
             content,
             onSave: (ov) => {
                 const hours = Number(ov.querySelector('#modal-hours').value);
@@ -480,8 +479,12 @@ export function Timer() {
                 const label = ov.querySelector('#modal-label').value;
                 const soundId = ov.querySelector('#modal-sound-value').value;
 
-                timerManager.updateRecentTimer(id, { hours, minutes, seconds, label, soundId });
-                alarmManager.setLastUsedSound(soundId);
+                if (isSaved) {
+                    timerManager.updateSavedTimer(id, { hours, minutes, seconds, label, soundId });
+                } else {
+                    timerManager.updateRecentTimer(id, { hours, minutes, seconds, label, soundId });
+                }
+                audioManager.setLastUsedSound(soundId);
                 render();
             }
         });
@@ -502,7 +505,7 @@ export function Timer() {
             soundTrigger.onclick = () => {
                 openSoundPicker(soundValue.value, (selectedId) => {
                     soundValue.value = selectedId;
-                    soundTrigger.textContent = getSoundName(selectedId);
+                    soundTrigger.textContent = audioManager.getSoundName(selectedId);
                 });
             };
         }
@@ -611,7 +614,7 @@ export function Timer() {
         const label = container.querySelector('#timer-label').value || '';
         const soundId = container.querySelector('#timer-sound-value').value;
 
-        alarmManager.setLastUsedSound(soundId);
+        audioManager.setLastUsedSound(soundId);
         timerManager.start(h, m, s, label, soundId);
     }
 
@@ -622,80 +625,6 @@ export function Timer() {
         }
     }
 
-    function openSavedEditModal(id) {
-        const saved = savedTimers.find(s => s.id === id);
-        if (!saved) return;
-
-        const content = `
-      <div class="modal-section">
-        <div class="timer-picker" style="transform: scale(0.8);">
-            <div class="picker-col">
-                <input type="number" id="modal-hours" class="timer-input" min="0" max="23" value="${saved.hours}">
-                    <div class="timer-label">hours</div>
-            </div>
-            <div class="picker-col">
-                <input type="number" id="modal-minutes" class="timer-input" min="0" max="59" value="${saved.minutes}">
-                    <div class="timer-label">min</div>
-            </div>
-            <div class="picker-col">
-                <input type="number" id="modal-seconds" class="timer-input" min="0" max="59" value="${saved.seconds}">
-                    <div class="timer-label">sec</div>
-            </div>
-        </div>
-      </div>
-
-    <div class="modal-section">
-        <div class="modal-row">
-            <span>Label</span>
-            <input type="text" id="modal-label" value="${escapeHtml(saved.label || '')}" placeholder="Timer" maxlength="200">
-        </div>
-        <div class="modal-row">
-            <span>Sound</span>
-            <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${saved.soundId}" title="${getSoundName(saved.soundId)}">
-                ${getSoundName(saved.soundId)}
-            </button>
-            <input type="hidden" id="modal-sound-value" value="${saved.soundId}">
-        </div>
-    </div>
-`;
-
-        const overlay = showModal({
-            title: 'Edit Saved Timer',
-            content,
-            onSave: (ov) => {
-                const hours = Number(ov.querySelector('#modal-hours').value);
-                const minutes = Number(ov.querySelector('#modal-minutes').value);
-                const seconds = Number(ov.querySelector('#modal-seconds').value);
-                const label = ov.querySelector('#modal-label').value;
-                const soundId = ov.querySelector('#modal-sound-value').value;
-
-                timerManager.updateSavedTimer(id, { hours, minutes, seconds, label, soundId });
-                alarmManager.setLastUsedSound(soundId);
-                render();
-            }
-        });
-
-        // Usa referência direta do overlay
-        ['modal-hours', 'modal-minutes', 'modal-seconds'].forEach(inputId => {
-            const input = overlay.querySelector('#' + inputId);
-            const max = inputId.includes('hours') ? 23 : 59;
-            input.oninput = () => {
-                let val = parseInt(input.value);
-                if (val > max) input.value = max;
-                if (val < 0) input.value = 0;
-            };
-        });
-        const soundTrigger = overlay.querySelector('#modal-sound-trigger');
-        const soundValue = overlay.querySelector('#modal-sound-value');
-        if (soundTrigger) {
-            soundTrigger.onclick = () => {
-                openSoundPicker(soundValue.value, (selectedId) => {
-                    soundValue.value = selectedId;
-                    soundTrigger.textContent = getSoundName(selectedId);
-                });
-            };
-        }
-    }
 
     function openReplaceModal(newTimer) {
         loadSaved();

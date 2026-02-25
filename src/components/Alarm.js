@@ -345,11 +345,7 @@ export function Alarm() {
     }
   }
 
-  function getSoundName(id) {
-    const builtIn = audioManager.getBuiltInSounds().find(s => s.id === id);
-    const custom = audioManager.getCustomSounds().find(s => s.id === id);
-    return builtIn ? builtIn.name : (custom ? custom.name : 'Radar (Default)');
-  }
+
 
 
 
@@ -358,7 +354,7 @@ export function Alarm() {
       time: '08:00',
       label: '',
       repeat: [],
-      sound: alarmManager.getLastUsedSound(),
+      sound: audioManager.getLastUsedSound(),
       snoozeEnabled: true,
       snoozeInterval: 5
     };
@@ -396,8 +392,8 @@ export function Alarm() {
                 </div>
                 <div class="modal-row">
                     <span>Sound</span>
-                    <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${alarm.sound}" title="${getSoundName(alarm.sound)}">
-                        ${getSoundName(alarm.sound)}
+                    <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${alarm.sound}" title="${audioManager.getSoundName(alarm.sound)}">
+                        ${audioManager.getSoundName(alarm.sound)}
                     </button>
                     <input type="hidden" id="modal-sound-value" value="${alarm.sound}">
                 </div>
@@ -448,7 +444,7 @@ export function Alarm() {
         } else {
           alarmManager.addAlarm(data);
         }
-        alarmManager.setLastUsedSound(sound);
+        audioManager.setLastUsedSound(sound);
         render();
       }
     });
@@ -485,8 +481,8 @@ export function Alarm() {
       soundTrigger.onclick = () => {
         openSoundPicker(soundValue.value, (selectedId) => {
           soundValue.value = selectedId;
-          soundTrigger.textContent = getSoundName(selectedId);
-          alarmManager.setLastUsedSound(selectedId);
+          soundTrigger.textContent = audioManager.getSoundName(selectedId);
+          audioManager.setLastUsedSound(selectedId);
         });
       };
     }

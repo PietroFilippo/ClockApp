@@ -1,5 +1,6 @@
 import { showModal } from '../utils/modal.js';
 import { showConfirm } from '../utils/notification.js';
+import { STORAGE_KEYS } from '../utils/constants.js';
 
 export function Settings() {
     const container = document.createElement('div');
@@ -219,7 +220,7 @@ export function Settings() {
                     }
                     if (key === 'globalShortcuts') {
                         if (value) {
-                            const keybinds = JSON.parse(localStorage.getItem('stopwatch-keybinds')) || {
+                            const keybinds = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_KEYBINDS)) || {
                                 toggle: 'Alt+P',
                                 lap: 'Alt+L',
                                 stop: 'Alt+S',
@@ -229,7 +230,7 @@ export function Settings() {
                         } else {
                             window.electronAPI.unregisterGlobalShortcuts();
                         }
-                        localStorage.setItem('app-settings', JSON.stringify(settings));
+                        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
                     }
                 }
             };

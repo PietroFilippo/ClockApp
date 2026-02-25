@@ -47,6 +47,19 @@ class AudioManager {
         return this.getAllSounds().find(s => s.id === id);
     }
 
+    getSoundName(id) {
+        const sound = this.getSoundById(id);
+        return sound ? sound.name : 'Radar (Default)';
+    }
+
+    getLastUsedSound() {
+        return localStorage.getItem(STORAGE_KEYS.LAST_USED_SOUND) || 'default';
+    }
+
+    setLastUsedSound(soundId) {
+        localStorage.setItem(STORAGE_KEYS.LAST_USED_SOUND, soundId);
+    }
+
     getVolume() {
         return this.volume;
     }

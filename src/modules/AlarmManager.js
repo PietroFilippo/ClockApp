@@ -8,7 +8,6 @@ export class AlarmManager {
         this.checkTimeout = null;
         this.snoozedAlarms = JSON.parse(localStorage.getItem(STORAGE_KEYS.SNOOZED_ALARMS)) || {};
         this.activeAlerts = []; // Queue/Stack para notificações ativas
-        this.lastUsedSound = localStorage.getItem('lastUsedSound') || 'default';
     }
 
     init() {
@@ -151,14 +150,6 @@ export class AlarmManager {
         }
     }
 
-    getLastUsedSound() {
-        return this.lastUsedSound;
-    }
-
-    setLastUsedSound(soundId) {
-        this.lastUsedSound = soundId;
-        localStorage.setItem('lastUsedSound', soundId);
-    }
 
     // métodos proxy para AudioManager
     getBuiltInSounds() {

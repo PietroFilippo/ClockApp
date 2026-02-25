@@ -1,4 +1,4 @@
-import { alarmManager } from '../modules/AlarmManager.js';
+
 import { audioManager } from '../utils/AudioManager.js';
 import { showModal } from '../utils/modal.js';
 import { showAlert, confirmDelete } from '../utils/notification.js';
@@ -231,8 +231,8 @@ export function Interval() {
               </div>
               <div class="modal-row">
                   <span>Sound</span>
-                  <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${preset.soundId}" title="${getSoundName(preset.soundId)}">
-                      ${getSoundName(preset.soundId)}
+                  <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${preset.soundId}" title="${audioManager.getSoundName(preset.soundId)}">
+                      ${audioManager.getSoundName(preset.soundId)}
                   </button>
                   <input type="hidden" id="modal-sound-value" value="${preset.soundId}">
               </div>
@@ -286,7 +286,7 @@ export function Interval() {
                 soundTrigger.onclick = () => {
                     openSoundPicker(soundValue.value, (selectedId) => {
                         soundValue.value = selectedId;
-                        soundTrigger.textContent = getSoundName(selectedId);
+                        soundTrigger.textContent = audioManager.getSoundName(selectedId);
                     });
                 };
             }
@@ -399,7 +399,7 @@ export function Interval() {
 
     // Picker View (criação + lista de presets)
     function initPickerView() {
-        const soundId = localStorage.getItem(STORAGE_KEYS.INTERVAL_SELECTED_SOUND) || alarmManager.getLastUsedSound();
+        const soundId = localStorage.getItem(STORAGE_KEYS.INTERVAL_SELECTED_SOUND) || audioManager.getLastUsedSound();
 
         container.innerHTML = `
       <div class="header">
@@ -432,8 +432,8 @@ export function Interval() {
           </div>
           <div class="modal-row">
               <span>When Step Ends</span>
-              <button id="interval-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${getSoundName(soundId)}">
-                  ${getSoundName(soundId)}
+              <button id="interval-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${audioManager.getSoundName(soundId)}">
+                  ${audioManager.getSoundName(soundId)}
               </button>
               <input type="hidden" id="interval-sound-value" value="${soundId}">
           </div>
@@ -456,7 +456,7 @@ export function Interval() {
             soundTrigger.onclick = () => {
                 openSoundPicker(soundValue.value, (selectedId) => {
                     soundValue.value = selectedId;
-                    soundTrigger.textContent = getSoundName(selectedId);
+                    soundTrigger.textContent = audioManager.getSoundName(selectedId);
                     localStorage.setItem(STORAGE_KEYS.INTERVAL_SELECTED_SOUND, selectedId);
                 });
             };
@@ -843,11 +843,7 @@ export function Interval() {
     }
 
     // Utilitários
-    function getSoundName(id) {
-        const builtIn = audioManager.getBuiltInSounds().find(s => s.id === id);
-        const custom = audioManager.getCustomSounds().find(s => s.id === id);
-        return builtIn ? builtIn.name : (custom ? custom.name : 'Radar (Default)');
-    }
+
 
     function updateProgress(remaining, total) {
         const circle = container.querySelector('.progress-ring__circle');
