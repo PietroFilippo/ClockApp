@@ -418,19 +418,19 @@ export function Alarm() {
             </div>
 `;
 
-    showModal({
+    const overlay = showModal({
       title: existingId ? 'Edit Alarm' : 'Add Alarm',
       content: content,
-      onSave: (overlay) => {
-        const time = overlay.querySelector('#modal-time').value;
-        const label = overlay.querySelector('#modal-label').value;
-        const sound = overlay.querySelector('#modal-sound-value').value;
-        const snoozeEnabled = overlay.querySelector('#modal-snooze').checked;
-        const snoozeInterval = Number(overlay.querySelector('#modal-snooze-interval').value);
+      onSave: (ov) => {
+        const time = ov.querySelector('#modal-time').value;
+        const label = ov.querySelector('#modal-label').value;
+        const sound = ov.querySelector('#modal-sound-value').value;
+        const snoozeEnabled = ov.querySelector('#modal-snooze').checked;
+        const snoozeInterval = Number(ov.querySelector('#modal-snooze-interval').value);
 
         // Obtém os dias selecionados
         const selectedDays = [];
-        overlay.querySelectorAll('.day-option.selected').forEach(el => {
+        ov.querySelectorAll('.day-option.selected').forEach(el => {
           selectedDays.push(Number(el.dataset.day));
         });
 
@@ -453,63 +453,56 @@ export function Alarm() {
       }
     });
 
-    // Lógica pós-interação pra interatividade no modal
-    setTimeout(() => {
-      const overlay = document.querySelector('.modal-overlay');
-      if (!overlay) return;
+    // Interatividade no modal — usa referência direta do overlay
+    const toggleBtn = overlay.querySelector('#toggle-days-btn');
+    const dayOptions = overlay.querySelectorAll('.day-option');
 
-      const toggleBtn = overlay.querySelector('#toggle-days-btn');
-      const dayOptions = overlay.querySelectorAll('.day-option');
+    const updateButtonState = () => {
+      const allSelected = Array.from(dayOptions).every(opt => opt.classList.contains('selected'));
+      toggleBtn.textContent = allSelected ? 'Clear' : 'Select All';
+    };
+    updateButtonState();
 
-      // Atualiza o texto do botão ao iniciar
-      const updateButtonState = () => {
-        const allSelected = Array.from(dayOptions).every(opt => opt.classList.contains('selected'));
-        toggleBtn.textContent = allSelected ? 'Clear' : 'Select All';
-      };
+    toggleBtn.onclick = () => {
+      const allSelected = Array.from(dayOptions).every(opt => opt.classList.contains('selected'));
+      dayOptions.forEach(opt => {
+        if (allSelected) opt.classList.remove('selected');
+        else opt.classList.add('selected');
+      });
       updateButtonState();
+    };
 
-      toggleBtn.onclick = () => {
-        const allSelected = Array.from(dayOptions).every(opt => opt.classList.contains('selected'));
-        dayOptions.forEach(opt => {
-          if (allSelected) opt.classList.remove('selected');
-          else opt.classList.add('selected');
-        });
+    dayOptions.forEach(opt => {
+      opt.onclick = () => {
+        opt.classList.toggle('selected');
         updateButtonState();
       };
+    });
 
-      dayOptions.forEach(opt => {
-        opt.onclick = () => {
-          opt.classList.toggle('selected');
-          updateButtonState();
-        };
-      });
-
-      const soundTrigger = overlay.querySelector('#modal-sound-trigger');
-      const soundValue = overlay.querySelector('#modal-sound-value');
-      if (soundTrigger) {
-        soundTrigger.onclick = () => {
-          openSoundPicker(soundValue.value, (selectedId) => {
-            soundValue.value = selectedId;
-            soundTrigger.textContent = getSoundName(selectedId);
-            // Salva som imediatamente ao selecionar
-            alarmManager.setLastUsedSound(selectedId);
-          });
-        };
-      }
-
-      const snoozeToggle = overlay.querySelector('#modal-snooze');
-      const snoozeRow = overlay.querySelector('#snooze-duration-row');
-      const snoozeInput = overlay.querySelector('#modal-snooze-interval');
-      const snoozeDisplay = overlay.querySelector('#snooze-val-display');
-
-      snoozeToggle.onchange = (e) => {
-        snoozeRow.style.display = e.target.checked ? 'flex' : 'none';
+    const soundTrigger = overlay.querySelector('#modal-sound-trigger');
+    const soundValue = overlay.querySelector('#modal-sound-value');
+    if (soundTrigger) {
+      soundTrigger.onclick = () => {
+        openSoundPicker(soundValue.value, (selectedId) => {
+          soundValue.value = selectedId;
+          soundTrigger.textContent = getSoundName(selectedId);
+          alarmManager.setLastUsedSound(selectedId);
+        });
       };
+    }
 
-      snoozeInput.oninput = (e) => {
-        snoozeDisplay.textContent = `${e.target.value} min`;
-      };
-    }, 100);
+    const snoozeToggle = overlay.querySelector('#modal-snooze');
+    const snoozeRow = overlay.querySelector('#snooze-duration-row');
+    const snoozeInput = overlay.querySelector('#modal-snooze-interval');
+    const snoozeDisplay = overlay.querySelector('#snooze-val-display');
+
+    snoozeToggle.onchange = (e) => {
+      snoozeRow.style.display = e.target.checked ? 'flex' : 'none';
+    };
+
+    snoozeInput.oninput = (e) => {
+      snoozeDisplay.textContent = `${e.target.value} min`;
+    };
   }
 
   // Atualizações externas (ex: alarme disparado e desabilitado)
