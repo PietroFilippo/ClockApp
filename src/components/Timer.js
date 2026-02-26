@@ -9,7 +9,7 @@ import { openSoundSettingsModal } from '../utils/SoundSettingsModal.js';
 import { contextMenu } from '../utils/contextMenu.js';
 import { STORAGE_KEYS, DEFAULT_SOUND, LIMITS } from '../utils/constants.js';
 import { SwipeToDelete } from '../utils/SwipeToDelete.js';
-import { formatTime } from '../utils/time.js';
+import { formatTime, attachTimeInputValidation } from '../utils/time.js';
 
 export function Timer() {
     const container = document.createElement('div');
@@ -93,7 +93,14 @@ export function Timer() {
                     localStorage.setItem(STORAGE_KEYS.TIMER_ACTIVE_TAB, activeTab);
                     isEditing = false;
                     selectedRecents.clear();
-                    render();
+                    if (currentMode === 'running') {
+                        loadRecents();
+                        loadSaved();
+                        updateRecentsSection();
+                        updatePickerHeaderState();
+                    } else {
+                        render();
+                    }
                 }
                 return;
             }
@@ -356,18 +363,9 @@ export function Timer() {
         const minutesInput = container.querySelector('#minutes');
         const secondsInput = container.querySelector('#seconds');
 
-        const validateInput = (input, max) => {
-            input.oninput = () => {
-                let val = parseInt(input.value);
-                if (val > max) input.value = max;
-                if (val < 0) input.value = 0;
-                if (input.value.length > 2) input.value = input.value.slice(0, 2);
-            };
-        };
-
-        validateInput(hoursInput, 23);
-        validateInput(minutesInput, 59);
-        validateInput(secondsInput, 59);
+        attachTimeInputValidation(hoursInput, 23, { maxDigits: 2 });
+        attachTimeInputValidation(minutesInput, 59, { maxDigits: 2 });
+        attachTimeInputValidation(secondsInput, 59, { maxDigits: 2 });
 
         // Atualiza recentes
         updateRecentsSection();
@@ -493,11 +491,7 @@ export function Timer() {
         ['modal-hours', 'modal-minutes', 'modal-seconds'].forEach(inputId => {
             const input = overlay.querySelector('#' + inputId);
             const max = inputId.includes('hours') ? 23 : 59;
-            input.oninput = () => {
-                let val = parseInt(input.value);
-                if (val > max) input.value = max;
-                if (val < 0) input.value = 0;
-            };
+            attachTimeInputValidation(input, max);
         });
         const soundTrigger = overlay.querySelector('#modal-sound-trigger');
         const soundValue = overlay.querySelector('#modal-sound-value');

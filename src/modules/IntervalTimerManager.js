@@ -150,7 +150,6 @@ class IntervalTimerManager {
 
         this._startCurrentStep();
         this.saveState();
-        this.saveState();
         this.updatePowerBlocker();
         this.notify();
     }
@@ -204,7 +203,6 @@ class IntervalTimerManager {
         // Para o som ao finalizar
         setTimeout(() => audioManager.stopAlarm(), 2000);
         this.saveState();
-        this.saveState();
         this.updatePowerBlocker();
         this.notify('interval-timer-finished', {
             activePresetId: this.activePresetId,
@@ -214,7 +212,6 @@ class IntervalTimerManager {
 
     pause() {
         this.isPaused = true;
-        this.saveState();
         this.saveState();
         this.updatePowerBlocker();
         this.notify();

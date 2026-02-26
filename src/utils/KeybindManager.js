@@ -9,7 +9,7 @@
  *   });
  */
 
-const DEFAULT_KEYBINDS = {
+export const DEFAULT_KEYBINDS = {
     toggle: 'Alt+P',
     lap: 'Alt+L',
     stop: 'Alt+S',

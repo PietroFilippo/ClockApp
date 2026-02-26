@@ -11,6 +11,7 @@ import { timerManager } from './modules/TimerManager.js';
 import { showRingOverlay } from './components/RingOverlay.js';
 import { truncate } from './utils/notification.js';
 import { STORAGE_KEYS } from './utils/constants.js';
+import { DEFAULT_KEYBINDS } from './utils/KeybindManager.js';
 
 alarmManager.init();
 
@@ -175,12 +176,7 @@ function render() {
     window.electronAPI.getSettings().then(settings => {
       const useGlobalShortcuts = settings.globalShortcuts !== false;
       if (useGlobalShortcuts) {
-        const keybinds = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_KEYBINDS)) || {
-          toggle: 'Alt+P',
-          lap: 'Alt+L',
-          stop: 'Alt+S',
-          reset: 'Alt+R'
-        };
+        const keybinds = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_KEYBINDS)) || { ...DEFAULT_KEYBINDS };
         window.electronAPI.registerGlobalShortcuts(keybinds);
       }
     });

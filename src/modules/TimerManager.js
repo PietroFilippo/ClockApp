@@ -289,10 +289,16 @@ class TimerManager {
     }
 
     repeat() {
-        const currentCount = this.repeatCount;
-        this.start(this.initialHours, this.initialMinutes, this.initialSeconds, this.label, this.soundId);
-        this.repeatCount = currentCount + 1;
+        this.totalSeconds = this.initialHours * 3600 + this.initialMinutes * 60 + this.initialSeconds;
+        this.remainingSeconds = this.totalSeconds;
+        this.repeatCount++;
+        this.isRunning = true;
+        this.isPaused = false;
+
+        this.startTicking();
         this.saveState();
+        this.notify();
+        this.updatePowerBlocker();
     }
 
     getState() {
