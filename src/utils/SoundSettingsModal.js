@@ -1,4 +1,3 @@
-import { alarmManager } from '../modules/AlarmManager.js';
 import { audioManager } from './AudioManager.js'; // Same folder
 import { showModal } from './modal.js';
 import { showAlert, showConfirm, truncate } from './notification.js';
@@ -65,24 +64,14 @@ export function openSoundSettingsModal(onSave) {
         onSave: () => {
             stopPreview();
             if (onSave) onSave();
+        },
+        onClose: () => {
+            stopPreview();
         }
     });
 
     overlay.querySelector('.modal-btn.save').textContent = 'Done';
     overlay.querySelector('.modal-btn.cancel').style.display = 'none';
-
-    // Para o audio quando o modal é fechado clicando fora ou pressionando esc
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            mutation.removedNodes.forEach((node) => {
-                if (node === overlay) {
-                    stopPreview();
-                    observer.disconnect();
-                }
-            });
-        });
-    });
-    observer.observe(document.body, { childList: true });
 
     function renderList() {
         const container = overlay.querySelector('#sound-list-container');

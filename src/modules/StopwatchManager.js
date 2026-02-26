@@ -35,7 +35,7 @@ class StopwatchManager {
         };
         localStorage.setItem(STORAGE_KEYS.STOPWATCH_STATE, JSON.stringify(state));
         // Notifica a UI de mudanças
-        window.dispatchEvent(new CustomEvent('stopwatch-update', { detail: state }));
+        document.dispatchEvent(new CustomEvent('stopwatch-update', { detail: state }));
     }
 
     getElapsed() {

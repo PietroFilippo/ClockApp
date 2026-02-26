@@ -1,4 +1,3 @@
-import { alarmManager } from '../modules/AlarmManager.js';
 import { audioManager } from './AudioManager.js';
 import { showModal } from './modal.js';
 import { truncate } from './notification.js';
@@ -22,21 +21,11 @@ export function openSoundPicker(currentSoundId, onSelect) {
         `,
         onSave: () => {
             stopPreview();
+        },
+        onClose: () => {
+            stopPreview();
         }
     });
-
-    // Para o audio quando o modal é fechado clicando fora ou pressionando esc
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            mutation.removedNodes.forEach((node) => {
-                if (node === overlay) {
-                    stopPreview();
-                    observer.disconnect();
-                }
-            });
-        });
-    });
-    observer.observe(document.body, { childList: true });
 
     function stopPreview() {
         audioManager.stopPreview();

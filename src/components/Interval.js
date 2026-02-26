@@ -21,6 +21,7 @@ export function Interval() {
     let isEditing = false;
     let selectedPresets = new Set();
     let currentMode = null; // 'picker' | 'running'
+    let lastRenderedStepIndex = -1; // Para otimizar rebuild da lista upcoming
 
     // Estado do draft (criação de intervalo)
     let draftSteps = [];
@@ -338,36 +339,32 @@ export function Interval() {
             </div>
         `;
 
-        showModal({
+        const overlay = showModal({
             title: 'Replace Saved Interval',
             content,
             onSave: () => { }
         });
 
-        setTimeout(() => {
-            const overlay = document.querySelector('.modal-overlay');
-            if (!overlay) return;
+        // Usa referência direta do overlay
+        const saveBtn = overlay.querySelector('.save');
+        if (saveBtn) saveBtn.style.display = 'none';
 
-            const saveBtn = overlay.querySelector('.save');
-            if (saveBtn) saveBtn.style.display = 'none';
+        overlay.querySelectorAll('.replace-item').forEach(item => {
+            item.onclick = () => {
+                const oldId = item.dataset.id;
+                intervalTimerManager.replacePreset(oldId, newPreset);
+                if (document.body.contains(overlay)) {
+                    document.body.removeChild(overlay);
+                }
+                showAlert('Interval replaced!', 'Success');
 
-            overlay.querySelectorAll('.replace-item').forEach(item => {
-                item.onclick = () => {
-                    const oldId = item.dataset.id;
-                    intervalTimerManager.replacePreset(oldId, newPreset);
-                    if (document.body.contains(overlay)) {
-                        document.body.removeChild(overlay);
-                    }
-                    showAlert('Interval replaced!', 'Success');
+                draftSteps = [];
+                draftLabel = '';
+                saveDraft();
 
-                    draftSteps = [];
-                    draftLabel = '';
-                    saveDraft();
-
-                    render();
-                };
-            });
-        }, 100);
+                render();
+            };
+        });
     }
 
     // Render
@@ -776,6 +773,7 @@ export function Interval() {
         container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
 
         updateProgress(state.remainingSeconds, state.totalSecondsCurrentStep);
+        lastRenderedStepIndex = state.currentStepIndex;
     }
 
     function updateRunningView(state) {
@@ -815,8 +813,12 @@ export function Interval() {
             pauseBtn.className = `control-btn ${state.isPaused ? 'start' : 'pause'}`;
         }
 
-        const upcomingEl = container.querySelector('#interval-upcoming');
-        if (upcomingEl) upcomingEl.innerHTML = renderUpcomingSteps(state);
+        // Só reconstrói a lista upcoming quando o step muda, não a cada tick
+        if (state.currentStepIndex !== lastRenderedStepIndex) {
+            const upcomingEl = container.querySelector('#interval-upcoming');
+            if (upcomingEl) upcomingEl.innerHTML = renderUpcomingSteps(state);
+            lastRenderedStepIndex = state.currentStepIndex;
+        }
     }
 
     function renderUpcomingSteps(state) {

@@ -1,6 +1,6 @@
 import { escapeHtml } from './sanitize.js';
 
-export function showModal({ title, content, onSave }) {
+export function showModal({ title, content, onSave, onClose }) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
 
@@ -23,6 +23,7 @@ export function showModal({ title, content, onSave }) {
       document.body.removeChild(overlay);
     }
     window.removeEventListener('keydown', handleEsc);
+    if (onClose) onClose(overlay);
   };
 
   const handleEsc = (e) => {
