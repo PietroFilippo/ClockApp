@@ -55,6 +55,7 @@ Aplication **Clock App** é uma ferramenta completa para gerenciar seu tempo. El
 ### ⏳ Intervalos
 - Crie ciclos de trabalho personalizados com múltiplos passos e alarmes independentes
 - **Rascunhos Persistentes (Draft State)**: Seu progresso (tempos e passos) na criação de intervalos é salvo automaticamente em tempo real, permitindo navegar pelo app sem perdas
+- **Gerenciamento Rápido**: Suporte seleção múltipla e swipe-to-delete para deletar vários intervalos ou apagá-los com gestos
 - **Substituição Inteligente**: Quando o limite de intervalos salvos é atingido, o app exibe um modal intuitivo para substituir presets
 - Interface visual dedicada mostrando o progresso atual, a etapa ativa, e os próximos passos do ciclo
 
@@ -67,8 +68,8 @@ Aplication **Clock App** é uma ferramenta completa para gerenciar seu tempo. El
 | **Steal Focus** | Notificações tomam foco do teclado |
 | **Notification Style** | Sistema (Windows), App Custom, Ambos ou Nenhum |
 | **Notification Position** | 4 cantos pré-definidos ou posição customizada (picker visual) |
-| **Auto-Close Duration** | Tempo até a notificação fechar automaticamente (5s – 1min ou Nunca) |
-| **Auto Action Settings** | Novas opções de engajamento automático após eventos (ex: auto-repetir) |
+| **Auto-Close Duration** | Tempo até a notificação fechar automaticamente (5s – 10min, valor em segundos Livre, ou Nunca) |
+| **Auto Action Settings** | Ações de timeout após tempo limite atingido. Alarmes (Stop ou Auto-Snooze) e Timers (Stop ou Auto-Repeat) |
 | **Global Shortcuts** | Atalhos funcionam mesmo com o app minimizado |
 
 ### 🔔 Notificações
