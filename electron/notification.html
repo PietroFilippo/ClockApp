@@ -169,6 +169,10 @@
 
         const params = new URLSearchParams(window.location.search);
 
+        // Helper para truncar texto com tooltip (duplicado do notification.js pois
+        // essa janela roda em contexto isolado sem acesso ao bundle do renderer)
+        const truncate = (text, limit) => (text && text.length > limit) ? text.substring(0, limit) + '...' : (text || '');
+
         function updateContent(data) {
             const title = data.title;
             const message = data.body;
@@ -181,7 +185,6 @@
             const rawTitle = (title || 'Notification') + countDisplay;
             const rawMessage = message || '';
 
-            const truncate = (text, limit) => (text && text.length > limit) ? text.substring(0, limit) + '...' : (text || '');
             const displayTitle = truncate(rawTitle, 60);
             const displayMessage = truncate(rawMessage, 60);
 

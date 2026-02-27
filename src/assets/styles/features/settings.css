@@ -39,6 +39,16 @@
     background: #48484a;
 }
 
+.speed-toggle-btn.active {
+    background: var(--accent-orange);
+    color: #000;
+    font-weight: 600;
+}
+
+.speed-toggle-btn.active:hover {
+    background: #e68600;
+}
+
 .speed-selector-dropdown {
     position: absolute;
     top: 50px;

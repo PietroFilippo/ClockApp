@@ -271,7 +271,7 @@ export function Stopwatch() {
             </div>
             <div class="speed-btn-container">
                 <div class="stopwatch-display">${formatTime(state.elapsed)}</div>
-                <button id="speed-btn" class="speed-toggle-btn">
+                <button id="speed-btn" class="speed-toggle-btn${state.speed !== 1.0 ? ' active' : ''}">
                     ${state.speed.toFixed(2)}x
                 </button>
                 <div id="speed-dropdown-container"></div>
@@ -294,8 +294,11 @@ export function Stopwatch() {
 
     // Botão de Velocidade
     const speedBtn = container.querySelector('#speed-btn');
-    if (speedBtn && speedBtn.textContent.trim() !== `${state.speed.toFixed(2)}x`) {
-      speedBtn.textContent = `${state.speed.toFixed(2)}x`;
+    if (speedBtn) {
+      if (speedBtn.textContent.trim() !== `${state.speed.toFixed(2)}x`) {
+        speedBtn.textContent = `${state.speed.toFixed(2)}x`;
+      }
+      speedBtn.classList.toggle('active', state.speed !== 1.0);
     }
 
     renderSpeedDropdownLogic(state);
@@ -454,12 +457,24 @@ export function Stopwatch() {
     }
   }
 
+  // Otimização de renderização de voltas: rastreia o fingerprint dos dados para evitar reconstruções DOM desnecessárias
+  let lastLapsFingerprint = null;
+
   function renderLapsList(state) {
     const lapsList = container.querySelector('.laps-list');
     if (!lapsList) return;
 
     const { fastestIndex, slowestIndex } = getLapStats(state.laps);
-    const newLapsHTML = state.laps.map((lap, index) => {
+
+    // Constroi um fingerprint leve a partir do número de voltas + pontos de dados principais + cores
+    const fingerprint = state.laps.length === 0
+      ? 'empty'
+      : `${state.laps.length}|${state.laps[0].lapTime}|${state.laps[state.laps.length - 1].lapTime}|${fastestIndex}|${slowestIndex}|${fastestColor}|${slowestColor}`;
+
+    if (fingerprint === lastLapsFingerprint) return;
+    lastLapsFingerprint = fingerprint;
+
+    lapsList.innerHTML = state.laps.map((lap, index) => {
       let lapClass = 'lap-item';
       let lapStyle = '';
       if (index === fastestIndex && state.laps.length >= 2) {
@@ -476,10 +491,6 @@ export function Stopwatch() {
                 </div>
             `;
     }).join('');
-
-    if (lapsList.innerHTML !== newLapsHTML) {
-      lapsList.innerHTML = newLapsHTML;
-    }
   }
 
   function renderSpeedDropdownLogic(state) {

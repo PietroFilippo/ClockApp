@@ -117,8 +117,7 @@ export function openSoundSettingsModal(onSave) {
         const container = overlay.querySelector('#sound-list-container');
         if (!container) return;
 
-        // Usa getter de audioManager se disponível ou acessa propriedade diretamente se pública
-        const previewAudio = audioManager.previewAudio;
+        const previewAudio = audioManager.getPreviewAudio();
 
         container.querySelectorAll('.custom-sound-item').forEach(item => {
             const id = item.id.replace('sound-item-', '');
@@ -190,7 +189,7 @@ export function openSoundSettingsModal(onSave) {
         const container = overlay.querySelector('#sound-list-container');
         if (!container) return;
 
-        const previewAudio = audioManager.previewAudio;
+        const previewAudio = audioManager.getPreviewAudio();
 
         // Play/Pause
         container.querySelectorAll('.play-preview').forEach(btn => {
@@ -210,7 +209,7 @@ export function openSoundSettingsModal(onSave) {
                     playingId = id;
                     audioManager.playPreview(id); // AudioManager gerencia src lookup
 
-                    const currentAudio = audioManager.previewAudio;
+                    const currentAudio = audioManager.getPreviewAudio();
                     if (currentAudio) {
                         currentAudio.onended = () => renderAudioState();
                         currentAudio.ontimeupdate = () => renderAudioState();
@@ -226,7 +225,7 @@ export function openSoundSettingsModal(onSave) {
         container.querySelectorAll('.seek-bar').forEach(bar => {
             bar.oninput = (e) => {
                 const id = bar.dataset.id;
-                const currentAudio = audioManager.previewAudio;
+                const currentAudio = audioManager.getPreviewAudio();
                 if (playingId === id && currentAudio) {
                     currentAudio.currentTime = Number(e.target.value);
                 }
@@ -237,7 +236,7 @@ export function openSoundSettingsModal(onSave) {
         container.querySelectorAll('.reset-preview').forEach(btn => {
             btn.onclick = () => {
                 const id = btn.dataset.id;
-                const currentAudio = audioManager.previewAudio;
+                const currentAudio = audioManager.getPreviewAudio();
                 if (playingId === id && currentAudio) {
                     currentAudio.currentTime = 0;
                     if (currentAudio.paused) {

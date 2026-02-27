@@ -40,9 +40,3 @@ contextBridge.exposeInMainWorld('electronAPI', {
     startUpdateDownload: () => ipcRenderer.invoke('start-update-download'),
     openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });
-
-window.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey && e.key === 'r') || e.key === 'F5') {
-        e.preventDefault();
-    }
-});
