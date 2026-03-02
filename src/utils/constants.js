@@ -23,7 +23,8 @@ export const STORAGE_KEYS = {
     TIMER_SELECTED_SOUND: 'timer-selected-sound',
     INTERVAL_SELECTED_SOUND: 'interval-selected-sound',
     INTERVAL_DRAFT_STATE: 'clockapp_interval_draft_state',
-    LAST_USED_SOUND: 'lastUsedSound'
+    LAST_USED_SOUND: 'lastUsedSound',
+    STOPWATCH_VIEW_MODE: 'stopwatch-view-mode'
 };
 
 export const COLORS = {

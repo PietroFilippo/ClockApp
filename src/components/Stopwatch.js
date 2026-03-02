@@ -3,6 +3,7 @@ import { showAlert } from '../utils/notification.js';
 import { ColorPicker } from '../utils/ColorPicker.js';
 import { KeybindManager } from '../utils/KeybindManager.js';
 import { STORAGE_KEYS, COLORS, LIMITS } from '../utils/constants.js';
+import { AnalogStopwatch } from '../utils/AnalogStopwatch.js';
 
 export function Stopwatch() {
   const container = document.createElement('div');
@@ -12,6 +13,8 @@ export function Stopwatch() {
   let showColorSelection = false;
 
   let colorPickerInstance = null;
+  let analogInstance = null;
+  let viewMode = localStorage.getItem(STORAGE_KEYS.STOPWATCH_VIEW_MODE) || 'digital';
 
   // Carrega as cores salvas no localStorage ou usa os valores padrão
   let fastestColor = localStorage.getItem(STORAGE_KEYS.STOPWATCH_FASTEST_COLOR) || COLORS.DEFAULT_FASTEST_LAP;
@@ -270,7 +273,17 @@ export function Stopwatch() {
                 </div>
             </div>
             <div class="speed-btn-container">
-                <div class="stopwatch-display">${formatTime(state.elapsed)}</div>
+                <div class="stopwatch-display-area">
+                    <div class="stopwatch-display" style="display: ${viewMode === 'digital' ? '' : 'none'}">${formatTime(state.elapsed)}</div>
+                    <div class="stopwatch-analog-container" style="display: ${viewMode === 'analog' ? '' : 'none'}">
+                        <canvas id="analog-stopwatch-canvas"></canvas>
+                        <div class="analog-digital-readout">${formatTime(state.elapsed)}</div>
+                    </div>
+                    <div class="stopwatch-view-dots">
+                        <span class="view-dot ${viewMode === 'digital' ? 'active' : ''}" data-view="digital"></span>
+                        <span class="view-dot ${viewMode === 'analog' ? 'active' : ''}" data-view="analog"></span>
+                    </div>
+                </div>
                 <button id="speed-btn" class="speed-toggle-btn${state.speed !== 1.0 ? ' active' : ''}">
                     ${state.speed.toFixed(2)}x
                 </button>
@@ -284,6 +297,7 @@ export function Stopwatch() {
             <div id="modals-placeholder"></div>
         `;
       attachMainListeners();
+      initAnalog();
     }
 
     // Botão de Download
@@ -374,6 +388,11 @@ export function Stopwatch() {
     if (downloadBtn) {
       downloadBtn.onclick = downloadResults;
     }
+
+    // View dots (digital/analog toggle)
+    container.querySelectorAll('.view-dot').forEach(dot => {
+      dot.onclick = () => switchView(dot.dataset.view);
+    });
   }
 
   function attachSpeedListeners() {
@@ -409,16 +428,70 @@ export function Stopwatch() {
     render();
   }
 
+  function initAnalog() {
+    if (viewMode === 'analog') {
+      const canvas = container.querySelector('#analog-stopwatch-canvas');
+      if (canvas && !analogInstance) {
+        analogInstance = new AnalogStopwatch(canvas);
+        analogInstance.draw(stopwatchManager.getElapsed());
+      }
+    }
+  }
+
+  function switchView(newMode) {
+    if (newMode === viewMode) return;
+    const wasRunning = !!intervalId;
+    if (wasRunning) stopInterval();
+
+    viewMode = newMode;
+    localStorage.setItem(STORAGE_KEYS.STOPWATCH_VIEW_MODE, viewMode);
+
+    const digitalEl = container.querySelector('.stopwatch-display');
+    const analogEl = container.querySelector('.stopwatch-analog-container');
+    const dots = container.querySelectorAll('.view-dot');
+
+    if (digitalEl) digitalEl.style.display = viewMode === 'digital' ? '' : 'none';
+    if (analogEl) analogEl.style.display = viewMode === 'analog' ? '' : 'none';
+    dots.forEach(d => d.classList.toggle('active', d.dataset.view === viewMode));
+
+    if (viewMode === 'analog') {
+      initAnalog();
+    } else {
+      if (analogInstance) {
+        analogInstance.destroy();
+        analogInstance = null;
+      }
+    }
+
+    if (wasRunning) startInterval();
+    updateDisplay(stopwatchManager.getState());
+  }
+
   function startInterval() {
     if (intervalId) return;
-    intervalId = setInterval(() => {
-      const display = container.querySelector('.stopwatch-display');
-      if (display) display.textContent = formatTime(stopwatchManager.getElapsed());
-    }, 10);
+    if (viewMode === 'analog') {
+      const tick = () => {
+        const elapsed = stopwatchManager.getElapsed();
+        if (analogInstance) analogInstance.draw(elapsed);
+        const readout = container.querySelector('.analog-digital-readout');
+        if (readout) readout.textContent = formatTime(elapsed);
+        intervalId = requestAnimationFrame(tick);
+      };
+      intervalId = requestAnimationFrame(tick);
+    } else {
+      intervalId = setInterval(() => {
+        const display = container.querySelector('.stopwatch-display');
+        if (display) display.textContent = formatTime(stopwatchManager.getElapsed());
+      }, 10);
+    }
   }
 
   function stopInterval() {
-    clearInterval(intervalId);
+    if (viewMode === 'analog') {
+      cancelAnimationFrame(intervalId);
+    } else {
+      clearInterval(intervalId);
+    }
     intervalId = null;
   }
 
@@ -433,12 +506,19 @@ export function Stopwatch() {
   }
 
   function updateDisplay(state) {
-    const display = container.querySelector('.stopwatch-display');
-    if (display) {
-      const newTime = formatTime(stopwatchManager.getElapsed());
-      if (display.textContent !== newTime) {
-        display.textContent = newTime;
+    const elapsed = stopwatchManager.getElapsed();
+    if (viewMode === 'digital') {
+      const display = container.querySelector('.stopwatch-display');
+      if (display) {
+        const newTime = formatTime(elapsed);
+        if (display.textContent !== newTime) {
+          display.textContent = newTime;
+        }
       }
+    } else {
+      if (analogInstance) analogInstance.draw(elapsed);
+      const readout = container.querySelector('.analog-digital-readout');
+      if (readout) readout.textContent = formatTime(elapsed);
     }
   }
 
@@ -519,6 +599,7 @@ export function Stopwatch() {
       window.removeEventListener('keydown', handleEsc);
       keybindManager.cleanup();
       if (colorPickerInstance) colorPickerInstance.destroy();
+      if (analogInstance) { analogInstance.destroy(); analogInstance = null; }
     }
   };
 

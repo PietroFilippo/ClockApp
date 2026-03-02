@@ -16,6 +16,7 @@
 @import './features/world-clock.css';
 @import './features/alarm.css';
 @import './features/stopwatch.css';
+@import './features/stopwatch-analog.css';
 @import './features/timer.css';
 @import './features/interval-timer.css';
 @import './features/settings.css';
