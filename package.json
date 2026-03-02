@@ -1,7 +1,7 @@
 {
   "name": "clockapp",
   "private": true,
-  "version": "3.1.2",
+  "version": "3.2.0",
   "type": "module",
   "main": "electron/main.js",
   "repository": "https://github.com/PietroFilippo/ClockApp",
