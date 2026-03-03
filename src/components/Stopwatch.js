@@ -274,10 +274,16 @@ export function Stopwatch() {
             </div>
             <div class="speed-btn-container">
                 <div class="stopwatch-display-area">
-                    <div class="stopwatch-display" style="display: ${viewMode === 'digital' ? '' : 'none'}">${formatTime(state.elapsed)}</div>
-                    <div class="stopwatch-analog-container" style="display: ${viewMode === 'analog' ? '' : 'none'}">
-                        <canvas id="analog-stopwatch-canvas"></canvas>
-                        <div class="analog-digital-readout">${formatTime(state.elapsed)}</div>
+                    <div class="stopwatch-view-track" id="view-track" style="transform: translateX(${viewMode === 'analog' ? '-50%' : '0%'})">
+                        <div class="stopwatch-view-slide">
+                            <div class="stopwatch-display">${formatTime(state.elapsed)}</div>
+                        </div>
+                        <div class="stopwatch-view-slide">
+                            <div class="stopwatch-analog-container">
+                                <canvas id="analog-stopwatch-canvas"></canvas>
+                                <div class="analog-digital-readout">${formatTime(state.elapsed)}</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="stopwatch-view-dots">
                         <span class="view-dot ${viewMode === 'digital' ? 'active' : ''}" data-view="digital"></span>
@@ -298,6 +304,7 @@ export function Stopwatch() {
         `;
       attachMainListeners();
       initAnalog();
+      initSwipeGesture();
     }
 
     // Botão de Download
@@ -429,16 +436,14 @@ export function Stopwatch() {
   }
 
   function initAnalog() {
-    if (viewMode === 'analog') {
-      const canvas = container.querySelector('#analog-stopwatch-canvas');
-      if (canvas && !analogInstance) {
-        analogInstance = new AnalogStopwatch(canvas);
-        analogInstance.draw(stopwatchManager.getElapsed());
-      }
+    const canvas = container.querySelector('#analog-stopwatch-canvas');
+    if (canvas && !analogInstance) {
+      analogInstance = new AnalogStopwatch(canvas);
+      analogInstance.draw(stopwatchManager.getElapsed());
     }
   }
 
-  function switchView(newMode) {
+  function switchView(newMode, animated = true) {
     if (newMode === viewMode) return;
     const wasRunning = !!intervalId;
     if (wasRunning) stopInterval();
@@ -446,52 +451,126 @@ export function Stopwatch() {
     viewMode = newMode;
     localStorage.setItem(STORAGE_KEYS.STOPWATCH_VIEW_MODE, viewMode);
 
-    const digitalEl = container.querySelector('.stopwatch-display');
-    const analogEl = container.querySelector('.stopwatch-analog-container');
+    const track = container.querySelector('#view-track');
     const dots = container.querySelectorAll('.view-dot');
 
-    if (digitalEl) digitalEl.style.display = viewMode === 'digital' ? '' : 'none';
-    if (analogEl) analogEl.style.display = viewMode === 'analog' ? '' : 'none';
-    dots.forEach(d => d.classList.toggle('active', d.dataset.view === viewMode));
-
-    if (viewMode === 'analog') {
-      initAnalog();
-    } else {
-      if (analogInstance) {
-        analogInstance.destroy();
-        analogInstance = null;
+    if (track) {
+      if (!animated) track.classList.add('no-transition');
+      track.style.transform = viewMode === 'analog' ? 'translateX(-50%)' : 'translateX(0%)';
+      if (!animated) {
+        // force reflow then remove
+        track.offsetHeight;
+        track.classList.remove('no-transition');
       }
     }
+    dots.forEach(d => d.classList.toggle('active', d.dataset.view === viewMode));
 
     if (wasRunning) startInterval();
     updateDisplay(stopwatchManager.getState());
   }
 
+  // Swipe gesture para alternar digital/analógico
+  function initSwipeGesture() {
+    const track = container.querySelector('#view-track');
+    if (!track) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startTranslatePercent = 0;
+    let currentTranslatePercent = 0;
+    let trackWidth = 0;
+    let startTime = 0;
+
+    function getBasePercent() {
+      return viewMode === 'analog' ? -50 : 0;
+    }
+
+    function onPointerDown(e) {
+      // Ignora se clicar em botões/inputs dentro
+      if (e.target.closest('button, input, select, .view-dot')) return;
+      isDragging = true;
+      startX = e.clientX;
+      startTranslatePercent = getBasePercent();
+      currentTranslatePercent = startTranslatePercent;
+      trackWidth = track.parentElement.offsetWidth;
+      startTime = Date.now();
+
+      track.classList.add('no-transition');
+      track.setPointerCapture(e.pointerId);
+    }
+
+    function onPointerMove(e) {
+      if (!isDragging) return;
+      const deltaX = e.clientX - startX;
+      // Converte pixel delta para % do viewport (track width = 2x viewport)
+      const deltaPercent = (deltaX / trackWidth) * 100;
+      currentTranslatePercent = startTranslatePercent + deltaPercent;
+
+      // Limita o arraste
+      currentTranslatePercent = Math.max(-50, Math.min(0, currentTranslatePercent));
+
+      track.style.transform = `translateX(${currentTranslatePercent}%)`;
+    }
+
+    function onPointerUp(e) {
+      if (!isDragging) return;
+      isDragging = false;
+
+      track.classList.remove('no-transition');
+
+      const deltaX = e.clientX - startX;
+      const elapsed = Date.now() - startTime;
+      const velocity = Math.abs(deltaX) / elapsed; // px/ms
+
+      const threshold = trackWidth * 0.15; // 15% do viewport
+      const isFlick = velocity > 0.4;
+      const dragDistance = currentTranslatePercent - startTranslatePercent;
+
+      let newMode = viewMode;
+      if (isFlick || Math.abs(dragDistance) > (threshold / trackWidth * 100)) {
+        if (dragDistance < 0) {
+          newMode = 'analog'; // arrastou pra esquerda
+        } else {
+          newMode = 'digital'; // arrastou pra direita
+        }
+      }
+
+      // Anima para posição final
+      viewMode = newMode;
+      localStorage.setItem(STORAGE_KEYS.STOPWATCH_VIEW_MODE, viewMode);
+      track.style.transform = viewMode === 'analog' ? 'translateX(-50%)' : 'translateX(0%)';
+
+      const dots = container.querySelectorAll('.view-dot');
+      dots.forEach(d => d.classList.toggle('active', d.dataset.view === viewMode));
+
+      updateDisplay(stopwatchManager.getState());
+    }
+
+    track.addEventListener('pointerdown', onPointerDown);
+    track.addEventListener('pointermove', onPointerMove);
+    track.addEventListener('pointerup', onPointerUp);
+    track.addEventListener('pointercancel', onPointerUp);
+  }
+
   function startInterval() {
     if (intervalId) return;
-    if (viewMode === 'analog') {
-      const tick = () => {
-        const elapsed = stopwatchManager.getElapsed();
-        if (analogInstance) analogInstance.draw(elapsed);
-        const readout = container.querySelector('.analog-digital-readout');
-        if (readout) readout.textContent = formatTime(elapsed);
-        intervalId = requestAnimationFrame(tick);
-      };
+    // Sempre atualiza ambas as views para que o swipe mostre dados atuais
+    const tick = () => {
+      const elapsed = stopwatchManager.getElapsed();
+      // Digital display
+      const display = container.querySelector('.stopwatch-display');
+      if (display) display.textContent = formatTime(elapsed);
+      // Analog display
+      if (analogInstance) analogInstance.draw(elapsed);
+      const readout = container.querySelector('.analog-digital-readout');
+      if (readout) readout.textContent = formatTime(elapsed);
       intervalId = requestAnimationFrame(tick);
-    } else {
-      intervalId = setInterval(() => {
-        const display = container.querySelector('.stopwatch-display');
-        if (display) display.textContent = formatTime(stopwatchManager.getElapsed());
-      }, 10);
-    }
+    };
+    intervalId = requestAnimationFrame(tick);
   }
 
   function stopInterval() {
-    if (viewMode === 'analog') {
-      cancelAnimationFrame(intervalId);
-    } else {
-      clearInterval(intervalId);
-    }
+    cancelAnimationFrame(intervalId);
     intervalId = null;
   }
 
@@ -507,19 +586,17 @@ export function Stopwatch() {
 
   function updateDisplay(state) {
     const elapsed = stopwatchManager.getElapsed();
-    if (viewMode === 'digital') {
-      const display = container.querySelector('.stopwatch-display');
-      if (display) {
-        const newTime = formatTime(elapsed);
-        if (display.textContent !== newTime) {
-          display.textContent = newTime;
-        }
+    // Atualiza ambos os displays
+    const display = container.querySelector('.stopwatch-display');
+    if (display) {
+      const newTime = formatTime(elapsed);
+      if (display.textContent !== newTime) {
+        display.textContent = newTime;
       }
-    } else {
-      if (analogInstance) analogInstance.draw(elapsed);
-      const readout = container.querySelector('.analog-digital-readout');
-      if (readout) readout.textContent = formatTime(elapsed);
     }
+    if (analogInstance) analogInstance.draw(elapsed);
+    const readout = container.querySelector('.analog-digital-readout');
+    if (readout) readout.textContent = formatTime(elapsed);
   }
 
   function renderControls(state) {
