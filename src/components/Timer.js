@@ -506,6 +506,7 @@ export function Timer() {
     }
 
     function initRunningView(state) {
+        loadSaved();
         container.innerHTML = `
     <div class="header">
         <button class="edit-btn" id="edit-recents-btn" style="visibility: ${recents.length > 0 ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
