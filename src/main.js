@@ -8,6 +8,7 @@ import { Interval } from './components/Interval.js';
 import { Settings } from './components/Settings.js';
 import { alarmManager } from './modules/AlarmManager.js';
 import { timerManager } from './modules/TimerManager.js';
+import { stopwatchManager } from './modules/StopwatchManager.js';
 import { showRingOverlay } from './components/RingOverlay.js';
 import { truncate } from './utils/notification.js';
 import { STORAGE_KEYS } from './utils/constants.js';
@@ -209,8 +210,7 @@ function render() {
 
   const navContainer = app.querySelector('#nav-container');
 
-  // Render Navigation
-  navContainer.appendChild(Navigation(currentTab, (newTab) => {
+  const onTabChange = (newTab) => {
     if (currentTab === newTab) return;
 
     // Salva posição do scroll da aba atual antes de trocar
@@ -223,7 +223,10 @@ function render() {
     localStorage.setItem('activeTab', currentTab);
     updateView();
     updateNav();
-  }));
+  };
+
+  // Render Navigation
+  navContainer.appendChild(Navigation(currentTab, onTabChange));
 
   updateView();
 }
@@ -275,7 +278,8 @@ function updateView() {
 function updateNav() {
   const navContainer = document.querySelector('#nav-container');
   navContainer.innerHTML = '';
-  navContainer.appendChild(Navigation(currentTab, (newTab) => {
+
+  const onTabChange = (newTab) => {
     if (currentTab === newTab) return;
 
     // Salva posição do scroll da aba atual antes de trocar
@@ -288,7 +292,9 @@ function updateNav() {
     localStorage.setItem('activeTab', currentTab);
     updateView();
     updateNav();
-  }));
+  };
+
+  navContainer.appendChild(Navigation(currentTab, onTabChange));
 }
 
 

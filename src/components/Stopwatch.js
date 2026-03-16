@@ -631,7 +631,7 @@ export function Stopwatch() {
     if (fingerprint === lastLapsFingerprint) return;
     lastLapsFingerprint = fingerprint;
 
-    lapsList.innerHTML = state.laps.map((lap, index) => {
+    const newHTML = state.laps.map((lap, index) => {
       let lapClass = 'lap-item';
       let lapStyle = '';
       if (index === fastestIndex && state.laps.length >= 2) {
@@ -648,6 +648,10 @@ export function Stopwatch() {
                 </div>
             `;
     }).join('');
+
+    if (lapsList.innerHTML !== newHTML) {
+      lapsList.innerHTML = newHTML;
+    }
   }
 
   function renderSpeedDropdownLogic(state) {

@@ -411,23 +411,6 @@ class TimerManager {
         }
     }
 
-    repeat(timerId) {
-        const existing = this.timers.get(timerId);
-        if (existing) {
-            existing.remainingSeconds = existing.totalSeconds;
-            existing.repeatCount++;
-            existing.isRunning = true;
-            existing.isPaused = false;
-            this.startTicking();
-            this.saveState();
-            this.notify('timer-added', { timerId });
-            this.updatePowerBlocker();
-            return timerId;
-        }
-
-        return null;
-    }
-
     repeatFromConfig(config) {
         const { initialHours, initialMinutes, initialSeconds, label, soundId, repeatCount } = config;
         const totalSeconds = initialHours * 3600 + initialMinutes * 60 + initialSeconds;

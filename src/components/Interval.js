@@ -260,14 +260,10 @@ export function Interval() {
           </div>
         `;
 
-        showModal({
+        const overlay = showModal({
             title: 'Edit Interval',
             content,
             onSave: (overlay) => {
-                if (editSteps.length === 0) {
-                    showAlert('Add at least one step.', 'Invalid');
-                    return false;
-                }
                 const name = overlay.querySelector('#modal-interval-name').value || 'Interval';
                 const soundId = overlay.querySelector('#modal-sound-value').value;
                 intervalTimerManager.updatePreset(id, { label: name, soundId, steps: editSteps });
@@ -275,44 +271,41 @@ export function Interval() {
             }
         });
 
-        setTimeout(() => {
-            const overlay = document.querySelector('.modal-overlay');
-            if (!overlay) return;
+        if (!overlay) return;
 
-            renderEditSteps(overlay);
+        renderEditSteps(overlay);
 
-            const soundTrigger = overlay.querySelector('#modal-sound-trigger');
-            const soundValue = overlay.querySelector('#modal-sound-value');
-            if (soundTrigger) {
-                soundTrigger.onclick = () => {
-                    openSoundPicker(soundValue.value, (selectedId) => {
-                        soundValue.value = selectedId;
-                        soundTrigger.textContent = audioManager.getSoundName(selectedId);
-                    });
-                };
-            }
+        const soundTrigger = overlay.querySelector('#modal-sound-trigger');
+        const soundValue = overlay.querySelector('#modal-sound-value');
+        if (soundTrigger) {
+            soundTrigger.onclick = () => {
+                openSoundPicker(soundValue.value, (selectedId) => {
+                    soundValue.value = selectedId;
+                    soundTrigger.textContent = audioManager.getSoundName(selectedId);
+                });
+            };
+        }
 
-            const addStepBtn = overlay.querySelector('#modal-add-step-btn');
-            if (addStepBtn) {
-                addStepBtn.onclick = () => {
-                    if (editSteps.length >= LIMITS.MAX_INTERVAL_STEPS) {
-                        showAlert(`Maximum of ${LIMITS.MAX_INTERVAL_STEPS} steps.`, 'Limit');
-                        return;
-                    }
-                    const h = Number(overlay.querySelector('#modal-new-h').value);
-                    const m = Number(overlay.querySelector('#modal-new-m').value);
-                    const s = Number(overlay.querySelector('#modal-new-s').value);
-                    if (h * 3600 + m * 60 + s <= 0) {
-                        showAlert('Set a time greater than 0.', 'Invalid');
-                        return;
-                    }
-                    const label = overlay.querySelector('#modal-new-label').value || '';
-                    editSteps.push({ hours: h, minutes: m, seconds: s, label });
-                    overlay.querySelector('#modal-new-label').value = '';
-                    renderEditSteps(overlay);
-                };
-            }
-        }, 100);
+        const addStepBtn = overlay.querySelector('#modal-add-step-btn');
+        if (addStepBtn) {
+            addStepBtn.onclick = () => {
+                if (editSteps.length >= LIMITS.MAX_INTERVAL_STEPS) {
+                    showAlert(`Maximum of ${LIMITS.MAX_INTERVAL_STEPS} steps.`, 'Limit');
+                    return;
+                }
+                const h = Number(overlay.querySelector('#modal-new-h').value);
+                const m = Number(overlay.querySelector('#modal-new-m').value);
+                const s = Number(overlay.querySelector('#modal-new-s').value);
+                if (h * 3600 + m * 60 + s <= 0) {
+                    showAlert('Set a time greater than 0.', 'Invalid');
+                    return;
+                }
+                const label = overlay.querySelector('#modal-new-label').value || '';
+                editSteps.push({ hours: h, minutes: m, seconds: s, label });
+                overlay.querySelector('#modal-new-label').value = '';
+                renderEditSteps(overlay);
+            };
+        }
     }
 
     function openReplaceModal(newPreset) {

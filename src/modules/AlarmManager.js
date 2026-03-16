@@ -37,7 +37,7 @@ export class AlarmManager {
 
             // Checa se o tempo de soneca passou (hora anterior OU mesma hora, mas minuto anterior)
             if (snoozeHours < currentHours || (snoozeHours === currentHours && snoozeMinutes <= currentMinutes)) {
-                console.log(`Found missed snoozed alarm: ${id} (Target: ${timeStr})`);
+                // console.log(`Found missed snoozed alarm: ${id} (Target: ${timeStr})`);
                 const alarm = this.alarms.find(a => a.id === Number(id));
                 if (alarm) {
                     this.triggerAlarm(alarm, true);
@@ -59,7 +59,7 @@ export class AlarmManager {
     setupIPCListeners() {
         if (window.electronAPI && window.electronAPI.onNotificationAction) {
             window.electronAPI.onNotificationAction((data) => {
-                console.log('Notification Action:', data);
+                // console.log('Notification Action:', data);
                 if (data.action === 'stop') {
                     if (data.id === 'timer' || String(data.id).startsWith('timer-')) {
                         this.stopTimer();
@@ -109,7 +109,7 @@ export class AlarmManager {
 
         // Verificação de segurança: se por algum motivo o timeout disparar antes da virada do minuto (drift negativo),
         // não processa para evitar disparos duplicados ou errados.
-        console.log(`Checking alarms at ${currentTime}:${now.getSeconds()}`);
+        // console.log(`Checking alarms at ${currentTime}:${now.getSeconds()}`);
 
         this.alarms.forEach(alarm => {
             if (!alarm.enabled) return;
@@ -123,7 +123,7 @@ export class AlarmManager {
                 // Não é necessário se garantirmos que esta função roda apenas uma vez por minuto.
                 // O setTimeout recursivo garante o espaçamento de ~60s.
 
-                console.log(`Triggering alarm ${alarm.id} at ${currentTime}`);
+                // console.log(`Triggering alarm ${alarm.id} at ${currentTime}`);
                 this.triggerAlarm(alarm);
 
                 if (!Array.isArray(alarm.repeat) || alarm.repeat.length === 0) {
@@ -236,9 +236,9 @@ export class AlarmManager {
                 }
 
                 if (autoDuration > 0) {
-                    console.log(`Scheduling auto-action for ${currentAlert.type} in ${autoDuration}s`);
+                    // console.log(`Scheduling auto-action for ${currentAlert.type} in ${autoDuration}s`);
                     currentAlert.actionTimeoutId = setTimeout(() => {
-                        console.log(`Auto-action triggered for ${currentAlert.type} ${currentAlert.id}`);
+                        // console.log(`Auto-action triggered for ${currentAlert.type} ${currentAlert.id}`);
 
                         // Checa se o alerta ainda está ativo
                         const isStillActive = this.activeAlerts.some(a => a.id === currentAlert.id);
@@ -391,7 +391,7 @@ export class AlarmManager {
         const nextTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
         this.snoozedAlarms[alarmId] = nextTime;
-        console.log(`Alarm snoozed for ${duration} min. Next: ${nextTime}`);
+        // console.log(`Alarm snoozed for ${duration} min. Next: ${nextTime}`);
         this.saveAlarms();
     }
 

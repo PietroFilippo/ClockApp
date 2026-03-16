@@ -37,8 +37,8 @@ export function showModal({ title, content, onSave, onClose }) {
 
   if (onSave) {
     saveBtn.onclick = () => {
-      onSave(overlay);
-      close();
+      const result = onSave(overlay);
+      if (result !== false) close();
     };
   } else {
     saveBtn.style.display = 'none';
