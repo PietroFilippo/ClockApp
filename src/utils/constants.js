@@ -2,6 +2,7 @@ export const STORAGE_KEYS = {
     ALARMS: 'alarms',
     SNOOZED_ALARMS: 'snoozedAlarms',
     TIMER_STATE: 'timer-state',
+    TIMER_STATES: 'timer-states',
     TIMER_RECENTS: 'timer-recents',
     TIMER_SAVED: 'timer-saved',
     STOPWATCH_STATE: 'stopwatch-state',
@@ -43,6 +44,7 @@ export const LIMITS = {
     MAX_CUSTOM_COLORS: 10,
     MAX_TIMER_RECENTS: 20,
     MAX_TIMER_SAVED: 10,
+    MAX_ACTIVE_TIMERS: 10,
     MAX_FILE_SIZE_BYTES_BROWSER: 2 * 1024 * 1024, // 2MB
     MAX_FILE_SIZE_BYTES_ELECTRON: 100 * 1024 * 1024, // 100MB
     MAX_FILE_SIZE_MB_BROWSER: 2,

@@ -62,7 +62,7 @@ function onAlarmRing(e) {
 document.addEventListener('alarm-ring', onAlarmRing);
 
 function onTimerRing(e) {
-  const { label, repeatCount } = e.detail;
+  const { timerId, label, repeatCount, initialHours, initialMinutes, initialSeconds, soundId } = e.detail;
 
   // Cleanup de overlay existente
   if (currentOverlay && currentOverlay.element) {
@@ -82,8 +82,11 @@ function onTimerRing(e) {
     actionButton: {
       text: 'Repeat',
       onClick: (ovl) => {
-        alarmManager.stopTimer(); // Usa stoptimer para verificar o estado do audio
-        timerManager.repeat();
+        alarmManager.stopTimer();
+        timerManager.repeatFromConfig({
+          initialHours, initialMinutes, initialSeconds,
+          label, soundId, repeatCount
+        });
         setTimeout(() => {
           if (ovl.isConnected) ovl.remove();
           currentOverlay = null;
@@ -91,7 +94,7 @@ function onTimerRing(e) {
       }
     },
     onStop: () => {
-      alarmManager.stopTimer(); // Usa stopTimer
+      alarmManager.stopTimer();
       currentOverlay = null;
     }
   });
@@ -99,7 +102,7 @@ function onTimerRing(e) {
   const h1 = overlay.querySelector('h1');
   if (h1) h1.style.fontSize = '34px';
 
-  currentOverlay = { element: overlay, type: 'timer' };
+  currentOverlay = { element: overlay, type: 'timer', timerId };
 }
 
 document.addEventListener('timer-ring', onTimerRing);

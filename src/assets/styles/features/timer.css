@@ -170,3 +170,222 @@
     /* Limit label width */
     text-align: right;
 }
+
+.active-timers-section {
+    margin-bottom: 10px;
+}
+
+.active-timers-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px;
+    margin-bottom: 8px;
+}
+
+.active-timers-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.active-timers-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 16px;
+}
+
+/* Timer Card */
+
+.timer-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    background: var(--bg-secondary, #1c1c1e);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+    min-height: 70px;
+}
+
+.timer-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.timer-card:active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.timer-card-ring {
+    flex-shrink: 0;
+    position: relative;
+    width: 44px;
+    height: 44px;
+}
+
+.timer-card-ring svg {
+    transform: rotate(-90deg);
+}
+
+.timer-card-ring .card-ring-circle {
+    transition: stroke-dashoffset 0.3s linear;
+    transform-origin: 50% 50%;
+}
+
+.timer-card-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.timer-card-time {
+    font-size: 28px;
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+.timer-card-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.timer-card-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.timer-card-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.timer-card-btn:active {
+    transform: scale(0.9);
+}
+
+.timer-card-btn.pause-resume {
+    background: rgba(255, 159, 10, 0.2);
+    color: var(--accent-orange);
+}
+
+.timer-card-btn.pause-resume:hover {
+    background: rgba(255, 159, 10, 0.35);
+}
+
+.timer-card-btn.cancel-timer {
+    background: rgba(255, 69, 58, 0.15);
+    color: var(--accent-red);
+}
+
+.timer-card-btn.cancel-timer:hover {
+    background: rgba(255, 69, 58, 0.3);
+}
+
+.timer-card.paused .timer-card-time {
+    animation: timerPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
+/* No Active Timers */
+
+.no-active-timers {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 20px 0;
+    font-size: 14px;
+}
+
+/* Add Timer Button */
+
+.add-timer-btn {
+    background: none;
+    border: none;
+    color: var(--accent-orange);
+    font-size: 28px;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+    padding: 0;
+    line-height: 1;
+}
+
+.add-timer-btn:hover {
+    background: rgba(255, 159, 10, 0.15);
+}
+
+.add-timer-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* Back Button */
+
+.timer-back-btn {
+    background: none;
+    border: none;
+    color: var(--accent-orange);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    transition: opacity 0.2s;
+    position: absolute;
+    left: 20px;
+}
+
+.timer-back-btn:hover {
+    opacity: 0.7;
+}
+
+.timer-detail-label {
+    font-size: 16px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 280px;
+    margin-left: auto;
+    margin-right: auto;
+}

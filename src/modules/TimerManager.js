@@ -3,26 +3,19 @@ import { STORAGE_KEYS, LIMITS } from '../utils/constants.js';
 
 class TimerManager {
     constructor() {
-        this.totalSeconds = 0;
-        this.remainingSeconds = 0;
-        this.isRunning = false;
-        this.isPaused = false;
-        this.label = '';
-        this.soundId = 'default';
-        this.intervalId = null;
-        this.repeatCount = 0;
-
-        this.initialHours = 0;
-        this.initialMinutes = 0;
-        this.initialSeconds = 0;
-
+        /** @type {Map<string, Object>} id → timer state */
+        this.timers = new Map();
+        this.tickIntervalId = null;
+        this._tickCount = 0;
 
         this.loadState();
-        if (this.isRunning && !this.isPaused) {
+
+        // Inicia o tick se algum timer estiver ativo
+        if (this._hasActiveTimers()) {
             this.startTicking();
         }
 
-        // Listener para alterações de configurações para atualizar o bloqueador de energia imediatamente
+        // Listener para alterações de configurações para atualizar o bloqueador de energia
         document.addEventListener('settings-updated', (e) => {
             if (e.detail.key === 'preventSuspend') {
                 this.updatePowerBlocker();
@@ -30,59 +23,123 @@ class TimerManager {
         });
 
         // Listener para requisições de repetição de timer
-        document.addEventListener('timer-repeat-requested', () => {
-            this.repeat();
+        document.addEventListener('timer-repeat-requested', (e) => {
+            const timerId = e.detail?.timerId;
+            if (timerId) {
+                this.repeat(timerId);
+            }
         });
     }
 
+    // Helpers
+    _hasActiveTimers() {
+        for (const timer of this.timers.values()) {
+            if (timer.isRunning && !timer.isPaused) return true;
+        }
+        return false;
+    }
+
+    _hasRunningTimers() {
+        for (const timer of this.timers.values()) {
+            if (timer.isRunning) return true;
+        }
+        return false;
+    }
+
+    _generateId() {
+        return `timer-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    }
+
+    // State Persistence
     loadState() {
-        const saved = localStorage.getItem(STORAGE_KEYS.TIMER_STATE);
+        const saved = localStorage.getItem(STORAGE_KEYS.TIMER_STATES);
         if (saved) {
-            const state = JSON.parse(saved);
-            const now = Date.now();
+            try {
+                const timersArray = JSON.parse(saved);
+                const now = Date.now();
+                this.timers.clear();
 
-            this.totalSeconds = state.totalSeconds || 0;
-            this.label = state.label || '';
-            this.soundId = state.soundId || 'default';
-            this.repeatCount = state.repeatCount || 0;
-            this.isPaused = state.isPaused || false;
-            this.isRunning = state.isRunning || false;
+                for (const state of timersArray) {
+                    if (state.isRunning) {
+                        if (state.isPaused) {
+                            // Pausado — mantém o tempo restante como está
+                        } else {
+                            // Rodando — calcula o tempo decorrido desde o salvamento
+                            const elapsedSinceSave = Math.floor((now - state.lastSaved) / 1000);
+                            state.remainingSeconds = Math.max(0, state.remainingSeconds - elapsedSinceSave);
+                            if (state.remainingSeconds === 0) {
+                                // Termina após a inicialização
+                                const id = state.id;
+                                this.timers.set(id, state);
+                                setTimeout(() => this.finish(id), 100);
+                                continue;
+                            }
+                        }
+                    }
+                    this.timers.set(state.id, state);
+                }
+                return;
+            } catch (e) {
+                console.error('Failed to load multi-timer state', e);
+            }
+        }
 
-            this.initialHours = state.initialHours || 0;
-            this.initialMinutes = state.initialMinutes || 0;
-            this.initialSeconds = state.initialSeconds || 0;
+        // Migração: tenta o formato antigo de timer único
+        const oldSaved = localStorage.getItem(STORAGE_KEYS.TIMER_STATE);
+        if (oldSaved) {
+            try {
+                const state = JSON.parse(oldSaved);
+                const now = Date.now();
 
-            if (this.isRunning) {
-                if (this.isPaused) {
-                    this.remainingSeconds = state.remainingSeconds;
-                } else {
-                    const elapsedSinceSave = Math.floor((now - state.lastSaved) / 1000);
-                    this.remainingSeconds = Math.max(0, state.remainingSeconds - elapsedSinceSave);
-                    if (this.remainingSeconds === 0) {
-                        setTimeout(() => this.finish(), 100);
+                if (state.isRunning || state.totalSeconds > 0) {
+                    const id = this._generateId();
+                    const timer = {
+                        id,
+                        totalSeconds: state.totalSeconds || 0,
+                        remainingSeconds: state.remainingSeconds || 0,
+                        isRunning: state.isRunning || false,
+                        isPaused: state.isPaused || false,
+                        label: state.label || '',
+                        soundId: state.soundId || 'default',
+                        repeatCount: state.repeatCount || 0,
+                        initialHours: state.initialHours || 0,
+                        initialMinutes: state.initialMinutes || 0,
+                        initialSeconds: state.initialSeconds || 0,
+                        lastSaved: state.lastSaved || now
+                    };
+
+                    if (timer.isRunning && !timer.isPaused) {
+                        const elapsedSinceSave = Math.floor((now - timer.lastSaved) / 1000);
+                        timer.remainingSeconds = Math.max(0, timer.remainingSeconds - elapsedSinceSave);
+                        if (timer.remainingSeconds === 0) {
+                            this.timers.set(id, timer);
+                            setTimeout(() => this.finish(id), 100);
+                        } else {
+                            this.timers.set(id, timer);
+                        }
+                    } else if (timer.isRunning) {
+                        this.timers.set(id, timer);
                     }
                 }
+
+                // Remove old key depois da migração
+                localStorage.removeItem(STORAGE_KEYS.TIMER_STATE);
+                this.saveState();
+            } catch (e) {
+                console.error('Failed to migrate old timer state', e);
             }
         }
     }
 
     saveState() {
-        const state = {
-            totalSeconds: this.totalSeconds,
-            remainingSeconds: this.remainingSeconds,
-            isRunning: this.isRunning,
-            isPaused: this.isPaused,
-            label: this.label,
-            soundId: this.soundId,
-            initialHours: this.initialHours,
-            initialMinutes: this.initialMinutes,
-            initialSeconds: this.initialSeconds,
-            repeatCount: this.repeatCount,
-            lastSaved: Date.now()
-        };
-        localStorage.setItem(STORAGE_KEYS.TIMER_STATE, JSON.stringify(state));
+        const timersArray = [];
+        for (const timer of this.timers.values()) {
+            timersArray.push({ ...timer, lastSaved: Date.now() });
+        }
+        localStorage.setItem(STORAGE_KEYS.TIMER_STATES, JSON.stringify(timersArray));
     }
 
+    // Recents
     loadRecents() {
         try {
             const saved = localStorage.getItem(STORAGE_KEYS.TIMER_RECENTS);
@@ -141,8 +198,7 @@ class TimerManager {
         this.saveRecents(recents);
     }
 
-    // Timers salvos
-
+    // Saved Timers
     loadSaved() {
         try {
             const saved = localStorage.getItem(STORAGE_KEYS.TIMER_SAVED);
@@ -198,13 +254,12 @@ class TimerManager {
         return false;
     }
 
-
+    // Power Blocker
     async updatePowerBlocker() {
         if (window.electronAPI) {
             const settings = await window.electronAPI.getSettings();
             if (settings.preventSuspend) {
-                // se timer estiver rodando e não pausado, bloqueia a energia
-                const shouldBlock = this.isRunning && !this.isPaused;
+                const shouldBlock = this._hasActiveTimers();
                 window.electronAPI.setPowerBlocker(shouldBlock);
             } else {
                 window.electronAPI.setPowerBlocker(false);
@@ -212,112 +267,231 @@ class TimerManager {
         }
     }
 
+    // Active Timer Management
     start(h, m, s, label, soundId) {
-        this.totalSeconds = h * 3600 + m * 60 + s;
-        if (this.totalSeconds <= 0) return;
+        const totalSeconds = h * 3600 + m * 60 + s;
+        if (totalSeconds <= 0) return null;
 
-        this.initialHours = h;
-        this.initialMinutes = m;
-        this.initialSeconds = s;
+        // Checa o limite de timers ativos
+        const activeCount = this.getActiveTimerCount();
+        if (activeCount >= LIMITS.MAX_ACTIVE_TIMERS) return null;
 
-        this.remainingSeconds = this.totalSeconds;
-        this.label = label;
-        this.soundId = soundId;
-        this.repeatCount = 0;
-        this.isRunning = true;
-        this.isPaused = false;
+        const id = this._generateId();
+        const timer = {
+            id,
+            totalSeconds,
+            remainingSeconds: totalSeconds,
+            isRunning: true,
+            isPaused: false,
+            label: label || '',
+            soundId: soundId || 'default',
+            repeatCount: 0,
+            initialHours: h,
+            initialMinutes: m,
+            initialSeconds: s
+        };
+
+        this.timers.set(id, timer);
 
         this.addRecentTimer({ hours: h, minutes: m, seconds: s, label, soundId });
 
         this.startTicking();
         this.saveState();
-        this.notify();
+        this.notify('timer-added', { timerId: id });
         this.updatePowerBlocker();
+
+        return id;
     }
 
     startTicking() {
-        if (this.intervalId) clearInterval(this.intervalId);
-        this.intervalId = setInterval(() => this.tick(), 1000);
+        if (this.tickIntervalId) return;
+        this.tickIntervalId = setInterval(() => this.tick(), 1000);
     }
 
-    tick() {
-        if (this.isRunning && !this.isPaused) {
-            if (this.remainingSeconds > 0) {
-                this.remainingSeconds--;
-                if (this.remainingSeconds % 5 === 0) this.saveState();
-                this.notify();
-            } else {
-                this.finish();
-            }
+    stopTicking() {
+        if (this.tickIntervalId) {
+            clearInterval(this.tickIntervalId);
+            this.tickIntervalId = null;
         }
     }
 
-    pause() {
-        this.isPaused = true;
-        this.saveState();
-        this.notify();
-        this.updatePowerBlocker();
+    tick() {
+        const finishedTimers = [];
+
+        for (const [id, timer] of this.timers) {
+            if (timer.isRunning && !timer.isPaused) {
+                if (timer.remainingSeconds > 0) {
+                    timer.remainingSeconds--;
+                } else {
+                    finishedTimers.push(id);
+                }
+            }
+        }
+
+        // Salva a cada 5 ticks
+        this._tickCount++;
+        if (this._tickCount % 5 === 0) this.saveState();
+
+        // Notifica a UI para atualizar todos os timers
+        this.notify('timers-tick');
+
+        // Finaliza timers que chegaram a zero
+        for (const id of finishedTimers) {
+            this.finish(id);
+        }
+
+        // Para de contar se não tiver mais timers ativos
+        if (!this._hasActiveTimers()) {
+            this.stopTicking();
+        }
     }
 
-    resume() {
-        this.isPaused = false;
+    pause(timerId) {
+        const timer = this.timers.get(timerId);
+        if (!timer || !timer.isRunning) return;
+
+        timer.isPaused = true;
+        this.saveState();
+        this.notify('timers-tick');
+        this.updatePowerBlocker();
+
+        // Para de contar se não tiver mais timers ativos
+        if (!this._hasActiveTimers()) {
+            this.stopTicking();
+        }
+    }
+
+    resume(timerId) {
+        const timer = this.timers.get(timerId);
+        if (!timer || !timer.isPaused) return;
+
+        timer.isPaused = false;
         this.startTicking();
         this.saveState();
-        this.notify();
+        this.notify('timers-tick');
         this.updatePowerBlocker();
     }
 
-    cancel() {
-        if (this.intervalId) clearInterval(this.intervalId);
-        this.isRunning = false;
-        this.isPaused = false;
-        this.remainingSeconds = 0;
+    cancel(timerId) {
+        const timer = this.timers.get(timerId);
+        if (!timer) return;
+
+        this.timers.delete(timerId);
         this.saveState();
-        this.notify();
+        this.notify('timer-removed', { timerId });
         this.updatePowerBlocker();
+
+        if (!this._hasActiveTimers()) {
+            this.stopTicking();
+        }
     }
 
-    finish() {
-        if (this.intervalId) clearInterval(this.intervalId);
-        this.isRunning = false;
-        this.isPaused = false;
+    finish(timerId) {
+        const timer = this.timers.get(timerId);
+        if (!timer) return;
+
+        this.timers.delete(timerId);
         this.saveState();
         this.updatePowerBlocker();
 
-        alarmManager.triggerTimer(this.label, this.soundId, this.repeatCount);
-        this.notify('timer-finished');
+        alarmManager.triggerTimer(timer.label, timer.soundId, timer.repeatCount);
+
+        this.notify('timer-finished', {
+            timerId,
+            label: timer.label,
+            soundId: timer.soundId,
+            repeatCount: timer.repeatCount,
+            initialHours: timer.initialHours,
+            initialMinutes: timer.initialMinutes,
+            initialSeconds: timer.initialSeconds
+        });
+
+        if (!this._hasActiveTimers()) {
+            this.stopTicking();
+        }
     }
 
-    repeat() {
-        this.totalSeconds = this.initialHours * 3600 + this.initialMinutes * 60 + this.initialSeconds;
-        this.remainingSeconds = this.totalSeconds;
-        this.repeatCount++;
-        this.isRunning = true;
-        this.isPaused = false;
+    repeat(timerId) {
+        const existing = this.timers.get(timerId);
+        if (existing) {
+            existing.remainingSeconds = existing.totalSeconds;
+            existing.repeatCount++;
+            existing.isRunning = true;
+            existing.isPaused = false;
+            this.startTicking();
+            this.saveState();
+            this.notify('timer-added', { timerId });
+            this.updatePowerBlocker();
+            return timerId;
+        }
 
+        return null;
+    }
+
+    repeatFromConfig(config) {
+        const { initialHours, initialMinutes, initialSeconds, label, soundId, repeatCount } = config;
+        const totalSeconds = initialHours * 3600 + initialMinutes * 60 + initialSeconds;
+        if (totalSeconds <= 0) return null;
+
+        const id = this._generateId();
+        const timer = {
+            id,
+            totalSeconds,
+            remainingSeconds: totalSeconds,
+            isRunning: true,
+            isPaused: false,
+            label: label || '',
+            soundId: soundId || 'default',
+            repeatCount: (repeatCount || 0) + 1,
+            initialHours,
+            initialMinutes,
+            initialSeconds
+        };
+
+        this.timers.set(id, timer);
         this.startTicking();
         this.saveState();
-        this.notify();
+        this.notify('timer-added', { timerId: id });
         this.updatePowerBlocker();
+
+        return id;
+    }
+
+    // Getters
+    getTimer(timerId) {
+        return this.timers.get(timerId) || null;
+    }
+
+    getAllTimers() {
+        return Array.from(this.timers.values());
+    }
+
+    getActiveTimerCount() {
+        return this.timers.size;
     }
 
     getState() {
-        return {
-            totalSeconds: this.totalSeconds,
-            remainingSeconds: this.remainingSeconds,
-            isRunning: this.isRunning,
-            isPaused: this.isPaused,
-            label: this.label,
-            soundId: this.soundId,
-            initialHours: this.initialHours,
-            initialMinutes: this.initialMinutes,
-            initialSeconds: this.initialSeconds,
-            repeatCount: this.repeatCount
-        };
+        if (this.timers.size === 0) {
+            return {
+                totalSeconds: 0,
+                remainingSeconds: 0,
+                isRunning: false,
+                isPaused: false,
+                label: '',
+                soundId: 'default',
+                initialHours: 0,
+                initialMinutes: 0,
+                initialSeconds: 0,
+                repeatCount: 0
+            };
+        }
+        const first = this.timers.values().next().value;
+        return { ...first };
     }
 
-    notify(eventName = 'timer-updated') {
-        document.dispatchEvent(new CustomEvent(eventName, { detail: this.getState() }));
+    // Events
+    notify(eventName = 'timer-updated', detail = {}) {
+        document.dispatchEvent(new CustomEvent(eventName, { detail }));
     }
 }
 

@@ -15,15 +15,20 @@ export function Timer() {
     const container = document.createElement('div');
     container.className = 'view-container';
 
-    const radius = 140;
-    const circumference = radius * 2 * Math.PI;
+    const detailRadius = 140;
+    const detailCircumference = detailRadius * 2 * Math.PI;
+
+    // Card ring constantes
+    const cardRadius = 18;
+    const cardCircumference = cardRadius * 2 * Math.PI;
 
     let isEditing = false;
     let recents = [];
     let savedTimers = [];
     let selectedRecents = new Set();
-    let currentMode = null; // 'picker' | 'running'
-    let activeTab = localStorage.getItem(STORAGE_KEYS.TIMER_ACTIVE_TAB) || 'recents'; // 'recents' | 'saved'
+    let currentMode = null; 
+    let selectedTimerId = null; // qual timer é mostrado na view de detalhes
+    let activeTab = localStorage.getItem(STORAGE_KEYS.TIMER_ACTIVE_TAB) || 'recents';
 
     initDelegatedListeners();
 
@@ -52,39 +57,45 @@ export function Timer() {
         savedTimers = timerManager.getSaved();
     }
 
+    // Render Principal
     function render() {
         loadRecents();
-        const state = timerManager.getState();
+        loadSaved();
+        const activeTimers = timerManager.getAllTimers();
 
+        // Determina qual modo mostrar
         let newMode;
-        if (state.isRunning || state.isPaused) {
-            newMode = 'running';
+        if (selectedTimerId && timerManager.getTimer(selectedTimerId)) {
+            newMode = 'detail';
         } else {
-            newMode = 'picker';
+            if (currentMode === 'detail') {
+                selectedTimerId = null;
+            }
+            newMode = 'list';
         }
 
         if (newMode !== currentMode) {
             currentMode = newMode;
-            if (currentMode === 'running') {
-                initRunningView(state);
+            if (currentMode === 'detail') {
+                initDetailView();
             } else {
-                initPickerView(state);
+                initListView();
             }
         } else {
-            if (currentMode === 'running') {
-                updateRunningView(state);
+            if (currentMode === 'detail') {
+                updateDetailView();
             } else {
-                updatePickerView(state);
+                updateListView();
             }
         }
     }
 
-    // Move listeners para fora do render loop
+    // Delegated Listeners
     function initDelegatedListeners() {
         container.addEventListener('click', async (e) => {
             const target = e.target;
 
-            // Tab switching
+            // Troca de abas
             if (target.closest('.timer-tab')) {
                 const tab = target.closest('.timer-tab');
                 const newTab = tab.dataset.tab;
@@ -93,14 +104,8 @@ export function Timer() {
                     localStorage.setItem(STORAGE_KEYS.TIMER_ACTIVE_TAB, activeTab);
                     isEditing = false;
                     selectedRecents.clear();
-                    if (currentMode === 'running') {
-                        loadRecents();
-                        loadSaved();
-                        updateRecentsSection();
-                        updatePickerHeaderState();
-                    } else {
-                        render();
-                    }
+                    updateRecentsSection();
+                    updateListHeaderState();
                 }
                 return;
             }
@@ -136,7 +141,7 @@ export function Timer() {
                 return;
             }
 
-            // Seleciona checkbox no modo de edição
+            // Checkbox no modo de editar
             if (target.classList.contains('select-checkbox')) {
                 e.stopPropagation();
                 const id = target.dataset.id;
@@ -147,11 +152,11 @@ export function Timer() {
                 }
                 const item = target.closest('.alarm-item');
                 if (item) item.classList.toggle('selected', target.checked);
-                updatePickerHeaderState();
+                updateListHeaderState();
                 return;
             }
 
-            // Botão de play
+            // Botão play no item recente/salvo
             if (target.closest('.recent-item-play')) {
                 e.stopPropagation();
                 const btn = target.closest('.recent-item-play');
@@ -165,7 +170,7 @@ export function Timer() {
                 return;
             }
 
-            // Botão de salvar (ícone de marcador nos recents)
+            // Botão salvar timer (bookmark)
             if (target.closest('.save-timer-btn')) {
                 e.stopPropagation();
                 const btn = target.closest('.save-timer-btn');
@@ -174,7 +179,7 @@ export function Timer() {
                 return;
             }
 
-            // Botão de deletar (modo de edição)
+            // Botão deletar (modo de editar)
             if (target.closest('.delete-recent-btn')) {
                 e.stopPropagation();
                 const btn = target.closest('.delete-recent-btn');
@@ -187,17 +192,81 @@ export function Timer() {
                 return;
             }
 
-            // Clicar no item de info (editar ou tocar)
+            // Botão pause/resume no card
+            if (target.closest('.timer-card-btn.pause-resume')) {
+                e.stopPropagation();
+                const btn = target.closest('.timer-card-btn.pause-resume');
+                const timerId = btn.dataset.timerId;
+                const timer = timerManager.getTimer(timerId);
+                if (timer) {
+                    if (timer.isPaused) {
+                        timerManager.resume(timerId);
+                    } else {
+                        timerManager.pause(timerId);
+                    }
+                }
+                return;
+            }
+
+            // Botão cancelar no card
+            if (target.closest('.timer-card-btn.cancel-timer')) {
+                e.stopPropagation();
+                const btn = target.closest('.timer-card-btn.cancel-timer');
+                const timerId = btn.dataset.timerId;
+                timerManager.cancel(timerId);
+                return;
+            }
+
+            // Vai para a view de detalhes
+            if (target.closest('.timer-card') && !target.closest('.timer-card-btn')) {
+                const card = target.closest('.timer-card');
+                const timerId = card.dataset.timerId;
+                if (timerId && timerManager.getTimer(timerId)) {
+                    selectedTimerId = timerId;
+                    currentMode = null; // force re-init
+                    render();
+                }
+                return;
+            }
+
+            // Botão adicionar timer (+)
+            if (target.closest('.add-timer-btn')) {
+                e.stopPropagation();
+                openAddTimerModal();
+                return;
+            }
+
+            // Botão voltar (view de detalhes)
+            if (target.closest('.timer-back-btn')) {
+                selectedTimerId = null;
+                currentMode = null; // force re-init
+                render();
+                return;
+            }
+
+            // Botão cancelar (view de detalhes)
+            if (target.closest('#detail-cancel-btn')) {
+                const timerId = selectedTimerId;
+                selectedTimerId = null;
+                currentMode = null;
+                timerManager.cancel(timerId);
+                render();
+                return;
+            }
+
+            // Botão pause/resume (view de detalhes)
+            if (target.closest('#detail-pause-btn')) {
+                toggleDetailPause();
+                return;
+            }
+
+            // Click no item recente/salvo (editar ou iniciar)
             const recentInfo = target.closest('.recent-item-info');
             if (recentInfo) {
                 const id = recentInfo.dataset.id;
                 const type = recentInfo.dataset.type;
                 if (isEditing) {
-                    if (type === 'saved') {
-                        openTimerEditModal(id, 'saved');
-                    } else {
-                        openTimerEditModal(id, 'recent');
-                    }
+                    openTimerEditModal(id, type === 'saved' ? 'saved' : 'recent');
                 } else {
                     if (type === 'saved') {
                         startSaved(id);
@@ -228,7 +297,6 @@ export function Timer() {
                     }
                 ];
 
-                // Adiciona "Salvar" para recents que ainda não estão salvos
                 if (type === 'recent') {
                     items.splice(1, 0, {
                         label: 'Save',
@@ -241,6 +309,367 @@ export function Timer() {
         });
     }
 
+    // List View
+    function initListView() {
+        const activeTimers = timerManager.getAllTimers();
+        const hasActiveTimers = activeTimers.length > 0;
+        const canAddMore = activeTimers.length < LIMITS.MAX_ACTIVE_TIMERS;
+        const hasListItems = activeTab === 'saved' ? savedTimers.length > 0 : recents.length > 0;
+        const showEditBtn = hasListItems || hasActiveTimers;
+
+        container.innerHTML = `
+      <div class="header">
+        <button class="edit-btn" id="edit-recents-btn" style="visibility: ${showEditBtn ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
+        <h1>Timers</h1>
+        <div class="add-btn-container" style="display: flex; gap: 10px;">
+          <button class="add-btn" id="cancel-edit-timer-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
+          <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
+          <button class="add-timer-btn" title="Add Timer" ${!canAddMore ? 'disabled' : ''}>+</button>
+        </div>
+      </div>
+      <div class="active-timers-section"></div>
+      <div class="recents-container"></div>
+    `;
+
+        container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
+
+        renderActiveTimers();
+        updateRecentsSection();
+        updateListHeaderState();
+    }
+
+    function updateListView() {
+        renderActiveTimers();
+        updateListHeaderState();
+    }
+
+    function renderActiveTimers() {
+        const section = container.querySelector('.active-timers-section');
+        if (!section) return;
+
+        const activeTimers = timerManager.getAllTimers();
+
+        if (activeTimers.length === 0) {
+            // Mostra o picker inline quando não há timers ativos
+            section.innerHTML = renderInlinePicker();
+            setupInlinePickerListeners();
+            return;
+        }
+
+        section.innerHTML = `
+      <div class="active-timers-list">
+        ${activeTimers.map(timer => renderTimerCard(timer)).join('')}
+      </div>
+    `;
+    }
+
+    function renderTimerCard(timer) {
+        const progress = timer.totalSeconds > 0 ? timer.remainingSeconds / timer.totalSeconds : 0;
+        const offset = cardCircumference - progress * cardCircumference;
+        const timeStr = formatTime(timer.remainingSeconds);
+        const labelStr = escapeHtml(timer.label || 'Timer');
+        const pausedClass = timer.isPaused ? 'paused' : '';
+
+        return `
+      <div class="timer-card ${pausedClass}" data-timer-id="${timer.id}">
+        <div class="timer-card-ring">
+          <svg width="44" height="44">
+            <circle
+              stroke="rgba(255,255,255,0.1)"
+              stroke-width="3"
+              fill="transparent"
+              r="${cardRadius}"
+              cx="22"
+              cy="22"
+            />
+            <circle
+              class="card-ring-circle"
+              stroke="var(--accent-orange)"
+              stroke-width="3"
+              fill="transparent"
+              r="${cardRadius}"
+              cx="22"
+              cy="22"
+              style="stroke-dasharray: ${cardCircumference} ${cardCircumference}; stroke-dashoffset: ${offset};"
+            />
+          </svg>
+        </div>
+        <div class="timer-card-info">
+          <span class="timer-card-time">${timeStr}</span>
+          <span class="timer-card-label" title="${labelStr}">${labelStr}</span>
+        </div>
+        <div class="timer-card-controls">
+          <button class="timer-card-btn pause-resume" data-timer-id="${timer.id}" title="${timer.isPaused ? 'Resume' : 'Pause'}">
+            ${timer.isPaused ? '▶' : '⏸'}
+          </button>
+          <button class="timer-card-btn cancel-timer" data-timer-id="${timer.id}" title="Cancel">✕</button>
+        </div>
+      </div>
+    `;
+    }
+
+    function renderInlinePicker() {
+        const soundId = localStorage.getItem(STORAGE_KEYS.TIMER_SELECTED_SOUND) || audioManager.getLastUsedSound() || 'default';
+
+        return `
+      <div class="timer-picker">
+        <div class="picker-col">
+           <input type="number" id="hours" class="timer-input" min="0" max="23" value="0">
+           <div class="timer-label">hours</div>
+        </div>
+        <div class="picker-col">
+           <input type="number" id="minutes" class="timer-input" min="0" max="59" value="0">
+           <div class="timer-label">min</div>
+        </div>
+        <div class="picker-col">
+           <input type="number" id="seconds" class="timer-input" min="0" max="59" value="0">
+           <div class="timer-label">sec</div>
+        </div>
+      </div>
+
+      <div class="modal-section" style="margin: 0 auto 30px;">
+          <div class="modal-row">
+              <span>Label</span>
+              <input type="text" id="timer-label" value="" placeholder="Timer" maxlength="200">
+          </div>
+          <div class="modal-row">
+              <span>When Timer Ends</span>
+              <button id="timer-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${audioManager.getSoundName(soundId)}">
+                  ${audioManager.getSoundName(soundId)}
+              </button>
+              <input type="hidden" id="timer-sound-value" value="${soundId}">
+          </div>
+      </div>
+
+      <div class="controls" style="justify-content: center;">
+        <button class="control-btn start" id="start-btn">Start</button>
+      </div>
+    `;
+    }
+
+    function setupInlinePickerListeners() {
+        const startBtn = container.querySelector('#start-btn');
+        if (startBtn) startBtn.onclick = startFromInlinePicker;
+
+        const soundTrigger = container.querySelector('#timer-sound-trigger');
+        const soundValue = container.querySelector('#timer-sound-value');
+        if (soundTrigger) {
+            soundTrigger.onclick = () => {
+                openSoundPicker(soundValue.value, (selectedId) => {
+                    soundValue.value = selectedId;
+                    soundTrigger.textContent = audioManager.getSoundName(selectedId);
+                    localStorage.setItem(STORAGE_KEYS.TIMER_SELECTED_SOUND, selectedId);
+                });
+            };
+        }
+
+        const hoursInput = container.querySelector('#hours');
+        const minutesInput = container.querySelector('#minutes');
+        const secondsInput = container.querySelector('#seconds');
+
+        if (hoursInput) attachTimeInputValidation(hoursInput, 23, { maxDigits: 2 });
+        if (minutesInput) attachTimeInputValidation(minutesInput, 59, { maxDigits: 2 });
+        if (secondsInput) attachTimeInputValidation(secondsInput, 59, { maxDigits: 2 });
+    }
+
+    function startFromInlinePicker() {
+        const h = Number(container.querySelector('#hours').value);
+        const m = Number(container.querySelector('#minutes').value);
+        const s = Number(container.querySelector('#seconds').value);
+        const label = container.querySelector('#timer-label').value || '';
+        const soundId = container.querySelector('#timer-sound-value').value;
+
+        if (h === 0 && m === 0 && s === 0) return;
+
+        audioManager.setLastUsedSound(soundId);
+        timerManager.start(h, m, s, label, soundId);
+    }
+
+    function updateListHeaderState() {
+        const editBtn = container.querySelector('#edit-recents-btn');
+        if (editBtn) {
+            if (isEditing && selectedRecents.size > 0) {
+                editBtn.textContent = `Delete (${selectedRecents.size})`;
+                editBtn.style.color = 'var(--accent-red)';
+            } else {
+                editBtn.textContent = isEditing ? 'Done' : 'Edit';
+                editBtn.style.color = '';
+            }
+            const hasActive = timerManager.getActiveTimerCount() > 0;
+            const hasItems = activeTab === 'saved' ? savedTimers.length > 0 : recents.length > 0;
+            editBtn.style.visibility = (hasItems || hasActive) ? 'visible' : 'hidden';
+        }
+        const audioBtn = container.querySelector('#audio-settings-btn');
+        const cancelBtn = container.querySelector('#cancel-edit-timer-btn');
+        if (audioBtn) audioBtn.style.display = isEditing ? 'none' : '';
+        if (cancelBtn) cancelBtn.style.display = isEditing ? '' : 'none';
+
+        const addBtn = container.querySelector('.add-timer-btn');
+        if (addBtn) {
+            const activeTimers = timerManager.getAllTimers();
+            addBtn.disabled = activeTimers.length >= LIMITS.MAX_ACTIVE_TIMERS;
+            addBtn.style.display = activeTimers.length > 0 ? '' : 'none';
+        }
+    }
+
+    // Detail View
+    function initDetailView() {
+        const timer = timerManager.getTimer(selectedTimerId);
+        if (!timer) {
+            selectedTimerId = null;
+            currentMode = null;
+            render();
+            return;
+        }
+
+        container.innerHTML = `
+      <div class="header">
+        <button class="timer-back-btn">← Back</button>
+        <h1>Timers</h1>
+        <div class="add-btn-container" style="display: flex; gap: 10px;">
+          <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
+        </div>
+      </div>
+      <div class="timer-detail-label">${escapeHtml(timer.label || 'Timer')}</div>
+      <div class="timer-display-container">
+        <svg class="progress-ring" width="300" height="300">
+          <circle
+            class="progress-ring__circle"
+            stroke="var(--accent-orange)"
+            stroke-width="8"
+            fill="transparent"
+            r="${detailRadius}"
+            cx="150"
+            cy="150"
+            style="stroke-dasharray: ${detailCircumference} ${detailCircumference}; stroke-dashoffset: ${detailCircumference};"
+          />
+        </svg>
+        <div class="timer-display-text">${formatTime(timer.remainingSeconds)}</div>
+      </div>
+      <div class="controls">
+        <button class="control-btn stop" id="detail-cancel-btn">Cancel</button>
+        <button class="control-btn ${timer.isPaused ? 'start' : 'pause'}" id="detail-pause-btn">
+          ${timer.isPaused ? 'Resume' : 'Pause'}
+        </button>
+      </div>
+    `;
+
+        updateDetailProgress(timer.remainingSeconds, timer.totalSeconds);
+        container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
+    }
+
+    function updateDetailView() {
+        const timer = timerManager.getTimer(selectedTimerId);
+        if (!timer) {
+            // Timer foi cancelado ou terminou — volta para a lista
+            selectedTimerId = null;
+            currentMode = null;
+            render();
+            return;
+        }
+
+        const textDisplay = container.querySelector('.timer-display-text');
+        if (textDisplay) textDisplay.textContent = formatTime(timer.remainingSeconds);
+        updateDetailProgress(timer.remainingSeconds, timer.totalSeconds);
+
+        const pauseBtn = container.querySelector('#detail-pause-btn');
+        if (pauseBtn) {
+            pauseBtn.textContent = timer.isPaused ? 'Resume' : 'Pause';
+            pauseBtn.className = `control-btn ${timer.isPaused ? 'start' : 'pause'}`;
+        }
+    }
+
+    function updateDetailProgress(remaining, total) {
+        const circle = container.querySelector('.progress-ring__circle');
+        if (circle) {
+            const offset = detailCircumference - (remaining / total) * detailCircumference;
+            circle.style.strokeDashoffset = offset;
+        }
+    }
+
+    function toggleDetailPause() {
+        const timer = timerManager.getTimer(selectedTimerId);
+        if (!timer) return;
+
+        if (timer.isPaused) {
+            timerManager.resume(selectedTimerId);
+        } else {
+            timerManager.pause(selectedTimerId);
+        }
+    }
+
+    // Adiciona Timer Modal
+    function openAddTimerModal() {
+        const soundId = localStorage.getItem(STORAGE_KEYS.TIMER_SELECTED_SOUND) || audioManager.getLastUsedSound() || 'default';
+
+        const content = `
+      <div class="timer-picker" style="transform: scale(0.8);">
+        <div class="picker-col">
+           <input type="number" id="modal-hours" class="timer-input" min="0" max="23" value="0">
+           <div class="timer-label">hours</div>
+        </div>
+        <div class="picker-col">
+           <input type="number" id="modal-minutes" class="timer-input" min="0" max="59" value="0">
+           <div class="timer-label">min</div>
+        </div>
+        <div class="picker-col">
+           <input type="number" id="modal-seconds" class="timer-input" min="0" max="59" value="0">
+           <div class="timer-label">sec</div>
+        </div>
+      </div>
+
+      <div class="modal-section">
+          <div class="modal-row">
+              <span>Label</span>
+              <input type="text" id="modal-label" value="" placeholder="Timer" maxlength="200">
+          </div>
+          <div class="modal-row">
+              <span>When Timer Ends</span>
+              <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${audioManager.getSoundName(soundId)}">
+                  ${audioManager.getSoundName(soundId)}
+              </button>
+              <input type="hidden" id="modal-sound-value" value="${soundId}">
+          </div>
+      </div>
+    `;
+
+        const overlay = showModal({
+            title: 'New Timer',
+            content,
+            onSave: (ov) => {
+                const h = Number(ov.querySelector('#modal-hours').value);
+                const m = Number(ov.querySelector('#modal-minutes').value);
+                const s = Number(ov.querySelector('#modal-seconds').value);
+                const label = ov.querySelector('#modal-label').value || '';
+                const soundId = ov.querySelector('#modal-sound-value').value;
+
+                if (h === 0 && m === 0 && s === 0) return;
+
+                audioManager.setLastUsedSound(soundId);
+                localStorage.setItem(STORAGE_KEYS.TIMER_SELECTED_SOUND, soundId);
+                timerManager.start(h, m, s, label, soundId);
+            }
+        });
+
+        ['modal-hours', 'modal-minutes', 'modal-seconds'].forEach(inputId => {
+            const input = overlay.querySelector('#' + inputId);
+            const max = inputId.includes('hours') ? 23 : 59;
+            attachTimeInputValidation(input, max);
+        });
+
+        const soundTrigger = overlay.querySelector('#modal-sound-trigger');
+        const soundValue = overlay.querySelector('#modal-sound-value');
+        if (soundTrigger) {
+            soundTrigger.onclick = () => {
+                openSoundPicker(soundValue.value, (selectedId) => {
+                    soundValue.value = selectedId;
+                    soundTrigger.textContent = audioManager.getSoundName(selectedId);
+                });
+            };
+        }
+    }
+
+    // Recents / Saved
     async function confirmAndDeleteRecent(id) {
         const recent = recents.find(r => r.id === id);
         const label = recent ? (recent.label || 'Timer') : 'this timer';
@@ -289,115 +718,12 @@ export function Timer() {
         }
     }
 
-    function initPickerView(state) {
-        loadSaved();
-        const soundId = localStorage.getItem(STORAGE_KEYS.TIMER_SELECTED_SOUND) || state.soundId || audioManager.getLastUsedSound();
-
-        const pickerH = state.initialHours;
-        const pickerM = state.initialMinutes;
-        const pickerS = state.initialSeconds;
-        const labelVal = state.label || '';
-
-        container.innerHTML = `
-      <div class="header">
-        <button class="edit-btn" id="edit-recents-btn" style="visibility: ${recents.length > 0 ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
-        <h1>Timers</h1>
-        <div class="add-btn-container" style="display: flex; gap: 10px;">
-          <button class="add-btn" id="cancel-edit-timer-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
-          <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
-        </div>
-      </div>
-      <div class="timer-picker">
-        <div class="picker-col">
-           <input type="number" id="hours" class="timer-input" min="0" max="23" value="${pickerH}">
-           <div class="timer-label">hours</div>
-        </div>
-        <div class="picker-col">
-           <input type="number" id="minutes" class="timer-input" min="0" max="59" value="${pickerM}">
-           <div class="timer-label">min</div>
-        </div>
-        <div class="picker-col">
-           <input type="number" id="seconds" class="timer-input" min="0" max="59" value="${pickerS}">
-           <div class="timer-label">sec</div>
-        </div>
-      </div>
-
-      <div class="modal-section" style="margin: 0 auto 30px;">
-          <div class="modal-row">
-              <span>Label</span>
-              <input type="text" id="timer-label" value="${escapeHtml(labelVal)}" placeholder="Timer" maxlength="200">
-          </div>
-          <div class="modal-row">
-              <span>When Timer Ends</span>
-              <button id="timer-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${audioManager.getSoundName(soundId)}">
-                  ${audioManager.getSoundName(soundId)}
-              </button>
-              <input type="hidden" id="timer-sound-value" value="${soundId}">
-          </div>
-      </div>
-
-      <div class="controls" style="justify-content: center;">
-        <button class="control-btn start" id="start-btn">Start</button>
-      </div>
-
-      <div class="recents-container"></div>
-`;
-        // Listeners (uma vez por init)
-        const startBtn = container.querySelector('#start-btn');
-        if (startBtn) startBtn.onclick = start;
-        container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
-
-        const soundTrigger = container.querySelector('#timer-sound-trigger');
-        const soundValue = container.querySelector('#timer-sound-value');
-        if (soundTrigger) {
-            soundTrigger.onclick = () => {
-                openSoundPicker(soundValue.value, (selectedId) => {
-                    soundValue.value = selectedId;
-                    soundTrigger.textContent = audioManager.getSoundName(selectedId);
-                    localStorage.setItem(STORAGE_KEYS.TIMER_SELECTED_SOUND, selectedId);
-                });
-            };
+    function startRecent(id) {
+        const recent = recents.find(r => r.id === id);
+        if (recent) {
+            timerManager.start(recent.hours, recent.minutes, recent.seconds, recent.label, recent.soundId);
         }
-
-        const hoursInput = container.querySelector('#hours');
-        const minutesInput = container.querySelector('#minutes');
-        const secondsInput = container.querySelector('#seconds');
-
-        attachTimeInputValidation(hoursInput, 23, { maxDigits: 2 });
-        attachTimeInputValidation(minutesInput, 59, { maxDigits: 2 });
-        attachTimeInputValidation(secondsInput, 59, { maxDigits: 2 });
-
-        // Atualiza recentes
-        updateRecentsSection();
-        updatePickerHeaderState();
     }
-
-    function updatePickerView(state) {
-        loadSaved();
-        updatePickerHeaderState();
-        updateRecentsSection();
-    }
-
-    function updatePickerHeaderState() {
-        const editBtn = container.querySelector('#edit-recents-btn');
-        if (editBtn) {
-            if (isEditing && selectedRecents.size > 0) {
-                editBtn.textContent = `Delete (${selectedRecents.size})`;
-                editBtn.style.color = 'var(--accent-red)';
-            } else {
-                editBtn.textContent = isEditing ? 'Done' : 'Edit';
-                editBtn.style.color = '';
-            }
-            const hasItems = activeTab === 'saved' ? savedTimers.length > 0 : recents.length > 0;
-            editBtn.style.visibility = hasItems ? 'visible' : 'hidden';
-        }
-        const audioBtn = container.querySelector('#audio-settings-btn');
-        const cancelBtn = container.querySelector('#cancel-edit-timer-btn');
-        if (audioBtn) audioBtn.style.display = isEditing ? 'none' : '';
-        if (cancelBtn) cancelBtn.style.display = isEditing ? '' : 'none';
-    }
-
-
 
     function renderTimerItem(timer, type = 'recent') {
         const totalSecs = (timer.hours || 0) * 3600 + (timer.minutes || 0) * 60 + (timer.seconds || 0);
@@ -487,7 +813,6 @@ export function Timer() {
             }
         });
 
-        // Usa referência direta do overlay
         ['modal-hours', 'modal-minutes', 'modal-seconds'].forEach(inputId => {
             const input = overlay.querySelector('#' + inputId);
             const max = inputId.includes('hours') ? 23 : 59;
@@ -504,122 +829,6 @@ export function Timer() {
             };
         }
     }
-
-    function initRunningView(state) {
-        loadSaved();
-        container.innerHTML = `
-    <div class="header">
-        <button class="edit-btn" id="edit-recents-btn" style="visibility: ${recents.length > 0 ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
-        <h1>Timers</h1>
-        <div class="add-btn-container" style="display: flex; gap: 10px;">
-          <button class="add-btn" id="cancel-edit-timer-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
-          <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
-        </div>
-      </div>
-      <div class="timer-display-container">
-        <svg class="progress-ring" width="300" height="300">
-          <circle 
-            class="progress-ring__circle"
-            stroke="var(--accent-orange)"
-            stroke-width="8"
-            fill="transparent"
-            r="${radius}"
-            cx="150"
-            cy="150"
-            style="stroke-dasharray: ${circumference} ${circumference}; stroke-dashoffset: ${circumference};"
-          />
-        </svg>
-        <div class="timer-display-text">${formatTime(state.remainingSeconds)}</div>
-      </div>
-      <div class="controls">
-        <button class="control-btn stop" id="cancel-btn">Cancel</button>
-        <button class="control-btn ${state.isPaused ? 'start' : 'pause'}" id="pause-btn">
-          ${state.isPaused ? 'Resume' : 'Pause'}
-        </button>
-      </div>
-
-      <div class="recents-container"></div>
-`;
-
-        updateProgress(state.remainingSeconds, state.totalSeconds);
-        container.querySelector('#cancel-btn').onclick = () => timerManager.cancel();
-        container.querySelector('#pause-btn').onclick = () => togglePause();
-        container.querySelector('#audio-settings-btn').onclick = () => openSoundSettingsModal(() => render());
-
-        // Atualiza recentes e header
-        updateRecentsSection();
-        updatePickerHeaderState();
-    }
-
-    function updateRunningView(state) {
-        // Atualiza display e progresso granularmente
-        const textDisplay = container.querySelector('.timer-display-text');
-        if (textDisplay) textDisplay.textContent = formatTime(state.remainingSeconds);
-        updateProgress(state.remainingSeconds, state.totalSeconds);
-
-        // Atualiza botão de pause/resume
-        const pauseBtn = container.querySelector('#pause-btn');
-        if (pauseBtn) {
-            pauseBtn.textContent = state.isPaused ? 'Resume' : 'Pause';
-            pauseBtn.className = `control-btn ${state.isPaused ? 'start' : 'pause'}`;
-        }
-
-        // Nota: NÃO atualiza recents/header aqui — são atualizados apenas quando
-        // dados mudam (via onRecentsUpdated/onSavedUpdated), não a cada tick.
-    }
-
-    function updateRecentsSection() {
-        const recentsContainer = container.querySelector('.recents-container');
-        if (!recentsContainer) return;
-
-        const hasRecents = recents.length > 0;
-        const hasSaved = savedTimers.length > 0;
-
-        // Não mostra nada se todas as listas estão vazias
-        if (!hasRecents && !hasSaved) {
-            recentsContainer.innerHTML = '';
-            return;
-        }
-
-        const currentItems = activeTab === 'saved' ? savedTimers : recents;
-        const itemType = activeTab === 'saved' ? 'saved' : 'recent';
-        const currentItemsHTML = currentItems.length > 0
-            ? currentItems.map(item => renderTimerItem(item, itemType)).join('')
-            : `<p style="text-align:center; color:var(--text-secondary); margin-top:20px;">${activeTab === 'saved' ? 'No saved timers' : 'No recent timers'}</p>`;
-
-        recentsContainer.innerHTML = `
-    <div class="recents-section">
-              <div class="timer-tabs">
-                  <button class="timer-tab ${activeTab === 'recents' ? 'active' : ''}" data-tab="recents">Recents</button>
-                  <button class="timer-tab ${activeTab === 'saved' ? 'active' : ''}" data-tab="saved">Saved${hasSaved ? ` (${savedTimers.length})` : ''}</button>
-              </div>
-              <div class="alarm-list ${isEditing ? 'edit-mode' : ''}">
-                  ${currentItemsHTML}
-              </div>
-          </div>
-    `;
-    }
-
-    // formatTime imported from utils/time.js
-
-    function start() {
-        const h = Number(container.querySelector('#hours').value);
-        const m = Number(container.querySelector('#minutes').value);
-        const s = Number(container.querySelector('#seconds').value);
-        const label = container.querySelector('#timer-label').value || '';
-        const soundId = container.querySelector('#timer-sound-value').value;
-
-        audioManager.setLastUsedSound(soundId);
-        timerManager.start(h, m, s, label, soundId);
-    }
-
-    function startRecent(id) {
-        const recent = recents.find(r => r.id === id);
-        if (recent) {
-            timerManager.start(recent.hours, recent.minutes, recent.seconds, recent.label, recent.soundId);
-        }
-    }
-
 
     function openReplaceModal(newTimer) {
         loadSaved();
@@ -650,7 +859,6 @@ export function Timer() {
             onSave: () => { }
         });
 
-        // Usa referência direta do overlay
         const saveBtn = overlay.querySelector('.save');
         if (saveBtn) saveBtn.style.display = 'none';
 
@@ -667,54 +875,141 @@ export function Timer() {
         });
     }
 
-    function updateProgress(remaining, total) {
-        const circle = container.querySelector('.progress-ring__circle');
-        if (circle) {
-            const offset = circumference - (remaining / total) * circumference;
-            circle.style.strokeDashoffset = offset;
+    function updateRecentsSection() {
+        const recentsContainer = container.querySelector('.recents-container');
+        if (!recentsContainer) return;
+
+        loadRecents();
+        loadSaved();
+
+        const hasRecents = recents.length > 0;
+        const hasSaved = savedTimers.length > 0;
+
+        if (!hasRecents && !hasSaved) {
+            recentsContainer.innerHTML = '';
+            return;
+        }
+
+        const currentItems = activeTab === 'saved' ? savedTimers : recents;
+        const itemType = activeTab === 'saved' ? 'saved' : 'recent';
+        const currentItemsHTML = currentItems.length > 0
+            ? currentItems.map(item => renderTimerItem(item, itemType)).join('')
+            : `<p style="text-align:center; color:var(--text-secondary); margin-top:20px;">${activeTab === 'saved' ? 'No saved timers' : 'No recent timers'}</p>`;
+
+        recentsContainer.innerHTML = `
+    <div class="recents-section">
+              <div class="timer-tabs">
+                  <button class="timer-tab ${activeTab === 'recents' ? 'active' : ''}" data-tab="recents">Recents</button>
+                  <button class="timer-tab ${activeTab === 'saved' ? 'active' : ''}" data-tab="saved">Saved${hasSaved ? ` (${savedTimers.length})` : ''}</button>
+              </div>
+              <div class="alarm-list ${isEditing ? 'edit-mode' : ''}">
+                  ${currentItemsHTML}
+              </div>
+          </div>
+    `;
+    }
+
+    // Event Listeners
+    function onTimersTick() {
+        if (currentMode === 'detail') {
+            updateDetailView();
+        } else if (currentMode === 'list') {
+            updateActiveTimerCards();
         }
     }
 
-    function togglePause() {
-        const state = timerManager.getState();
-        if (state.isPaused) {
-            timerManager.resume();
-        } else {
-            timerManager.pause();
+    function updateActiveTimerCards() {
+        const activeTimers = timerManager.getAllTimers();
+        const cards = container.querySelectorAll('.timer-card');
+
+        // Se a contagem mudou, renderiza completamente
+        if (cards.length !== activeTimers.length) {
+            renderActiveTimers();
+            updateListHeaderState();
+            return;
+        }
+
+        // Atualiza cada card no lugar
+        for (const timer of activeTimers) {
+            const card = container.querySelector(`.timer-card[data-timer-id="${timer.id}"]`);
+            if (!card) {
+                // Timer não encontrado no DOM, renderiza novamente
+                renderActiveTimers();
+                updateListHeaderState();
+                return;
+            }
+
+            const timeEl = card.querySelector('.timer-card-time');
+            if (timeEl) timeEl.textContent = formatTime(timer.remainingSeconds);
+
+            const ringCircle = card.querySelector('.card-ring-circle');
+            if (ringCircle) {
+                const progress = timer.totalSeconds > 0 ? timer.remainingSeconds / timer.totalSeconds : 0;
+                const offset = cardCircumference - progress * cardCircumference;
+                ringCircle.style.strokeDashoffset = offset;
+            }
+
+            // Atualiza estado de pausa
+            card.classList.toggle('paused', timer.isPaused);
+            const pauseBtn = card.querySelector('.pause-resume');
+            if (pauseBtn) {
+                pauseBtn.innerHTML = timer.isPaused ? '▶' : '⏸';
+                pauseBtn.title = timer.isPaused ? 'Resume' : 'Pause';
+            }
         }
     }
 
-    function onTimerUpdated() {
+    function onTimerAdded() {
+        render();
+    }
+
+    function onTimerRemoved(e) {
+        const { timerId } = e.detail;
+        if (currentMode === 'detail' && selectedTimerId === timerId) {
+            selectedTimerId = null;
+            currentMode = null;
+        }
+        render();
+    }
+
+    function onTimerFinished(e) {
+        const { timerId } = e.detail;
+        if (currentMode === 'detail' && selectedTimerId === timerId) {
+            selectedTimerId = null;
+            currentMode = null;
+        }
         render();
     }
 
     function onRecentsUpdated() {
-        render();
+        loadRecents();
+        updateRecentsSection();
     }
 
     function onSavedUpdated() {
         loadSaved();
-        render();
+        updateRecentsSection();
     }
 
-    function onTimerFinished() {
-        render();
-    }
-
-    document.addEventListener('timer-updated', onTimerUpdated);
+    // Registra eventos
+    document.addEventListener('timers-tick', onTimersTick);
+    document.addEventListener('timer-added', onTimerAdded);
+    document.addEventListener('timer-removed', onTimerRemoved);
+    document.addEventListener('timer-finished', onTimerFinished);
     document.addEventListener('recents-updated', onRecentsUpdated);
     document.addEventListener('saved-updated', onSavedUpdated);
-    document.addEventListener('timer-finished', onTimerFinished);
 
     render();
 
     return {
         element: container,
         cleanup: () => {
-            document.removeEventListener('timer-updated', onTimerUpdated);
+            document.removeEventListener('timers-tick', onTimersTick);
+            document.removeEventListener('timer-added', onTimerAdded);
+            document.removeEventListener('timer-removed', onTimerRemoved);
+            document.removeEventListener('timer-finished', onTimerFinished);
             document.removeEventListener('recents-updated', onRecentsUpdated);
             document.removeEventListener('saved-updated', onSavedUpdated);
-            document.removeEventListener('timer-finished', onTimerFinished);
             swipe.destroy();
         }
     };
