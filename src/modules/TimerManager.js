@@ -84,51 +84,6 @@ class TimerManager {
             }
         }
 
-        // Migração: tenta o formato antigo de timer único
-        const oldSaved = localStorage.getItem(STORAGE_KEYS.TIMER_STATE);
-        if (oldSaved) {
-            try {
-                const state = JSON.parse(oldSaved);
-                const now = Date.now();
-
-                if (state.isRunning || state.totalSeconds > 0) {
-                    const id = this._generateId();
-                    const timer = {
-                        id,
-                        totalSeconds: state.totalSeconds || 0,
-                        remainingSeconds: state.remainingSeconds || 0,
-                        isRunning: state.isRunning || false,
-                        isPaused: state.isPaused || false,
-                        label: state.label || '',
-                        soundId: state.soundId || 'default',
-                        repeatCount: state.repeatCount || 0,
-                        initialHours: state.initialHours || 0,
-                        initialMinutes: state.initialMinutes || 0,
-                        initialSeconds: state.initialSeconds || 0,
-                        lastSaved: state.lastSaved || now
-                    };
-
-                    if (timer.isRunning && !timer.isPaused) {
-                        const elapsedSinceSave = Math.floor((now - timer.lastSaved) / 1000);
-                        timer.remainingSeconds = Math.max(0, timer.remainingSeconds - elapsedSinceSave);
-                        if (timer.remainingSeconds === 0) {
-                            this.timers.set(id, timer);
-                            setTimeout(() => this.finish(id), 100);
-                        } else {
-                            this.timers.set(id, timer);
-                        }
-                    } else if (timer.isRunning) {
-                        this.timers.set(id, timer);
-                    }
-                }
-
-                // Remove old key depois da migração
-                localStorage.removeItem(STORAGE_KEYS.TIMER_STATE);
-                this.saveState();
-            } catch (e) {
-                console.error('Failed to migrate old timer state', e);
-            }
-        }
     }
 
     saveState() {
@@ -453,24 +408,6 @@ class TimerManager {
         return this.timers.size;
     }
 
-    getState() {
-        if (this.timers.size === 0) {
-            return {
-                totalSeconds: 0,
-                remainingSeconds: 0,
-                isRunning: false,
-                isPaused: false,
-                label: '',
-                soundId: 'default',
-                initialHours: 0,
-                initialMinutes: 0,
-                initialSeconds: 0,
-                repeatCount: 0
-            };
-        }
-        const first = this.timers.values().next().value;
-        return { ...first };
-    }
 
     // Events
     notify(eventName = 'timer-updated', detail = {}) {

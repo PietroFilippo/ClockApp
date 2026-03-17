@@ -25,7 +25,8 @@ export const STORAGE_KEYS = {
     INTERVAL_SELECTED_SOUND: 'interval-selected-sound',
     INTERVAL_DRAFT_STATE: 'clockapp_interval_draft_state',
     LAST_USED_SOUND: 'lastUsedSound',
-    STOPWATCH_VIEW_MODE: 'stopwatch-view-mode'
+    STOPWATCH_VIEW_MODE: 'stopwatch-view-mode',
+    ACTIVE_TAB: 'activeTab'
 };
 
 export const COLORS = {

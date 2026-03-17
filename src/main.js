@@ -147,7 +147,7 @@ document.addEventListener('all-alerts-stopped', () => {
 
 const app = document.querySelector('#app');
 
-let currentTab = localStorage.getItem('activeTab') || 'world-clock';
+let currentTab = localStorage.getItem(STORAGE_KEYS.ACTIVE_TAB) || 'world-clock';
 let activeComponentCleanup = null;
 
 function render() {
@@ -204,8 +204,7 @@ function render() {
       }
     });
 
-    window.electronAPI.onSettingsUpdated && window.electronAPI.onSettingsUpdated((data) => {
-    });
+    // Removed dead onSettingsUpdated handler
   }
 
   const navContainer = app.querySelector('#nav-container');
@@ -220,7 +219,7 @@ function render() {
     }
 
     currentTab = newTab;
-    localStorage.setItem('activeTab', currentTab);
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, currentTab);
     updateView();
     updateNav();
   };
@@ -289,7 +288,7 @@ function updateNav() {
     }
 
     currentTab = newTab;
-    localStorage.setItem('activeTab', currentTab);
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, currentTab);
     updateView();
     updateNav();
   };

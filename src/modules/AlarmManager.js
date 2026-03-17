@@ -354,9 +354,6 @@ export class AlarmManager {
         this.updateActiveAlert(true);
     }
 
-    checkAudioState() {
-        // Depreciado por updateActiveAlert
-    }
 
     stopAudio() {
         // Limpa timeouts
