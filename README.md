@@ -37,6 +37,8 @@ Aplication **Clock App** é uma ferramenta completa para gerenciar seu tempo. El
 
 ### ⏱️ Cronômetro
 - Cronômetro preciso com display de alta resolução (horas, minutos, segundos, centésimos)
+- **Modo Analógico**: Visor analógico fluido com leitura digital centralizada
+- **Swipe View**: Transição suave com gestos de arrasto (swipe) entre as visualizações digital e analógica
 - **Voltas (Laps)**: Registre voltas com indicação visual da melhor e pior
 - **Cores Customizáveis**: Personalize a cor do display via Color Picker interativo (canvas)
 - **Velocidade**: Ajuste entre 3 velocidades de atualização do display
@@ -44,12 +46,13 @@ Aplication **Clock App** é uma ferramenta completa para gerenciar seu tempo. El
 - **Download**: Exporte as voltas registradas como arquivo de texto
 
 ### ⏲️ Temporizador
-- Interface visual com **anel de progresso circular** (SVG animado)
-- **Recentes**: Timers usados recentemente ficam salvos para reutilização rápida
+- **Múltiplos Temporizadores**: Execute e gerencie diversos timers simultaneamente em formato de cartões compactos (Cards View)
+- Interface visual detalhada (Drill-down View) com **anel de progresso circular** (SVG animado)
+- **Recentes e Favoritos**: Timers salvos e usados recentemente para reutilização rápida
 - **Repetir**: Repita o último timer diretamente da notificação
-- Seleção direta de horas, minutos e segundos com validação
-- Modo de edição para gerenciar lista de recentes
-- **Seleção múltipla e Swipe-to-Delete**: Gerencie seu histórico de timers facilmente
+- Seleção direta de horas, minutos e segundos com validação inteligente
+- Modo de edição em lote para gerenciar lista de salvos
+- **Seleção múltipla e Swipe-to-Delete**: Gerencie seu histórico de timers facilmente com gestos
 - **Limites e Substituição**: Ao atingir o limite de presets, escolha rapidamente um timer ou intervalo antigo para substituir
 
 ### ⏳ Intervalos
@@ -67,9 +70,9 @@ Aplication **Clock App** é uma ferramenta completa para gerenciar seu tempo. El
 | **Prevent Sleep** | Impede que o computador hiberne durante timers |
 | **Steal Focus** | Notificações tomam foco do teclado |
 | **Notification Style** | Sistema (Windows), App Custom, Ambos ou Nenhum |
-| **Notification Position** | 4 cantos pré-definidos ou posição customizada (picker visual) |
+| **Notification Position** | 4 cantos pré-definidos ou posição customizada (picker visual via drag & drop) |
 | **Auto-Close Duration** | Tempo até a notificação fechar automaticamente (5s – 10min, valor em segundos Livre, ou Nunca) |
-| **Auto Action Settings** | Ações de timeout após tempo limite atingido. Alarmes (Stop ou Auto-Snooze) e Timers (Stop ou Auto-Repeat) |
+| **Auto Action Settings** | Ações de timeout, com duração customizável, após tempo limite atingido. Alarmes (Stop ou Auto-Snooze) e Timers (Stop ou Auto-Repeat) |
 | **Global Shortcuts** | Atalhos funcionam mesmo com o app minimizado |
 
 ### 🔔 Notificações
@@ -120,29 +123,37 @@ clockapp/
 │   │
 │   ├── components/                 # Componentes de UI
 │   │   ├── Alarm.js                # Tela de alarmes (skeleton + updates granulares)
+│   │   ├── Interval.js             # Interface de intervalos e fluxo de ciclos personalizados
 │   │   ├── Navigation.js           # Barra de navegação inferior
 │   │   ├── RingOverlay.js          # Overlay de tela cheia para alarmes/timers tocando
 │   │   ├── Settings.js             # Tela de configurações
 │   │   ├── Stopwatch.js            # Cronômetro com laps, cores e velocidade
-│   │   ├── Timer.js                # Temporizador com anel circular e recentes
+│   │   ├── Timer.js                # Temporizador com cards simultâneos e detalhes
 │   │   └── WorldClock.js           # Relógio mundial com drag & drop
 │   │
 │   ├── modules/                    # Lógica de negócios e gerenciamento de estado
 │   │   ├── AlarmManager.js         # Estado, agendamento, soneca e áudio dos alarmes
+│   │   ├── IntervalTimerManager.js # Motor de execução sequencial para intervalos
 │   │   ├── StopwatchManager.js     # Estado e lógica do cronômetro
-│   │   └── TimerManager.js         # Estado, contagem regressiva e recentes do timer
+│   │   └── TimerManager.js         # Gerenciador de múltiplos timers concorrentes
+│   │
+│   ├── services/                   # Serviços e integrações
+│   │   └── NotificationService.js  # Gerenciamento unificado de notificações e alertas
 │   │
 │   ├── utils/                      # Utilitários compartilhados
+│   │   ├── AnalogStopwatch.js      # Componente do visor analógico em canvas
 │   │   ├── AudioManager.js         # Gerenciador centralizado de áudio (Web Audio API)
 │   │   ├── ColorPicker.js          # Color picker interativo (canvas)
 │   │   ├── KeybindManager.js       # Gravação, conflitos e modal de atalhos
 │   │   ├── SoundPicker.js          # Seletor de sons (padrão + custom)
 │   │   ├── SoundSettingsModal.js   # Modal de configurações de som do alarme
+│   │   ├── SwipeToDelete.js        # Física e gestos avançados para swipe
 │   │   ├── constants.js            # Constantes (storage keys, cores, limites)
 │   │   ├── contextMenu.js          # Menu de contexto (clique direito)
 │   │   ├── modal.js                # Utilitário de modais genéricos
 │   │   ├── notification.js         # Alerts, confirms e truncate
-│   │   └── sanitize.js             # Escape de HTML
+│   │   ├── sanitize.js             # Escape de HTML
+│   │   └── time.js                 # Helpers e validação de entrada de tempo
 │   │
 │   ├── data/
 │   │   └── timezones.js            # 350+ fusos horários gerados via Intl API
