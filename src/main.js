@@ -9,6 +9,7 @@ import { Settings } from './components/Settings.js';
 import { alarmManager } from './modules/AlarmManager.js';
 import { timerManager } from './modules/TimerManager.js';
 import { stopwatchManager } from './modules/StopwatchManager.js';
+import { notificationService } from './services/NotificationService.js';
 import { showRingOverlay } from './components/RingOverlay.js';
 import { truncate } from './utils/notification.js';
 import { STORAGE_KEYS } from './utils/constants.js';
@@ -20,8 +21,8 @@ alarmManager.init();
 // Helper pra rastrear o modal aberto
 let currentOverlay = null;
 
-function onAlarmRing(e) {
-  const { alarm, isSnooze } = e.detail;
+function onNotificationRing(e) {
+  const alert = e.detail;
 
   // Cleanup de overlay existente (evita empilhamento)
   if (currentOverlay && currentOverlay.element) {
@@ -31,84 +32,78 @@ function onAlarmRing(e) {
     currentOverlay = null;
   }
 
-  const now = new Date();
-  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const title = isSnooze ? `Snooze (${timeStr})` : `Alarm (${timeStr})`;
-  const displayTime = isSnooze ? timeStr : alarm.time;
-  const truncatedLabel = truncate(alarm.label || '', 60);
+  let timeDisplay, title, label, actionButton = null;
 
-  const overlay = showRingOverlay({
-    title,
-    timeDisplay: displayTime,
-    label: truncatedLabel,
-    actionButton: alarm.snoozeEnabled ? {
-      text: `Snooze (${alarm.snoozeInterval || 9} min)`,
-      onClick: (ovl) => {
-        alarmManager.snoozeAlarm(alarm.id);
-        setTimeout(() => {
-          if (ovl.isConnected) ovl.remove();
-          currentOverlay = null;
-        }, 0);
-      }
-    } : null,
-    onStop: () => {
-      alarmManager.stopAlarm(alarm.id);
-      currentOverlay = null;
+  if (alert.type === 'alarm') {
+    const isSnooze = alert.data.isSnooze;
+    timeDisplay = isSnooze ? alert.title.match(/\((.*?)\)/)[1] : alert.data.alarm.time;
+    title = alert.title;
+    label = truncate(alert.data.alarm.label || '', 60);
+
+    if (alert.snoozeEnabled) {
+      actionButton = {
+        text: `Snooze (${alert.data.alarm.snoozeInterval || 9} min)`,
+        onClick: (ovl) => {
+          alarmManager.snoozeAlarm(alert.id);
+          setTimeout(() => {
+            if (ovl.isConnected) ovl.remove();
+            currentOverlay = null;
+          }, 0);
+        }
+      };
     }
-  });
+  } else if (alert.type === 'timer') {
+    const countDisplay = (alert.repeatCount > 0) ? ` (${alert.repeatCount + 1}x)` : '';
+    timeDisplay = truncate(alert.body || '', 60) + countDisplay;
+    title = 'Timer' + countDisplay;
+    label = 'Time is up!';
 
-  currentOverlay = { element: overlay, type: 'alarm', id: alarm.id };
-}
-
-document.addEventListener('alarm-ring', onAlarmRing);
-
-function onTimerRing(e) {
-  const { timerId, label, repeatCount, initialHours, initialMinutes, initialSeconds, soundId } = e.detail;
-
-  // Cleanup de overlay existente
-  if (currentOverlay && currentOverlay.element) {
-    if (currentOverlay.element.isConnected) {
-      currentOverlay.element.remove();
-    }
-    currentOverlay = null;
-  }
-
-  const countDisplay = (repeatCount > 0) ? ` (${repeatCount + 1}x)` : '';
-  const truncatedLabel = truncate(label || '', 60);
-
-  const overlay = showRingOverlay({
-    title: 'Timer' + countDisplay,
-    timeDisplay: truncatedLabel + countDisplay,
-    label: 'Time is up!',
-    actionButton: {
+    actionButton = {
       text: 'Repeat',
       onClick: (ovl) => {
-        alarmManager.stopTimer();
+        notificationService.stopAlert(alert.id, 'timer');
         timerManager.repeatFromConfig({
-          initialHours, initialMinutes, initialSeconds,
-          label, soundId, repeatCount
+          initialHours: alert.data.initialHours,
+          initialMinutes: alert.data.initialMinutes,
+          initialSeconds: alert.data.initialSeconds,
+          label: alert.body,
+          soundId: alert.soundId,
+          repeatCount: alert.repeatCount
         });
         setTimeout(() => {
           if (ovl.isConnected) ovl.remove();
           currentOverlay = null;
         }, 0);
       }
-    },
+    };
+  }
+
+  const overlay = showRingOverlay({
+    title,
+    timeDisplay,
+    label,
+    actionButton,
     onStop: () => {
-      alarmManager.stopTimer();
+      if (alert.type === 'alarm') {
+        alarmManager.stopAlarm(alert.id);
+      } else {
+        notificationService.stopAlert(alert.id, 'timer');
+      }
       currentOverlay = null;
     }
   });
 
-  const h1 = overlay.querySelector('h1');
-  if (h1) h1.style.fontSize = '34px';
+  if (alert.type === 'timer') {
+    const h1 = overlay.querySelector('h1');
+    if (h1) h1.style.fontSize = '34px';
+  }
 
-  currentOverlay = { element: overlay, type: 'timer', timerId };
+  currentOverlay = { element: overlay, type: alert.type, id: alert.id };
 }
 
-document.addEventListener('timer-ring', onTimerRing);
+document.addEventListener('notification-ring', onNotificationRing);
 
-// Listener pra requisições externas de parada (ex: de Notificação)
+// Listeners pra requisições externas de parada (ex: de Notificação)
 document.addEventListener('timer-stop-requested', () => {
   if (currentOverlay && currentOverlay.type === 'timer' && currentOverlay.element) {
     if (currentOverlay.element.isConnected) currentOverlay.element.remove();
@@ -132,6 +127,35 @@ document.addEventListener('alarm-stop-requested', (e) => {
 
 document.addEventListener('alarm-snooze-requested', (e) => {
   if (currentOverlay && currentOverlay.type === 'alarm' && currentOverlay.id === e.detail.id && currentOverlay.element) {
+    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
+    currentOverlay = null;
+  }
+});
+
+// Listener unificado de notificação de ação (auto-action)
+document.addEventListener('notification-action', (e) => {
+  const { action, id, type } = e.detail;
+  if (currentOverlay && currentOverlay.type === type && currentOverlay.id === id && currentOverlay.element) {
+    if (action === 'snooze' && type === 'alarm') {
+      alarmManager.snoozeAlarm(id);
+    } else if (action === 'repeat' && type === 'timer') {
+      const alert = notificationService.activeAlerts.find(a => a.id === id);
+      if (alert) {
+         notificationService.stopAlert(id, 'timer');
+         timerManager.repeatFromConfig({
+            initialHours: alert.data.initialHours,
+            initialMinutes: alert.data.initialMinutes,
+            initialSeconds: alert.data.initialSeconds,
+            label: alert.body,
+            soundId: alert.soundId,
+            repeatCount: alert.repeatCount
+         });
+      }
+    } else {
+      if (type === 'alarm') alarmManager.stopAlarm(id);
+      else notificationService.stopAlert(id, 'timer');
+    }
+    
     if (currentOverlay.element.isConnected) currentOverlay.element.remove();
     currentOverlay = null;
   }

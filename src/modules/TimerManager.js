@@ -1,4 +1,4 @@
-import { alarmManager } from './AlarmManager.js';
+import { notificationService } from '../services/NotificationService.js';
 import { STORAGE_KEYS, LIMITS } from '../utils/constants.js';
 
 class TimerManager {
@@ -26,7 +26,22 @@ class TimerManager {
         document.addEventListener('timer-repeat-requested', (e) => {
             const timerId = e.detail?.timerId;
             if (timerId) {
+                // Se tentou repetir pelo TimerManager usando o timerId (se aplicável internamente)
                 this.repeat(timerId);
+            } else if (e.detail?.id) {
+                // Veio do IPC / Notification (External)
+                const alert = notificationService.activeAlerts.find(a => a.id === e.detail.id);
+                if (alert && alert.data) {
+                     this.repeatFromConfig({
+                         initialHours: alert.data.initialHours,
+                         initialMinutes: alert.data.initialMinutes,
+                         initialSeconds: alert.data.initialSeconds,
+                         label: alert.body,
+                         soundId: alert.soundId,
+                         repeatCount: alert.repeatCount
+                     });
+                     notificationService.stopAlert(e.detail.id, 'timer');
+                }
             }
         });
     }
@@ -349,7 +364,17 @@ class TimerManager {
         this.saveState();
         this.updatePowerBlocker();
 
-        alarmManager.triggerTimer(timer.label, timer.soundId, timer.repeatCount);
+        notificationService.triggerAlert({
+            id: timerId,
+            type: 'timer',
+            title: 'Timer Finished',
+            body: timer.label || 'Time is up!',
+            soundId: timer.soundId || 'default',
+            snoozeEnabled: false,
+            repeatEnabled: true,
+            repeatCount: timer.repeatCount,
+            data: { initialHours: timer.initialHours, initialMinutes: timer.initialMinutes, initialSeconds: timer.initialSeconds }
+        });
 
         this.notify('timer-finished', {
             timerId,

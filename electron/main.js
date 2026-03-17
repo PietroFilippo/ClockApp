@@ -48,6 +48,7 @@ let tray = null;
 let isQuitting = false;
 let powerBlockerId = null;
 let notificationWindow = null;
+let positionPickerWindow = null;
 
 function getIconPath() {
     if (process.env.VITE_DEV_SERVER_URL) {
@@ -215,6 +216,12 @@ ipcMain.handle('show-custom-notification', (event, data) => {
         return;
     }
 
+    // Fecha o modal de posição se aberto pra não sobrepor e bugar o foco 
+    if (positionPickerWindow && !positionPickerWindow.isDestroyed()) {
+        positionPickerWindow.close();
+        positionPickerWindow = null;
+    }
+
     // Se o app está focado, não mostra notificação customizada
     if (win && win.isVisible() && win.isFocused()) {
         // se já existe uma janela de notificação (ex: de um alarme anterior), fecha ela pois o usuário já está no app
@@ -361,10 +368,10 @@ ipcMain.on('notification-action', (event, data) => {
     }
 });
 
-let positionPickerWindow = null;
-
 ipcMain.handle('pick-custom-notification-position', () => {
-    if (positionPickerWindow) {
+    if (positionPickerWindow && !positionPickerWindow.isDestroyed()) {
+        if (positionPickerWindow.isMinimized()) positionPickerWindow.restore();
+        if (!positionPickerWindow.isVisible()) positionPickerWindow.show();
         positionPickerWindow.focus();
         return;
     }
@@ -379,7 +386,8 @@ ipcMain.handle('pick-custom-notification-position', () => {
         x: appSettings.customNotificationX || (width - notifWidth - 20),
         y: appSettings.customNotificationY || (height - notifHeight - 20),
         frame: false,
-        transparent: true,
+        transparent: false,
+        backgroundColor: '#1c1c1e',
         alwaysOnTop: true,
         skipTaskbar: true,
         webPreferences: {
@@ -388,6 +396,8 @@ ipcMain.handle('pick-custom-notification-position', () => {
             preload: path.join(__dirname, 'preload.js')
         }
     });
+
+    positionPickerWindow.setAlwaysOnTop(true, 'screen-saver');
 
     positionPickerWindow.loadURL(`file://${path.join(__dirname, 'positionPicker.html')}`);
 

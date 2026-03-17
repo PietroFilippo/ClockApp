@@ -1,23 +1,15 @@
 import { audioManager } from '../utils/AudioManager.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
+import { notificationService } from '../services/NotificationService.js';
 
 export class AlarmManager {
     constructor() {
         this.alarms = JSON.parse(localStorage.getItem(STORAGE_KEYS.ALARMS)) || [];
-        this.permissionsGranted = false;
         this.checkTimeout = null;
         this.snoozedAlarms = JSON.parse(localStorage.getItem(STORAGE_KEYS.SNOOZED_ALARMS)) || {};
-        this.activeAlerts = []; // Queue/Stack para notificações ativas
     }
 
     init() {
-        if (Notification.permission !== 'granted') {
-            Notification.requestPermission().then(permission => {
-                this.permissionsGranted = permission === 'granted';
-            });
-        } else {
-            this.permissionsGranted = true;
-        }
 
         this.startMonitoring();
         this.setupIPCListeners();
@@ -59,10 +51,9 @@ export class AlarmManager {
     setupIPCListeners() {
         if (window.electronAPI && window.electronAPI.onNotificationAction) {
             window.electronAPI.onNotificationAction((data) => {
-                // console.log('Notification Action:', data);
                 if (data.action === 'stop') {
                     if (data.id === 'timer' || String(data.id).startsWith('timer-')) {
-                        this.stopTimer();
+                        notificationService.stopAlert(data.id, 'timer');
                         document.dispatchEvent(new CustomEvent('timer-stop-requested'));
                     } else {
                         this.stopAlarm(Number(data.id));
@@ -70,8 +61,8 @@ export class AlarmManager {
                     }
                 } else if (data.action === 'repeat') {
                     if (data.id === 'timer' || String(data.id).startsWith('timer-')) {
-                        this.stopTimer();
-                        document.dispatchEvent(new CustomEvent('timer-repeat-requested'));
+                        // We must pass the id, so TimerManager knows which config to look for
+                        document.dispatchEvent(new CustomEvent('timer-repeat-requested', { detail: { id: data.id } }));
                     }
                 } else if (data.action === 'snooze') {
                     if (data.id !== 'timer' && !String(data.id).startsWith('timer-')) {
@@ -161,14 +152,11 @@ export class AlarmManager {
     }
 
     async triggerAlarm(alarm, isSnooze = false) {
-        // Remove se já existe para mover pro topo (re-trigger)
-        this.activeAlerts = this.activeAlerts.filter(a => a.id !== alarm.id);
-
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const title = isSnooze ? `Snooze (${timeStr})` : `Alarm (${timeStr})`;
 
-        const alertItem = {
+        notificationService.triggerAlert({
             id: alarm.id,
             type: 'alarm',
             title: title,
@@ -176,208 +164,20 @@ export class AlarmManager {
             soundId: alarm.sound || 'default',
             snoozeEnabled: alarm.snoozeEnabled,
             repeatEnabled: false,
-            timestamp: Date.now()
-        };
-
-        this.activeAlerts.push(alertItem);
-        this.updateActiveAlert();
-
-        document.dispatchEvent(new CustomEvent('alarm-ring', { detail: { alarm, isSnooze } }));
-    }
-
-    async triggerTimer(label, soundId, repeatCount = 0) {
-        const timerId = `timer-${Date.now()}`;
-
-        const alertItem = {
-            id: timerId,
-            type: 'timer',
-            title: 'Timer Finished',
-            body: label || 'Time is up!',
-            soundId: soundId || 'default',
-            snoozeEnabled: false,
-            repeatEnabled: true,
-            repeatCount: repeatCount,
-            timestamp: Date.now()
-        };
-
-        this.activeAlerts.push(alertItem);
-        this.updateActiveAlert();
-
-        document.dispatchEvent(new CustomEvent('timer-ring', { detail: { label, repeatCount, id: timerId } }));
-    }
-
-    updateActiveAlert(shouldDispatchEvent = false) {
-        if (this.activeAlerts.length === 0) {
-            this.stopAudio();
-            return;
-        }
-
-        // Pega o último (topo da pilha)
-        const currentAlert = this.activeAlerts[this.activeAlerts.length - 1];
-
-        // Limpa qualquer timeout de ação existente para este alerta para evitar duplicatas se atualizado
-        if (currentAlert.actionTimeoutId) {
-            clearTimeout(currentAlert.actionTimeoutId);
-            currentAlert.actionTimeoutId = null;
-        }
-
-        // Toca o som do alerta atual
-        audioManager.playAlarm(currentAlert.soundId);
-
-        // Setup Auto-Action Timeout
-        if (window.electronAPI) {
-            window.electronAPI.getSettings().then(settings => {
-                let autoDuration = 0;
-
-                if (currentAlert.type === 'alarm') {
-                    autoDuration = settings.alarmAutoActionDuration !== undefined ? settings.alarmAutoActionDuration : 0;
-                } else if (currentAlert.type === 'timer') {
-                    autoDuration = settings.timerAutoActionDuration !== undefined ? settings.timerAutoActionDuration : 0;
-                }
-
-                if (autoDuration > 0) {
-                    // console.log(`Scheduling auto-action for ${currentAlert.type} in ${autoDuration}s`);
-                    currentAlert.actionTimeoutId = setTimeout(() => {
-                        // console.log(`Auto-action triggered for ${currentAlert.type} ${currentAlert.id}`);
-
-                        // Checa se o alerta ainda está ativo
-                        const isStillActive = this.activeAlerts.some(a => a.id === currentAlert.id);
-                        if (!isStillActive) return;
-
-                        if (currentAlert.type === 'alarm') {
-                            const action = settings.alarmTimeoutAction || 'stop';
-                            if (action === 'snooze') {
-                                this.snoozeAlarm(currentAlert.id);
-                                document.dispatchEvent(new CustomEvent('alarm-snooze-requested', { detail: { id: currentAlert.id } }));
-                            } else {
-                                this.stopAlarm(currentAlert.id);
-                                document.dispatchEvent(new CustomEvent('alarm-stop-requested', { detail: { id: currentAlert.id } }));
-                            }
-                        } else if (currentAlert.type === 'timer') {
-                            const action = settings.timerTimeoutAction || 'stop';
-                            if (action === 'repeat') {
-                                this.stopTimer();
-                                document.dispatchEvent(new CustomEvent('timer-repeat-requested'));
-                            } else {
-                                this.stopTimer();
-                                document.dispatchEvent(new CustomEvent('timer-stop-requested'));
-                            }
-                        }
-
-                        // Força o fechamento da janela de notificação
-                        if (window.electronAPI) {
-                            window.electronAPI.closeCustomNotification();
-                        }
-
-                    }, autoDuration * 1000);
-                }
-            });
-        }
-
-        // Atualiza a notificação externa
-        this.handleNotification(currentAlert.title, currentAlert.body, {
-            snoozeEnabled: currentAlert.snoozeEnabled,
-            repeatEnabled: currentAlert.repeatEnabled,
-            id: currentAlert.id,
-            repeatCount: currentAlert.repeatCount
-        }).catch(err => console.error("Notification failed", err));
-
-        // Se solicitado, dispara evento para atualizar a UI interna
-        if (shouldDispatchEvent) {
-            if (currentAlert.type === 'alarm') {
-                // Recupera o objeto alarm original para passar no detail (ou reconstroi um minimo necessário)
-                const alarm = this.alarms.find(a => a.id === currentAlert.id);
-                if (alarm) {
-                    document.dispatchEvent(new CustomEvent('alarm-ring', { detail: { alarm, isSnooze: false } }));
-                }
-            } else if (currentAlert.type === 'timer') {
-                document.dispatchEvent(new CustomEvent('timer-ring', {
-                    detail: {
-                        label: currentAlert.body,
-                        repeatCount: currentAlert.repeatCount,
-                        id: currentAlert.id
-                    }
-                }));
-            }
-        }
-    }
-
-    async handleNotification(title, body, data = {}) {
-        if (!this.permissionsGranted) return;
-
-        let type = 'system';
-        if (window.electronAPI) {
-            const settings = await window.electronAPI.getSettings();
-            type = settings.notificationType || 'both';
-        }
-
-        if (type === 'system' || type === 'both') {
-            // Nota: Notificações do sistema Windows não suportam atualização dinâmica fácil, 
-            // então isso pode empilhar no Action Center, mas o foco é a janela customizada.
-            new Notification(title, { body });
-        }
-
-        if (type === 'app' || type === 'both') {
-            if (window.electronAPI) {
-                window.electronAPI.showCustomNotification({
-                    title,
-                    body,
-                    snoozeEnabled: data.snoozeEnabled,
-                    repeatEnabled: data.repeatEnabled,
-                    id: data.id,
-                    repeatCount: data.repeatCount
-                });
-            }
-        }
+            data: { alarm, isSnooze }
+        });
     }
 
     stopAlarm(alarmId) {
         if (alarmId) {
-            const alert = this.activeAlerts.find(a => a.id === alarmId);
-            if (alert && alert.actionTimeoutId) clearTimeout(alert.actionTimeoutId);
-
-            this.activeAlerts = this.activeAlerts.filter(a => a.id !== alarmId);
+            notificationService.stopAlert(alarmId);
             this.clearSnooze(alarmId);
             this.saveAlarms();
-        }
-        this.updateActiveAlert(true);
-    }
-
-    // Chamado quando um timer é parado
-    stopTimer() {
-        this.activeAlerts.forEach(a => {
-            if (String(a.id).indexOf('timer-') !== -1 && a.actionTimeoutId) {
-                clearTimeout(a.actionTimeoutId);
-            }
-        });
-        this.activeAlerts = this.activeAlerts.filter(a => String(a.id).indexOf('timer-') === -1);
-        this.updateActiveAlert(true);
-    }
-
-
-    stopAudio() {
-        // Limpa timeouts
-        this.activeAlerts.forEach(alert => {
-            if (alert.actionTimeoutId) {
-                clearTimeout(alert.actionTimeoutId);
-            }
-        });
-
-        this.activeAlerts = [];
-        audioManager.stopAlarm();
-        document.dispatchEvent(new CustomEvent('all-alerts-stopped'));
-
-        if (window.electronAPI) {
-            window.electronAPI.closeCustomNotification();
         }
     }
 
     snoozeAlarm(alarmId) {
-        const alert = this.activeAlerts.find(a => a.id === alarmId);
-        if (alert && alert.actionTimeoutId) clearTimeout(alert.actionTimeoutId);
-
-        this.activeAlerts = this.activeAlerts.filter(a => a.id !== alarmId);
-        this.updateActiveAlert(true);
+        notificationService.stopAlert(alarmId);
 
         const alarm = this.alarms.find(a => a.id === alarmId);
         if (!alarm) return;
@@ -388,7 +188,6 @@ export class AlarmManager {
         const nextTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
         this.snoozedAlarms[alarmId] = nextTime;
-        // console.log(`Alarm snoozed for ${duration} min. Next: ${nextTime}`);
         this.saveAlarms();
     }
 

@@ -173,6 +173,8 @@ export function Settings() {
     function renderDurationSelector(key, label, description) {
         const value = settings[key];
         const isCustom = ![0, 5, 10, 30, 60, 300, 600].includes(value);
+        const lastCustomValue = localStorage.getItem('custom_dur_' + key) || '';
+        const displayValue = isCustom ? value : lastCustomValue;
 
         return `
             <div class="setting-item" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px;">
@@ -194,7 +196,7 @@ export function Settings() {
                     <input type="number" 
                         class="duration-input" 
                         data-key="${key}"
-                        value="${isCustom ? value : ''}" 
+                        value="${displayValue}" 
                         placeholder="Seconds" 
                         min="1"
                         style="background: #222; border: 1px solid #444; color: white; padding: 8px; border-radius: 6px; width: 100px;">
@@ -243,6 +245,13 @@ export function Settings() {
                     inputDiv.style.display = 'flex';
                     const input = inputDiv.querySelector('input');
                     input.focus();
+                    if (input.value) {
+                        const numValue = Math.max(1, Number(input.value));
+                        settings[key] = numValue;
+                        if (window.electronAPI) {
+                            await window.electronAPI.saveSetting(key, numValue);
+                        }
+                    }
                 } else {
                     inputDiv.style.display = 'none';
                     const numValue = Number(value);
@@ -259,6 +268,8 @@ export function Settings() {
             input.onchange = async (e) => {
                 const key = e.target.dataset.key;
                 let value = Math.max(1, Number(e.target.value));
+                e.target.value = value;
+                localStorage.setItem('custom_dur_' + key, value);
 
                 settings[key] = value;
                 if (window.electronAPI) {
