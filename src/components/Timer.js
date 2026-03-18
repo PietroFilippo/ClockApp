@@ -128,7 +128,8 @@ export function Timer() {
                 } else {
                     isEditing = !isEditing;
                     selectedRecents.clear();
-                    render();
+                    updateRecentsSection();
+                    updateListHeaderState();
                 }
                 return;
             }
@@ -137,7 +138,8 @@ export function Timer() {
             if (target.closest('#cancel-edit-timer-btn')) {
                 isEditing = false;
                 selectedRecents.clear();
-                render();
+                updateRecentsSection();
+                updateListHeaderState();
                 return;
             }
 

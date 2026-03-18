@@ -39,8 +39,12 @@
 }
 
 .edit-mode .clock-card {
-    padding-left: 50px;
-    padding-right: 40px;
+    padding-left: 10px;
+    padding-right: 15px;
+}
+
+.edit-mode .clock-card-inner {
+    padding-left: 35px; /* Space for the absolute delete button */
 }
 
 .clock-card-inner {
