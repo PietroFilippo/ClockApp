@@ -57,6 +57,8 @@ Aplication **Clock App** é uma ferramenta completa para gerenciar seu tempo. El
 
 ### ⏳ Intervalos
 - Crie ciclos de trabalho personalizados com múltiplos passos e alarmes independentes
+- **Edição Avançada de Passos**: Mova (▲▼), duplique (⧉) ou remova (✕) passos facilmente. Edite os nomes dos passos inline com um clique.
+- **Drag & Drop**: Reordene passos intuitivamente arrastando pelo ícone (≡)
 - **Rascunhos Persistentes (Draft State)**: Seu progresso (tempos e passos) na criação de intervalos é salvo automaticamente em tempo real, permitindo navegar pelo app sem perdas
 - **Gerenciamento Rápido**: Suporte seleção múltipla e swipe-to-delete para deletar vários intervalos ou apagá-los com gestos
 - **Substituição Inteligente**: Quando o limite de intervalos salvos é atingido, o app exibe um modal intuitivo para substituir presets
@@ -91,6 +93,8 @@ Aplication **Clock App** é uma ferramenta completa para gerenciar seu tempo. El
 ### 📱 Experiência de Uso Global
 - **Persistência de Scroll**: A posição de rolagem de cada seção principal (Alarmes, Timers, Relógio Mundial, Intervalos) é mantida perfeitamente ao mudar de abas.
 - **Gestos de Swipe**: Integração avançada de física de arremesso (`translateX`) para deletar elementos.
+- **Preview ao vivo na Taskbar**: O título da janela e a barra de progresso do ícone na taskbar são atualizados em tempo real com o countdown do timer ativo, visível ao passar o mouse sobre o app minimizado.
+- **Estabilidade**: Handlers globais de erro, recuperação automática de crash do renderizador e recriação do tray garantem que o app não feche inesperadamente.
 
 ---
 
@@ -275,5 +279,6 @@ npm run electron:build
 - Em alguns sistemas, notificações customizadas podem não se sobrepor a aplicativos em "Tela Cheia Exclusiva" (jogos).
 - A atualização automática funciona em builds empacotados. Em modo de desenvolvimento, o check é desabilitado.
 - Sem code signing, o Windows SmartScreen pode exibir aviso ao instalar/atualizar.
+- Preview animado da Taskbar: O Windows não captura frames de janelas minimizadas, portanto o thumbnail ao viver sobre o ícone não mostrará animação em tempo real - o título e a barra de progresso são usados como alternativa funcional.
 
 ---
