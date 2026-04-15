@@ -60,7 +60,85 @@ export function Interval() {
     // Carrega o rascunho antes da renderização
     loadDraft();
 
+    // Drag-and-drop reorder para steps (estilo WorldClock — delegação de eventos)
+    let draggedStepIdx = null;
+
+    function getDragAfterStepElement(listContainer, y) {
+        const items = [...listContainer.querySelectorAll('.interval-step-draggable:not(.dragging)')];
+        return items.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset, element: child };
+            }
+            return closest;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function setupStepDragDelegation(parentEl, listSelector, stepsArray, onReorder) {
+        parentEl.addEventListener('dragstart', (e) => {
+            const handle = e.target.closest('.interval-drag-handle');
+            if (!handle) return; // Só arrasta pelo handle
+            const item = handle.closest('.interval-step-draggable');
+            if (!item) return;
+            draggedStepIdx = parseInt(item.dataset.idx ?? item.dataset.stepIndex);
+            setTimeout(() => item.classList.add('dragging'), 0);
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        parentEl.addEventListener('dragend', (e) => {
+            const item = e.target.closest('.interval-step-draggable');
+            if (item) item.classList.remove('dragging');
+            draggedStepIdx = null;
+        });
+
+        parentEl.addEventListener('dragover', (e) => {
+            if (draggedStepIdx === null) return;
+            e.preventDefault();
+            const list = parentEl.querySelector(listSelector);
+            if (!list) return;
+
+            const afterElement = getDragAfterStepElement(list, e.clientY);
+            const draggable = list.querySelector('.interval-step-draggable.dragging');
+            if (!draggable) return;
+
+            if (afterElement == null) {
+                list.appendChild(draggable);
+            } else {
+                list.insertBefore(draggable, afterElement);
+            }
+        });
+
+        parentEl.addEventListener('drop', (e) => {
+            if (draggedStepIdx === null) return;
+            e.preventDefault();
+
+            const list = parentEl.querySelector(listSelector);
+            if (!list) return;
+
+            // Reconstrói a ordem do array baseado na ordem do DOM
+            const reordered = [];
+            list.querySelectorAll('.interval-step-draggable').forEach(item => {
+                const idx = parseInt(item.dataset.idx ?? item.dataset.stepIndex);
+                reordered.push(stepsArray[idx]);
+            });
+
+            // Atualiza o array in-place
+            stepsArray.length = 0;
+            reordered.forEach(s => stepsArray.push(s));
+
+            draggedStepIdx = null;
+            onReorder();
+        });
+    }
+
     initDelegatedListeners();
+
+    // Drag-and-drop delegado no container (configurado uma vez, funciona para qualquer re-render)
+    setupStepDragDelegation(container, '.alarm-list', draftSteps, () => {
+        saveDraft();
+        renderDraftSteps();
+    });
 
     const swipe = new SwipeToDelete({
         container,
@@ -198,13 +276,19 @@ export function Interval() {
             listEl.innerHTML = editSteps.map((step, i) => {
                 const totalSecs = (step.hours || 0) * 3600 + (step.minutes || 0) * 60 + (step.seconds || 0);
                 return `
-                    <div class="interval-step-item" style="padding: 8px 0;">
+                    <div class="interval-step-item interval-step-draggable" data-idx="${i}" style="padding: 8px 0;">
                         <span class="interval-step-number">${i + 1}</span>
                         <div class="interval-step-info" style="flex: 1;">
-                            <div class="interval-step-label">${escapeHtml(step.label || `Step ${i + 1}`)}</div>
+                            <div class="interval-step-label interval-step-label-editable" data-idx="${i}" title="Click to rename">${escapeHtml(step.label || `Step ${i + 1}`)}</div>
                             <div class="interval-step-time">${formatTime(totalSecs)}</div>
                         </div>
-                        <button class="interval-step-delete modal-step-delete" data-idx="${i}" title="Remove" style="background: none; border: none; color: var(--accent-red); font-size: 18px; cursor: pointer; padding: 4px 8px;">✕</button>
+                        <div class="interval-step-actions">
+                            <button class="interval-step-action-btn modal-step-move-up" data-idx="${i}" title="Move up" ${i === 0 ? 'disabled' : ''}>▲</button>
+                            <button class="interval-step-action-btn modal-step-move-down" data-idx="${i}" title="Move down" ${i === editSteps.length - 1 ? 'disabled' : ''}>▼</button>
+                            <button class="interval-step-action-btn modal-step-copy" data-idx="${i}" title="Duplicate step">⧉</button>
+                            <button class="interval-step-delete modal-step-delete" data-idx="${i}" title="Remove" style="background: none; border: none; color: var(--accent-red); font-size: 18px; cursor: pointer; padding: 4px 8px;">✕</button>
+                        </div>
+                        <div class="interval-drag-handle" draggable="true" title="Drag to reorder">≡</div>
                     </div>
                 `;
             }).join('');
@@ -214,11 +298,74 @@ export function Interval() {
                 totalEl.textContent = `${editSteps.length} step${editSteps.length !== 1 ? 's' : ''} · ${formatTime(totalSecs)}`;
             }
 
+            // Inline label editing
+            listEl.querySelectorAll('.interval-step-label-editable').forEach(label => {
+                label.onclick = (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt(label.dataset.idx);
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'interval-step-label-input';
+                    input.value = editSteps[idx].label || '';
+                    input.placeholder = `Step ${idx + 1}`;
+                    input.maxLength = 200;
+                    label.replaceWith(input);
+                    input.focus();
+                    input.select();
+
+                    const commit = () => {
+                        editSteps[idx].label = input.value.trim();
+                        renderEditSteps(overlay);
+                    };
+                    input.addEventListener('blur', commit);
+                    input.addEventListener('keydown', (ev) => {
+                        if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+                        if (ev.key === 'Escape') { input.value = editSteps[idx].label || ''; input.blur(); }
+                    });
+                };
+            });
+
             listEl.querySelectorAll('.modal-step-delete').forEach(btn => {
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     const idx = parseInt(btn.dataset.idx);
                     editSteps.splice(idx, 1);
+                    renderEditSteps(overlay);
+                };
+            });
+
+            listEl.querySelectorAll('.modal-step-move-up').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt(btn.dataset.idx);
+                    if (idx > 0) {
+                        [editSteps[idx - 1], editSteps[idx]] = [editSteps[idx], editSteps[idx - 1]];
+                        renderEditSteps(overlay);
+                    }
+                };
+            });
+
+            listEl.querySelectorAll('.modal-step-move-down').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt(btn.dataset.idx);
+                    if (idx < editSteps.length - 1) {
+                        [editSteps[idx], editSteps[idx + 1]] = [editSteps[idx + 1], editSteps[idx]];
+                        renderEditSteps(overlay);
+                    }
+                };
+            });
+
+            listEl.querySelectorAll('.modal-step-copy').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (editSteps.length >= LIMITS.MAX_INTERVAL_STEPS) {
+                        showAlert(`Maximum of ${LIMITS.MAX_INTERVAL_STEPS} steps.`, 'Limit');
+                        return;
+                    }
+                    const idx = parseInt(btn.dataset.idx);
+                    const copy = { ...editSteps[idx] };
+                    editSteps.splice(idx + 1, 0, copy);
                     renderEditSteps(overlay);
                 };
             });
@@ -275,6 +422,10 @@ export function Interval() {
 
         renderEditSteps(overlay);
 
+        // Drag-and-drop delegado no modal (configurado uma vez)
+        setupStepDragDelegation(overlay, '#modal-steps-list', editSteps, () => {
+            renderEditSteps(overlay);
+        });
         const soundTrigger = overlay.querySelector('#modal-sound-trigger');
         const soundValue = overlay.querySelector('#modal-sound-value');
         if (soundTrigger) {
@@ -587,13 +738,19 @@ export function Interval() {
         const stepsHTML = draftSteps.map((step, i) => {
             const totalSecs = (step.hours || 0) * 3600 + (step.minutes || 0) * 60 + (step.seconds || 0);
             return `
-                <div class="interval-step-item" data-step-index="${i}">
+                <div class="interval-step-item interval-step-draggable" data-step-index="${i}">
                     <span class="interval-step-number">${i + 1}</span>
                     <div class="interval-step-info">
-                        <div class="interval-step-label">${escapeHtml(step.label || `Step ${i + 1}`)}</div>
+                        <div class="interval-step-label interval-step-label-editable" data-step-index="${i}" title="Click to rename">${escapeHtml(step.label || `Step ${i + 1}`)}</div>
                         <div class="interval-step-time">${formatTime(totalSecs)}</div>
                     </div>
-                    <button class="interval-step-delete" data-step-index="${i}" title="Remove step">✕</button>
+                    <div class="interval-step-actions">
+                        <button class="interval-step-action-btn draft-step-move-up" data-step-index="${i}" title="Move up" ${i === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="interval-step-action-btn draft-step-move-down" data-step-index="${i}" title="Move down" ${i === draftSteps.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button class="interval-step-action-btn draft-step-copy" data-step-index="${i}" title="Duplicate step">⧉</button>
+                        <button class="interval-step-delete" data-step-index="${i}" title="Remove step">✕</button>
+                    </div>
+                    <div class="interval-drag-handle" draggable="true" title="Drag to reorder">≡</div>
                 </div>
                     `;
         }).join('');
@@ -617,11 +774,78 @@ export function Interval() {
             labelInput.placeholder = 'Step name';
         }
 
+        // Inline label editing para draft steps
+        recentsContainer.querySelectorAll('.interval-step-label-editable').forEach(label => {
+            label.onclick = (e) => {
+                e.stopPropagation();
+                const idx = parseInt(label.dataset.stepIndex);
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'interval-step-label-input';
+                input.value = draftSteps[idx].label || '';
+                input.placeholder = `Step ${idx + 1}`;
+                input.maxLength = 200;
+                label.replaceWith(input);
+                input.focus();
+                input.select();
+
+                const commit = () => {
+                    draftSteps[idx].label = input.value.trim();
+                    saveDraft();
+                    renderDraftSteps();
+                };
+                input.addEventListener('blur', commit);
+                input.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+                    if (ev.key === 'Escape') { input.value = draftSteps[idx].label || ''; input.blur(); }
+                });
+            };
+        });
+
         recentsContainer.querySelectorAll('.interval-step-delete').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 const idx = parseInt(btn.dataset.stepIndex);
                 draftSteps.splice(idx, 1);
+                saveDraft();
+                renderDraftSteps();
+            };
+        });
+
+        recentsContainer.querySelectorAll('.draft-step-move-up').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const idx = parseInt(btn.dataset.stepIndex);
+                if (idx > 0) {
+                    [draftSteps[idx - 1], draftSteps[idx]] = [draftSteps[idx], draftSteps[idx - 1]];
+                    saveDraft();
+                    renderDraftSteps();
+                }
+            };
+        });
+
+        recentsContainer.querySelectorAll('.draft-step-move-down').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const idx = parseInt(btn.dataset.stepIndex);
+                if (idx < draftSteps.length - 1) {
+                    [draftSteps[idx], draftSteps[idx + 1]] = [draftSteps[idx + 1], draftSteps[idx]];
+                    saveDraft();
+                    renderDraftSteps();
+                }
+            };
+        });
+
+        recentsContainer.querySelectorAll('.draft-step-copy').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                if (draftSteps.length >= LIMITS.MAX_INTERVAL_STEPS) {
+                    showAlert(`Maximum of ${LIMITS.MAX_INTERVAL_STEPS} steps allowed.`, 'Limit Reached');
+                    return;
+                }
+                const idx = parseInt(btn.dataset.stepIndex);
+                const copy = { ...draftSteps[idx] };
+                draftSteps.splice(idx + 1, 0, copy);
                 saveDraft();
                 renderDraftSteps();
             };

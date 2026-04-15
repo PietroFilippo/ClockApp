@@ -104,6 +104,85 @@
     background: rgba(255, 69, 58, 0.15);
 }
 
+/* === botões de ação inline (mover, copiar) === */
+.interval-step-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.interval-step-action-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: background 0.2s, color 0.2s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.interval-step-action-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--accent-orange);
+}
+
+.interval-step-action-btn:disabled {
+    opacity: 0.25;
+    cursor: default;
+}
+
+/* === drag-and-drop reorder (estilo WorldClock) === */
+.interval-drag-handle {
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: grab;
+    padding: 0 4px;
+    flex-shrink: 0;
+    user-select: none;
+    margin-left: 8px;
+}
+
+.interval-drag-handle:active {
+    cursor: grabbing;
+}
+
+.interval-step-draggable.dragging {
+    opacity: 0.5;
+    background: #333;
+}
+
+/* === inline label editing === */
+.interval-step-label-editable {
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin: -1px -4px;
+    transition: background 0.15s;
+}
+
+.interval-step-label-editable:hover {
+    background: rgba(255, 255, 255, 0.08);
+    text-decoration: underline;
+    text-decoration-color: var(--text-secondary);
+    text-underline-offset: 2px;
+}
+
+.interval-step-label-input {
+    font-size: 14px;
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--accent-orange);
+    border-radius: 6px;
+    padding: 3px 8px;
+    outline: none;
+    width: 100%;
+    font-family: var(--font-family);
+}
+
 /* === total e ações do intervalo === */
 .interval-draft-actions {
     display: flex;
