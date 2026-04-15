@@ -5,6 +5,15 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
+// Global error handlers — prevent silent crashes
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled Rejection:', reason);
+});
+
 // Padroniza nome do app para caminho de dados do usuario
 app.setName('Clock App');
 if (process.platform === 'win32') {
@@ -72,6 +81,7 @@ function createWindow() {
         minWidth: 400,
         minHeight: 520,
         frame: false, // Barra de título customizada
+        backgroundColor: '#000000', // Previne flash branco durante minimize/restore
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -80,14 +90,17 @@ function createWindow() {
         },
         autoHideMenuBar: true,
         icon: iconPath,
-        show: false // Mostra manualmente
+        show: false // Mostra manualmente via ready-to-show
     });
 
     if (windowState.isMaximized) {
         win.maximize();
     }
 
-    win.show();
+    // Mostra janela apenas quando o conteúdo estiver pronto (evita flash branco)
+    win.once('ready-to-show', () => {
+        win.show();
+    });
 
     // Carrega dev/prod
     if (process.env.VITE_DEV_SERVER_URL) {
@@ -131,6 +144,24 @@ function createWindow() {
         win = null;
     });
 
+    // Recupera janela se o renderizador crashar
+    win.webContents.on('render-process-gone', (event, details) => {
+        console.error('Renderer crashed:', details.reason);
+        if (win && !win.isDestroyed()) {
+            win.destroy();
+        }
+        win = null;
+        createWindow();
+    });
+
+    // Recupera janela se ficar sem resposta
+    win.on('unresponsive', () => {
+        console.error('Window became unresponsive, reloading...');
+        if (win && !win.isDestroyed()) {
+            win.webContents.reload();
+        }
+    });
+
     // Auto-updater: verifica atualização após a janela carregar
     win.webContents.on('did-finish-load', () => {
         if (app.isPackaged) {
@@ -142,13 +173,16 @@ function createWindow() {
 }
 
 function createTray() {
+    // Se já existe um tray válido, não recria
+    if (tray && !tray.isDestroyed()) return;
+
     try {
         const iconPath = getIconPath();
         tray = new Tray(iconPath);
         const contextMenu = Menu.buildFromTemplate([
             {
                 label: 'Show App',
-                click: () => win.show()
+                click: () => { if (win) win.show(); }
             },
             {
                 label: 'Quit',
@@ -168,6 +202,13 @@ function createTray() {
         console.error("Failed to create tray icon:", error);
         // Desabilita minimize to tray se não conseguir criar a UI pra ele
         appSettings.minimizeToTray = false;
+    }
+}
+
+// Garante que o tray esteja válido (recria se o Explorer reiniciar e destruir o ícone)
+function ensureTray() {
+    if (!tray || tray.isDestroyed()) {
+        createTray();
     }
 }
 
@@ -593,6 +634,20 @@ ipcMain.on('window-maximize', () => {
     }
 });
 
+// IPC: Taskbar — título da janela e barra de progresso
+ipcMain.on('set-window-title', (event, title) => {
+    if (win && !win.isDestroyed()) {
+        win.setTitle(title);
+    }
+});
+
+ipcMain.on('set-progress-bar', (event, progress) => {
+    if (win && !win.isDestroyed()) {
+        // progress: 0.0 a 1.0 para mostrar, -1 para remover
+        win.setProgressBar(progress);
+    }
+});
+
 ipcMain.on('window-close', () => {
     if (win) win.close();
 });
@@ -661,8 +716,16 @@ app.on('before-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
+    // Só encerra se o usuário já está saindo. Se não, tenta recriar a janela.
+    if (isQuitting) {
         app.quit();
+    } else if (process.platform !== 'darwin') {
+        // Verifica se o tray existe — se sim, mantém o app vivo (minimize to tray)
+        ensureTray();
+        if (!tray || tray.isDestroyed()) {
+            // Sem tray funcional, recria a janela ao invés de fechar tudo
+            createWindow();
+        }
     }
 });
 

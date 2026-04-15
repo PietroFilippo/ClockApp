@@ -323,6 +323,145 @@ function updateNav() {
 
 render();
 
+// ── Centralized Taskbar Updater ──
+// Atualiza o título da janela e a barra de progresso na taskbar
+// para mostrar countdowns ativos ao passar o mouse no ícone minimizado.
+if (window.electronAPI && window.electronAPI.setWindowTitle) {
+  const DEFAULT_TITLE = 'Clock App';
+  let taskbarStopwatchInterval = null;
+
+  function formatTaskbarTime(totalSeconds) {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    if (h > 0) {
+      return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  function formatStopwatchTime(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) {
+      return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  function updateTaskbarFromTimers() {
+    const allTimers = timerManager.getAllTimers();
+    const activeTimers = allTimers.filter(t => t.isRunning && !t.isPaused);
+
+    if (activeTimers.length > 0) {
+      // Pega o timer com menor tempo restante para exibir
+      const nearest = activeTimers.reduce((a, b) =>
+        a.remainingSeconds < b.remainingSeconds ? a : b
+      );
+
+      const label = nearest.label ? ` — ${nearest.label}` : '';
+      const timeStr = formatTaskbarTime(nearest.remainingSeconds);
+      window.electronAPI.setWindowTitle(`⏱ ${timeStr}${label}`);
+
+      // Barra de progresso: 1.0 = cheio, 0.0 = vazio
+      const progress = nearest.totalSeconds > 0
+        ? nearest.remainingSeconds / nearest.totalSeconds
+        : 0;
+      window.electronAPI.setProgressBar(1 - progress); // Inverte: preenche à medida que o tempo passa
+      return true; // Timer tem prioridade
+    }
+    return false;
+  }
+
+  function updateTaskbarFromStopwatch() {
+    if (stopwatchManager.isRunning) {
+      const elapsed = stopwatchManager.getElapsed();
+      const timeStr = formatStopwatchTime(elapsed);
+      window.electronAPI.setWindowTitle(`⏱ ${timeStr}`);
+      window.electronAPI.setProgressBar(-1); // Sem barra de progresso para stopwatch
+      return true;
+    }
+    return false;
+  }
+
+  function clearTaskbar() {
+    window.electronAPI.setWindowTitle(DEFAULT_TITLE);
+    window.electronAPI.setProgressBar(-1);
+  }
+
+  // Listener: Timer tick (disparado a cada segundo pelo TimerManager)
+  document.addEventListener('timers-tick', () => {
+    if (!updateTaskbarFromTimers()) {
+      // Sem timers ativos — verifica stopwatch ou limpa
+      if (!updateTaskbarFromStopwatch()) {
+        clearTaskbar();
+      }
+    }
+  });
+
+  // Listener: Timer removido/finalizado
+  document.addEventListener('timer-removed', () => {
+    if (!updateTaskbarFromTimers() && !updateTaskbarFromStopwatch()) {
+      clearTaskbar();
+    }
+  });
+
+  document.addEventListener('timer-finished', () => {
+    if (!updateTaskbarFromTimers() && !updateTaskbarFromStopwatch()) {
+      clearTaskbar();
+    }
+  });
+
+  // Listener: Stopwatch — inicia/para intervalo de atualização
+  document.addEventListener('stopwatch-update', () => {
+    if (stopwatchManager.isRunning) {
+      // Inicia intervalo se não existe e não há timers ativos
+      if (!taskbarStopwatchInterval) {
+        taskbarStopwatchInterval = setInterval(() => {
+          // Timers têm prioridade sobre stopwatch
+          if (!updateTaskbarFromTimers()) {
+            if (!updateTaskbarFromStopwatch()) {
+              clearInterval(taskbarStopwatchInterval);
+              taskbarStopwatchInterval = null;
+              clearTaskbar();
+            }
+          }
+        }, 1000);
+      }
+    } else {
+      // Stopwatch parado — limpa intervalo
+      if (taskbarStopwatchInterval) {
+        clearInterval(taskbarStopwatchInterval);
+        taskbarStopwatchInterval = null;
+      }
+      // Verifica se há timers antes de limpar
+      if (!updateTaskbarFromTimers()) {
+        clearTaskbar();
+      }
+    }
+  });
+
+  // Inicialização: verifica estado atual ao carregar
+  setTimeout(() => {
+    if (!updateTaskbarFromTimers() && !updateTaskbarFromStopwatch()) {
+      clearTaskbar();
+    } else if (stopwatchManager.isRunning && !taskbarStopwatchInterval) {
+      // Inicia polling do stopwatch se já estava rodando ao carregar
+      taskbarStopwatchInterval = setInterval(() => {
+        if (!updateTaskbarFromTimers()) {
+          if (!updateTaskbarFromStopwatch()) {
+            clearInterval(taskbarStopwatchInterval);
+            taskbarStopwatchInterval = null;
+            clearTaskbar();
+          }
+        }
+      }, 1000);
+    }
+  }, 500);
+}
+
 // Auto-Update Banner
 if (window.electronAPI && window.electronAPI.onUpdateAvailable) {
   window.electronAPI.onUpdateAvailable((data) => {

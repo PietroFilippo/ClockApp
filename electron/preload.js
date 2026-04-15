@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     closeWindow: () => ipcRenderer.send('window-close'),
     pickCustomPosition: () => ipcRenderer.invoke('pick-custom-notification-position'),
 
+    // Taskbar: título da janela e barra de progresso
+    setWindowTitle: (title) => ipcRenderer.send('set-window-title', title),
+    setProgressBar: (progress) => ipcRenderer.send('set-progress-bar', progress),
+
     // Windows API Secundaria
     moveWindow: (data) => ipcRenderer.send('window-move', data),
     sendNotificationAction: (data) => ipcRenderer.send('notification-action', data),
