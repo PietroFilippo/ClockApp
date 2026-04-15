@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clock-app-v3.3.4';
+const CACHE_NAME = 'clock-app-v3.3.5';
 
 // Ativa imediatamente sem esperar por abas abertas
 self.addEventListener('install', () => {
