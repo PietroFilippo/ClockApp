@@ -715,6 +715,22 @@ app.on('before-quit', () => {
     }
 });
 
+// Windows shutdown/logoff — saída rápida antes do OS matar o processo
+// Evita STATUS_BREAKPOINT (0x80000003) por teardown do Chromium interrompido
+app.on('session-end', () => {
+    isQuitting = true;
+    if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
+        powerSaveBlocker.stop(powerBlockerId);
+    }
+    if (notificationWindow && !notificationWindow.isDestroyed()) {
+        notificationWindow.destroy();
+    }
+    if (tray && !tray.isDestroyed()) {
+        tray.destroy();
+    }
+    app.exit(0);
+});
+
 app.on('window-all-closed', () => {
     // Só encerra se o usuário já está saindo. Se não, tenta recriar a janela.
     if (isQuitting) {

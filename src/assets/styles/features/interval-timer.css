@@ -312,3 +312,35 @@
     border-color: var(--accent-orange) !important;
     background-color: rgba(255, 255, 255, 0.05) !important;
 }
+
+.label-input-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex: 1;
+    margin-left: 20px;
+    min-width: 0;
+}
+
+.modal-row .label-input-wrapper input[type="text"] {
+    width: 100%;
+    text-align: right;
+    margin-left: 0;
+    flex: none;
+}
+
+.label-char-counter {
+    font-size: 11px;
+    color: var(--text-secondary);
+    opacity: 0.6;
+    transition: color 0.2s, opacity 0.2s;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+}
+
+.label-char-counter.at-limit {
+    color: var(--accent-orange);
+    opacity: 1;
+}

@@ -371,11 +371,15 @@ export function Interval() {
             });
         }
 
+        const LABEL_MAX = 30;
         const content = `
           <div class="modal-section">
               <div class="modal-row">
                   <span>Name</span>
-                  <input type="text" id="modal-interval-name" value="${escapeHtml(preset.label || '')}" placeholder="Interval name" maxlength="200">
+                  <div class="label-input-wrapper">
+                      <input type="text" id="modal-interval-name" value="${escapeHtml(preset.label || '')}" placeholder="Interval name" maxlength="${LABEL_MAX}">
+                      <span class="label-char-counter" id="modal-interval-name-counter">${(preset.label || '').length}/${LABEL_MAX}</span>
+                  </div>
               </div>
               <div class="modal-row">
                   <span>Sound</span>
@@ -400,8 +404,11 @@ export function Interval() {
                   <span>:</span>
                   <input type="number" id="modal-new-s" min="0" max="59" value="0" style="width: 60px; text-align: center; padding: 8px 4px; font-size: 15px; border-radius: 8px;" placeholder="S">
               </div>
-              <div style="display: flex; gap: 6px; align-items: center;">
-                  <input type="text" id="modal-new-label" placeholder="Step name" maxlength="200" style="flex: 1; padding: 8px; font-size: 14px; border-radius: 8px;">
+              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                  <div class="label-input-wrapper" style="flex: 1;">
+                      <input type="text" id="modal-new-label" placeholder="Step name" maxlength="${LABEL_MAX}" style="width: 100%; padding: 8px; font-size: 14px; border-radius: 8px;">
+                      <span class="label-char-counter" id="modal-new-label-counter">0/${LABEL_MAX}</span>
+                  </div>
                   <button id="modal-add-step-btn" style="background: rgba(255,159,10,0.2); color: var(--accent-orange); border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 14px; white-space: nowrap;">Add</button>
               </div>
           </div>
@@ -422,7 +429,26 @@ export function Interval() {
 
         renderEditSteps(overlay);
 
-        // Drag-and-drop delegado no modal (configurado uma vez)
+        const intervalNameInput = overlay.querySelector('#modal-interval-name');
+        const intervalNameCounter = overlay.querySelector('#modal-interval-name-counter');
+        if (intervalNameInput && intervalNameCounter) {
+            intervalNameInput.addEventListener('input', () => {
+                const len = intervalNameInput.value.length;
+                intervalNameCounter.textContent = `${len}/${LABEL_MAX}`;
+                intervalNameCounter.classList.toggle('at-limit', len >= LABEL_MAX);
+            });
+        }
+
+        const newLabelInput = overlay.querySelector('#modal-new-label');
+        const newLabelCounter = overlay.querySelector('#modal-new-label-counter');
+        if (newLabelInput && newLabelCounter) {
+            newLabelInput.addEventListener('input', () => {
+                const len = newLabelInput.value.length;
+                newLabelCounter.textContent = `${len}/${LABEL_MAX}`;
+                newLabelCounter.classList.toggle('at-limit', len >= LABEL_MAX);
+            });
+        }
+
         setupStepDragDelegation(overlay, '#modal-steps-list', editSteps, () => {
             renderEditSteps(overlay);
         });
@@ -454,6 +480,10 @@ export function Interval() {
                 const label = overlay.querySelector('#modal-new-label').value || '';
                 editSteps.push({ hours: h, minutes: m, seconds: s, label });
                 overlay.querySelector('#modal-new-label').value = '';
+                if (newLabelCounter) {
+                    newLabelCounter.textContent = `0/${LABEL_MAX}`;
+                    newLabelCounter.classList.remove('at-limit');
+                }
                 renderEditSteps(overlay);
             };
         }
@@ -569,7 +599,10 @@ export function Interval() {
       <div class="modal-section" style="margin: 0 auto 15px;">
           <div class="modal-row">
               <span>Label</span>
-              <input type="text" id="interval-label" value="${escapeHtml(draftLabel)}" placeholder="Step name" maxlength="200">
+              <div class="label-input-wrapper">
+                  <input type="text" id="interval-label" value="${escapeHtml(draftLabel)}" placeholder="Step name" maxlength="30">
+                  <span class="label-char-counter" id="interval-label-counter">${draftLabel.length}/30</span>
+              </div>
           </div>
           <div class="modal-row">
               <span>When Step Ends</span>
@@ -617,7 +650,15 @@ export function Interval() {
         };
 
         if (labelInput) {
-            labelInput.addEventListener('input', updateDraftState);
+            labelInput.addEventListener('input', () => {
+                updateDraftState();
+                const counter = container.querySelector('#interval-label-counter');
+                if (counter) {
+                    const len = labelInput.value.length;
+                    counter.textContent = `${len}/30`;
+                    counter.classList.toggle('at-limit', len >= 30);
+                }
+            });
         }
 
         attachTimeInputValidation(hoursInput, 23, { maxDigits: 2, onChange: updateDraftState });
@@ -672,13 +713,16 @@ export function Interval() {
                 if (draftSteps.length === 0) return;
                 const soundId = container.querySelector('#interval-sound-value').value;
 
-                showModal({
+                const saveOverlay = showModal({
                     title: 'Save Interval',
                     content: `
                         <div class="modal-section">
                             <div class="modal-row">
                                 <span>Name</span>
-                                <input type="text" id="interval-preset-name" placeholder="Interval name" maxlength="200">
+                                <div class="label-input-wrapper">
+                                    <input type="text" id="interval-preset-name" placeholder="Interval name" maxlength="30">
+                                    <span class="label-char-counter" id="interval-preset-name-counter">0/30</span>
+                                </div>
                             </div>
                         </div>
                     `,
@@ -704,6 +748,18 @@ export function Interval() {
                         }
                     }
                 });
+
+                if (saveOverlay) {
+                    const presetNameInput = saveOverlay.querySelector('#interval-preset-name');
+                    const presetNameCounter = saveOverlay.querySelector('#interval-preset-name-counter');
+                    if (presetNameInput && presetNameCounter) {
+                        presetNameInput.addEventListener('input', () => {
+                            const len = presetNameInput.value.length;
+                            presetNameCounter.textContent = `${len}/30`;
+                            presetNameCounter.classList.toggle('at-limit', len >= 30);
+                        });
+                    }
+                }
             };
         }
 
@@ -1084,13 +1140,16 @@ export function Interval() {
 
         if (!isPreset) {
             modalOptions.onSave = (overlay) => {
-                showModal({
+                const finishOverlay = showModal({
                     title: 'Save Interval',
                     content: `
                         <div class="modal-section">
                             <div class="modal-row">
                                 <span>Name</span>
-                                <input type="text" id="finish-interval-name" placeholder="Interval name" maxlength="200">
+                                <div class="label-input-wrapper">
+                                    <input type="text" id="finish-interval-name" placeholder="Interval name" maxlength="30">
+                                    <span class="label-char-counter" id="finish-interval-name-counter">0/30</span>
+                                </div>
                             </div>
                         </div>
                     `,
@@ -1113,6 +1172,18 @@ export function Interval() {
                         }
                     }
                 });
+
+                if (finishOverlay) {
+                    const finishNameInput = finishOverlay.querySelector('#finish-interval-name');
+                    const finishNameCounter = finishOverlay.querySelector('#finish-interval-name-counter');
+                    if (finishNameInput && finishNameCounter) {
+                        finishNameInput.addEventListener('input', () => {
+                            const len = finishNameInput.value.length;
+                            finishNameCounter.textContent = `${len}/30`;
+                            finishNameCounter.classList.toggle('at-limit', len >= 30);
+                        });
+                    }
+                }
             };
         }
 
