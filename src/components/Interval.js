@@ -321,7 +321,7 @@ export function Interval() {
                     input.addEventListener('blur', commit);
                     input.addEventListener('keydown', (ev) => {
                         if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
-                        if (ev.key === 'Escape') { input.value = editSteps[idx].label || ''; input.blur(); }
+                        if (ev.key === 'Escape') { ev.preventDefault(); input.value = editSteps[idx].label || ''; input.blur(); }
                     });
                 };
             });

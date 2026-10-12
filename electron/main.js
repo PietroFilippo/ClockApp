@@ -203,6 +203,8 @@ function createWindow() {
 
     mainWindow.on('closed', () => {
         if (win === mainWindow) win = null;
+        // Quit for real even if a popup or the position picker is still open
+        if (isQuitting && !sessionEnding) app.quit();
     });
 
     // Reload if the renderer crashes. Never while quitting or while Windows ends the session:

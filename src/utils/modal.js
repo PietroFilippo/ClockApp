@@ -39,7 +39,8 @@ export function showModal({ title, content, onSave, onClose }) {
   };
 
   const handleKey = (e) => {
-    if (!isTopmost()) return;
+    // A control inside the dialog already handled this key (e.g. Enter/Escape while renaming a step)
+    if (e.defaultPrevented || !isTopmost()) return;
     if (e.key === 'Escape') {
       close();
       return;

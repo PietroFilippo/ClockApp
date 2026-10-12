@@ -16,8 +16,9 @@ export class AlarmManager {
         this.checkTimeout = null;
         // alarm id -> timestamp (ms) when the snooze ends
         this.snoozedAlarms = this.migrateSnoozes(loadJSON(STORAGE_KEYS.SNOOZED_ALARMS, {}, isPlainObject));
-        // alarm id -> the occurrence it last rang for, so a repeated local time (when DST ends) can't ring twice
-        this.lastFired = new Map();
+        // alarm id -> the occurrence it last rang for, so a repeated local time (when DST ends) can't ring
+        // twice; persisted so a restart in between doesn't ring it again either
+        this.lastFired = loadJSON(STORAGE_KEYS.ALARM_LAST_FIRED, {}, isPlainObject);
     }
 
     init() {
@@ -110,7 +111,9 @@ export class AlarmManager {
 
         // Normally exactly one minute has passed since the last check. After sleep, a busy system, a clock
         // change or while the app was closed, more has: check the skipped minutes too (within the window)
-        let from = Math.min(lastChecked + MINUTE_MS, currentMinute); // min(): the clock may have moved backwards
+        // If the clock moved backwards, check just the current minute; if this minute was already
+        // checked (e.g. the app restarted), there's nothing new to check
+        let from = lastChecked > currentMinute ? currentMinute : lastChecked + MINUTE_MS;
         from = Math.max(from, currentMinute - MISSED_ALARM_WINDOW_MS);
 
         let changed = false;
@@ -134,9 +137,10 @@ export class AlarmManager {
             if (!alarm.enabled || alarm.time !== time) return;
             const repeats = Array.isArray(alarm.repeat) && alarm.repeat.length > 0;
             if (repeats && !alarm.repeat.includes(day)) return;
-            if (this.lastFired.get(alarm.id) === occurrence) return;
+            if (this.lastFired[alarm.id] === occurrence) return;
 
-            this.lastFired.set(alarm.id, occurrence);
+            this.lastFired[alarm.id] = occurrence;
+            localStorage.setItem(STORAGE_KEYS.ALARM_LAST_FIRED, JSON.stringify(this.lastFired));
             this.triggerAlarm(alarm, false, date);
 
             // One-time alarms switch themselves off after ringing
@@ -234,7 +238,12 @@ export class AlarmManager {
     updateAlarm(id, data) {
         const index = this.alarms.findIndex(a => a.id === id);
         if (index !== -1) {
-            this.alarms[index] = { ...this.alarms[index], ...data, label: data.label || '' };
+            const previous = this.alarms[index];
+            // A new time or turning snooze off replaces any pending snooze of the old schedule
+            if ((data.time && data.time !== previous.time) || data.snoozeEnabled === false) {
+                this.clearSnooze(id);
+            }
+            this.alarms[index] = { ...previous, ...data, label: data.label || '' };
             this.saveAlarms();
         }
     }
@@ -243,6 +252,8 @@ export class AlarmManager {
         const alarm = this.alarms.find(a => a.id === id);
         if (alarm) {
             alarm.enabled = !alarm.enabled;
+            // Switching an alarm off also cancels its pending snooze
+            if (!alarm.enabled) this.clearSnooze(id);
             this.saveAlarms();
         }
     }
@@ -250,6 +261,8 @@ export class AlarmManager {
     deleteAlarm(id) {
         this.alarms = this.alarms.filter(a => a.id !== id);
         if (this.snoozedAlarms[id]) delete this.snoozedAlarms[id];
+        delete this.lastFired[id];
+        localStorage.setItem(STORAGE_KEYS.ALARM_LAST_FIRED, JSON.stringify(this.lastFired));
         this.saveAlarms();
     }
 

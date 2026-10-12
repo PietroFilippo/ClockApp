@@ -45,6 +45,13 @@ export class NotificationService {
             timestamp: Date.now()
         };
 
+        // A silent notice waits underneath alerts that are already showing, so it never
+        // mutes a ringing alarm or cancels its auto-action; it appears once they're handled
+        if (alertItem.silent && this.activeAlerts.length > 0) {
+            this.activeAlerts.unshift(alertItem);
+            return;
+        }
+
         this.activeAlerts.push(alertItem);
         this.updateActiveAlert();
     }
