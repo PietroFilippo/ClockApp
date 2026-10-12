@@ -169,7 +169,8 @@
     background: #ff6961;
 }
 
-/* Finished interval: nothing is ringing, so the buttons cool down and Done is the green way out */
+/* Finished interval: nothing is ringing, so Restart/Save cool to neutral and Done takes
+   the primary orange of ring-overlay-action (green means "start" in this app, red means "stop") */
 .ring-overlay--interval .modal-btn.ring-overlay-action {
     background: var(--surface-raised);
     color: var(--text-primary);
@@ -180,12 +181,12 @@
 }
 
 .ring-overlay--interval .modal-btn.save.ring-overlay-stop {
-    background: var(--accent-green);
+    background: var(--accent-orange);
     color: black;
 }
 
 .ring-overlay--interval .modal-btn.save.ring-overlay-stop:hover {
-    background: #4cd964;
+    background: #ffb340;
 }
 
 /* Notification Modal Specifics */
