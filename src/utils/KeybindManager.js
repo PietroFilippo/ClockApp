@@ -1,58 +1,40 @@
 /**
- * KeybindManager — Encapsulates shortcut state, recording, conflict resolution,
- * modal rendering, and registration of global and local shortcuts.
+ * KeybindManager — The Stopwatch's keybinds modal: shortcut recording, conflict resolution
+ * and rendering. The shortcuts themselves are registered and run by utils/shortcuts.js.
  *
  * Usage:
  *   const km = new KeybindManager({
- *     onAction: (action) => { ... },   // called when a shortcut is triggered
  *     onUpdate: () => { ... }          // called when the shortcuts change (to re-render)
  *   });
  */
 
-export const DEFAULT_KEYBINDS = {
-    toggle: 'Alt+P',
-    lap: 'Alt+L',
-    stop: 'Alt+S',
-    reset: 'Alt+R'
+import { STORAGE_KEYS } from './constants.js';
+import { DEFAULT_KEYBINDS, getKeybinds, getUnavailableShortcuts, suspendShortcuts, eventToAccelerator } from './shortcuts.js';
+
+// What each shortcut does, in the user's words
+const ACTION_LABELS = {
+    toggle: 'Start or pause',
+    lap: 'Lap',
+    stop: 'Stop',
+    reset: 'Reset'
 };
 
-
-
-
-import { STORAGE_KEYS } from './constants.js';
-
 export class KeybindManager {
-    constructor({ onAction, onUpdate }) {
-        this.onAction = onAction;
+    constructor({ onUpdate }) {
         this.onUpdate = onUpdate;
 
         // State
-        this.keybinds = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_KEYBINDS)) || { ...DEFAULT_KEYBINDS };
+        this.keybinds = getKeybinds();
         this.isListeningForKey = null;
 
-        // Load global shortcut settings
-        let storedSettings = {};
-        try {
-            storedSettings = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS)) || {};
-        } catch (e) { }
-        this.useGlobalShortcuts = storedSettings.globalShortcuts !== false;
-
-        // Register initial shortcuts
-        if (window.electronAPI) {
-            window.electronAPI.unregisterGlobalShortcuts();
-
-            if (this.useGlobalShortcuts) {
-                window.electronAPI.registerGlobalShortcuts(this.keybinds);
-            }
-        }
-
         // Bind handlers
-        this._handleLocalKeydown = this._handleLocalKeydown.bind(this);
         this._handleRecording = this._handleRecording.bind(this);
+        this._handleShortcutsUpdated = () => this.onUpdate();
 
         // Register listeners
-        window.addEventListener('keydown', this._handleLocalKeydown);
         window.addEventListener('keydown', this._handleRecording, { capture: true });
+        // Re-render when Windows reports which shortcuts it couldn't register
+        document.addEventListener('shortcuts-updated', this._handleShortcutsUpdated);
     }
 
     // --- Public API ---
@@ -66,22 +48,26 @@ export class KeybindManager {
     }
 
     startRecording(action) {
-        if (window.electronAPI) window.electronAPI.unregisterGlobalShortcuts();
         this.isListeningForKey = action;
+        suspendShortcuts(true);
     }
 
     cancelRecording() {
         this.isListeningForKey = null;
-        if (window.electronAPI && this.useGlobalShortcuts) {
-            window.electronAPI.registerGlobalShortcuts(this.keybinds);
-        }
+        suspendShortcuts(false);
     }
 
     resetToDefaults() {
         this.keybinds = { ...DEFAULT_KEYBINDS };
         this.isListeningForKey = null;
         this._save();
-        if (window.electronAPI) window.electronAPI.registerGlobalShortcuts(this.keybinds);
+        suspendShortcuts(false);
+    }
+
+    // True if Windows refused this action's shortcut because another program already uses it
+    _isUnavailable(action) {
+        const accelerator = this.keybinds[action];
+        return !!accelerator && getUnavailableShortcuts().includes(accelerator);
     }
 
     // Return the HTML for the shortcuts modal
@@ -89,19 +75,22 @@ export class KeybindManager {
         return `
         <div class="modal-overlay" id="keybinds-modal">
             <div class="modal-content" style="max-width: 400px;">
-                <h2>Customize Keybinds</h2>
+                <h2>Keyboard shortcuts</h2>
                 <div class="keybind-list">
                     ${Object.entries(this.keybinds).map(([action, currentKey]) => `
-                        <div class="keybind-item">
-                            <span>${action === 'reset' ? 'Special Reset' : action}</span>
-                            <button class="record-btn ${this.isListeningForKey === action ? 'recording' : ''}" data-action="${action}">
-                                ${this.isListeningForKey === action ? 'Press keys...' : currentKey}
+                        <div class="keybind-item ${this._isUnavailable(action) ? 'unavailable' : ''}" data-action="${action}">
+                            <div class="keybind-label">
+                                <span>${ACTION_LABELS[action] || action}</span>
+                                <div class="keybind-warning" data-action="${action}" style="display: ${this._isUnavailable(action) ? 'block' : 'none'};">In use by another app</div>
+                            </div>
+                            <button class="record-btn ${this.isListeningForKey === action ? 'recording' : ''}" data-action="${action}" aria-label="Change shortcut for ${ACTION_LABELS[action] || action}">
+                                ${this.isListeningForKey === action ? 'Press keys…' : (currentKey || 'None')}
                             </button>
                         </div>
                     `).join('')}
                 </div>
                 <div class="modal-actions">
-                    <button class="modal-btn secondary" id="reset-defaults">Defaults</button>
+                    <button class="modal-btn secondary" id="reset-defaults">Reset to defaults</button>
                     <button class="modal-btn primary" id="close-keybinds">Done</button>
                 </div>
             </div>
@@ -120,7 +109,14 @@ export class KeybindManager {
             const isRec = this.isListeningForKey === action;
 
             btn.className = `record-btn ${isRec ? 'recording' : ''}`;
-            btn.textContent = isRec ? 'Press keys...' : currentKey;
+            btn.textContent = isRec ? 'Press keys…' : (currentKey || 'None');
+        });
+
+        kbModal.querySelectorAll('.keybind-warning').forEach(warning => {
+            const unavailable = this._isUnavailable(warning.dataset.action);
+            warning.style.display = unavailable ? 'block' : 'none';
+            const item = warning.closest('.keybind-item');
+            if (item) item.classList.toggle('unavailable', unavailable);
         });
     }
 
@@ -153,9 +149,6 @@ export class KeybindManager {
 
         // Done / Close
         kbModal.querySelector('#close-keybinds').onclick = () => {
-            if (window.electronAPI && this.useGlobalShortcuts) {
-                window.electronAPI.registerGlobalShortcuts(this.keybinds);
-            }
             this.isListeningForKey = null;
             onClose();
         };
@@ -163,38 +156,15 @@ export class KeybindManager {
 
     // Remove all event listeners; call on component cleanup
     cleanup() {
-        window.removeEventListener('keydown', this._handleLocalKeydown);
         window.removeEventListener('keydown', this._handleRecording, { capture: true });
+        document.removeEventListener('shortcuts-updated', this._handleShortcutsUpdated);
+        if (this.isListeningForKey) this.cancelRecording();
     }
 
     // --- Private ---
 
     _save() {
         localStorage.setItem(STORAGE_KEYS.STOPWATCH_KEYBINDS, JSON.stringify(this.keybinds));
-    }
-
-    _handleLocalKeydown(e) {
-        if (this.isListeningForKey) return;
-        if (this.useGlobalShortcuts) return;
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-        let parts = [];
-        if (e.ctrlKey) parts.push('Ctrl');
-        if (e.altKey) parts.push('Alt');
-        if (e.shiftKey) parts.push('Shift');
-        if (e.metaKey) parts.push('Command');
-
-        let key = e.key.toUpperCase();
-        if (['CONTROL', 'ALT', 'SHIFT', 'META'].includes(key)) return;
-
-        parts.push(key);
-        const accelerator = parts.join('+');
-
-        const action = Object.keys(this.keybinds).find(k => this.keybinds[k] === accelerator);
-        if (action) {
-            e.preventDefault();
-            this.onAction(action);
-        }
     }
 
     _handleRecording(e) {
@@ -210,17 +180,8 @@ export class KeybindManager {
         }
 
         try {
-            let parts = [];
-            if (e.ctrlKey) parts.push('Ctrl');
-            if (e.altKey) parts.push('Alt');
-            if (e.shiftKey) parts.push('Shift');
-            if (e.metaKey) parts.push('Command');
-
-            let key = e.key.toUpperCase();
-            if (['CONTROL', 'ALT', 'SHIFT', 'META'].includes(key)) return;
-
-            parts.push(key);
-            const accelerator = parts.join('+');
+            const accelerator = eventToAccelerator(e);
+            if (!accelerator) return;
 
             // Conflict resolution
             const existingAction = Object.keys(this.keybinds).find(
@@ -245,9 +206,7 @@ export class KeybindManager {
             this.isListeningForKey = null;
 
             this._save();
-            if (window.electronAPI && this.useGlobalShortcuts) {
-                window.electronAPI.registerGlobalShortcuts(this.keybinds);
-            }
+            suspendShortcuts(false);
             this.onUpdate();
         } catch (err) {
             this.isListeningForKey = null;

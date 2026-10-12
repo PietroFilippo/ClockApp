@@ -4,17 +4,17 @@ import { WorldClock } from './components/WorldClock.js';
 import { Alarm } from './components/Alarm.js';
 import { Stopwatch } from './components/Stopwatch.js';
 import { Timer } from './components/Timer.js';
-import { Interval } from './components/Interval.js';
+import { Interval, promptSaveInterval } from './components/Interval.js';
 import { Settings } from './components/Settings.js';
 import { alarmManager } from './modules/AlarmManager.js';
 import { timerManager } from './modules/TimerManager.js';
 import { stopwatchManager } from './modules/StopwatchManager.js';
-import { notificationService } from './services/NotificationService.js';
+import { intervalTimerManager } from './modules/IntervalTimerManager.js';
+import { notificationService, timerDurationLabel } from './services/NotificationService.js';
 import { showRingOverlay } from './components/RingOverlay.js';
 import { truncate } from './utils/notification.js';
 import { STORAGE_KEYS } from './utils/constants.js';
-import { loadJSON, isPlainObject } from './utils/storage.js';
-import { DEFAULT_KEYBINDS } from './utils/KeybindManager.js';
+import { initShortcuts } from './utils/shortcuts.js';
 
 alarmManager.init();
 
@@ -36,23 +36,31 @@ function dismissOverlay(matches = () => true) {
 
 const isOverlayFor = (type, id) => (overlay) => overlay.type === type && overlay.id === id;
 
+// 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 4 -> "4th" ... for the repeated-timer title
+function ordinal(n) {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  const suffix = { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th';
+  return `${n}${suffix}`;
+}
+
 function onNotificationRing(e) {
   const alert = e.detail;
 
   // Replace the existing overlay (prevents stacking)
   dismissOverlay();
 
-  let timeDisplay, title, label, actionButton = null;
+  let timeDisplay, title, label, actionButton = null, secondaryButton = null, stopLabel;
 
   if (alert.type === 'alarm') {
     const isSnooze = alert.data.isSnooze;
     timeDisplay = isSnooze ? alert.title.match(/\((.*?)\)/)[1] : alert.data.alarm.time;
-    title = alert.title;
+    title = isSnooze ? 'Snoozed alarm' : 'Alarm';
     label = truncate(alert.data.alarm.label || '', 60);
 
     if (alert.snoozeEnabled) {
       actionButton = {
-        text: `Snooze (${alert.data.alarm.snoozeInterval || 9} min)`,
+        text: `Snooze for ${alert.data.alarm.snoozeInterval || 9} min`,
         onClick: (ovl) => {
           dismissOverlayElement(ovl);
           alarmManager.snoozeAlarm(alert.id);
@@ -60,10 +68,17 @@ function onNotificationRing(e) {
       };
     }
   } else if (alert.type === 'timer') {
-    const countDisplay = (alert.repeatCount > 0) ? ` (${alert.repeatCount + 1}x)` : '';
-    timeDisplay = truncate(alert.body || '', 60) + countDisplay;
-    title = 'Timer' + countDisplay;
-    label = 'Time is up!';
+    // Repeat count lives in the title only; the body shows the label, or the duration when unlabeled
+    const duration = timerDurationLabel(alert.data);
+    const customLabel = alert.body && alert.body !== 'Time is up!' ? truncate(alert.body, 60) : '';
+    title = alert.repeatCount > 0 ? `Timer, ${ordinal(alert.repeatCount + 1)} time` : 'Timer';
+    if (customLabel) {
+      timeDisplay = customLabel;
+      label = duration ? `${duration} timer is up` : 'Time is up';
+    } else {
+      timeDisplay = duration || 'Time is up';
+      label = duration ? 'Time is up' : '';
+    }
 
     actionButton = {
       text: 'Repeat',
@@ -72,6 +87,32 @@ function onNotificationRing(e) {
         timerManager.repeatFromAlert(alert.id);
       }
     };
+  } else if (alert.type === 'interval') {
+    const { presetLabel, presetId } = alert.data;
+    title = 'Interval finished';
+    timeDisplay = presetLabel || 'All steps completed';
+    label = presetLabel ? 'All steps completed' : '';
+    stopLabel = 'Done';
+
+    actionButton = {
+      text: 'Restart',
+      onClick: (ovl) => {
+        dismissOverlayElement(ovl);
+        intervalTimerManager.restartFromAlert();
+      }
+    };
+
+    // An interval started from the draft isn't saved yet: offer to keep it
+    if (!presetId) {
+      secondaryButton = {
+        text: 'Save',
+        onClick: (ovl) => {
+          dismissOverlayElement(ovl);
+          notificationService.stopAlert(alert.id);
+          promptSaveInterval(alert.data);
+        }
+      };
+    }
   }
 
   const overlay = showRingOverlay({
@@ -79,6 +120,9 @@ function onNotificationRing(e) {
     timeDisplay,
     label,
     actionButton,
+    secondaryButton,
+    stopLabel,
+    type: alert.type,
     onStop: () => {
       // Forget this overlay first: stopping can synchronously show the next alert's overlay
       if (currentOverlay && currentOverlay.element === overlay) currentOverlay = null;
@@ -89,11 +133,6 @@ function onNotificationRing(e) {
       }
     }
   });
-
-  if (alert.type === 'timer') {
-    const h1 = overlay.querySelector('h1');
-    if (h1) h1.style.fontSize = '34px';
-  }
 
   currentOverlay = { element: overlay, type: alert.type, id: alert.id };
 }
@@ -148,7 +187,10 @@ function render() {
   app.innerHTML = `
     <div class="app-container">
       <div id="title-bar" class="title-bar">
-        <div class="title-bar-drag"></div>
+        <div class="title-bar-drag">
+          <img class="title-bar-icon" src="icon.png" alt="" draggable="false">
+          <span class="title-bar-text">Clock App</span>
+        </div>
         <div class="title-bar-controls">
           <button id="min-btn" class="title-btn">−</button>
           <button id="max-btn" class="title-btn">▢</button>
@@ -170,34 +212,10 @@ function render() {
     if (maxBtn) maxBtn.onclick = () => window.electronAPI.maximizeWindow();
     if (closeBtn) closeBtn.onclick = () => window.electronAPI.closeWindow();
 
-    // Global shortcuts logic
-    window.electronAPI.getSettings().then(settings => {
-      const useGlobalShortcuts = settings.globalShortcuts !== false;
-      if (useGlobalShortcuts) {
-        const keybinds = loadJSON(STORAGE_KEYS.STOPWATCH_KEYBINDS, { ...DEFAULT_KEYBINDS }, isPlainObject);
-        window.electronAPI.registerGlobalShortcuts(keybinds);
-      }
-    });
-
-    window.electronAPI.removeGlobalShortcutListener(); // Clear previous ones
-    window.electronAPI.onGlobalShortcut((action) => {
-      // Map actions to the StopwatchManager
-      switch (action) {
-        case 'toggle':
-          stopwatchManager.isRunning ? stopwatchManager.stop() : stopwatchManager.start();
-          break;
-        case 'lap':
-          if (stopwatchManager.isRunning) stopwatchManager.lap();
-          break;
-        case 'stop':
-          if (stopwatchManager.isRunning) stopwatchManager.stop();
-          break;
-        case 'reset':
-          stopwatchManager.specialReset();
-          break;
-      }
-    });
-
+    // Stopwatch shortcuts: system-wide or in-app only, per the Global Shortcuts setting
+    window.electronAPI.getSettings().then(settings => initShortcuts(settings.globalShortcuts === true));
+  } else {
+    initShortcuts(false);
   }
 
   const navContainer = app.querySelector('#nav-container');

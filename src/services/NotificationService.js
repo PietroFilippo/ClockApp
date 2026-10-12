@@ -1,4 +1,15 @@
 import { audioManager } from '../utils/AudioManager.js';
+import { formatTime } from '../utils/time.js';
+
+// "10:00" / "1:30:00" for a timer alert's original duration (empty when the alert carries none)
+export function timerDurationLabel(data) {
+    if (!data) return '';
+    const h = Number(data.initialHours) || 0;
+    const m = Number(data.initialMinutes) || 0;
+    const s = Number(data.initialSeconds) || 0;
+    const total = h * 3600 + m * 60 + s;
+    return total > 0 ? formatTime(total) : '';
+}
 
 export class NotificationService {
     constructor() {
@@ -14,7 +25,8 @@ export class NotificationService {
         }
     }
 
-    async triggerAlert({ id, type, title, body, soundId, snoozeEnabled, repeatEnabled, repeatCount, data }) {
+    // silent: show the alert without ringing (e.g. a finished interval, whose chime already played)
+    async triggerAlert({ id, type, title, body, soundId, silent, snoozeEnabled, repeatEnabled, repeatCount, data }) {
         // Remove if it already exists, to move it to the top (re-trigger)
         this.activeAlerts.filter(a => a.id === id).forEach(a => clearTimeout(a.actionTimeoutId));
         this.activeAlerts = this.activeAlerts.filter(a => a.id !== id);
@@ -25,6 +37,7 @@ export class NotificationService {
             title,
             body,
             soundId: soundId || 'default',
+            silent: !!silent,
             snoozeEnabled,
             repeatEnabled,
             repeatCount: repeatCount || 0,
@@ -57,8 +70,12 @@ export class NotificationService {
             alert.actionTimeoutId = null;
         });
 
-        // Play the current alert's sound
-        audioManager.playAlarm(currentAlert.soundId);
+        // Play the current alert's sound (a silent alert also stops the one it covers)
+        if (currentAlert.silent) {
+            audioManager.stopAlarm();
+        } else {
+            audioManager.playAlarm(currentAlert.soundId);
+        }
 
         // Setup Auto-Action Timeout
         if (window.electronAPI) {
@@ -121,7 +138,10 @@ export class NotificationService {
                     snoozeEnabled: alert.snoozeEnabled,
                     repeatEnabled: alert.repeatEnabled,
                     id: alert.id,
-                    repeatCount: alert.repeatCount
+                    repeatCount: alert.repeatCount,
+                    type: alert.type,
+                    // The popup's context line ("10:00 timer"); alarms carry their time in the title
+                    meta: alert.type === 'timer' ? timerDurationLabel(alert.data) : ''
                 });
             }
         }

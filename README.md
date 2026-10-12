@@ -63,6 +63,7 @@ A modern, elegant desktop app for time management and productivity, built with *
 - **Quick Management**: Supports multi-select and swipe-to-delete to remove several intervals at once or delete them with gestures
 - **Smart Replacement**: When the saved intervals limit is reached, the app shows an intuitive modal to replace presets
 - Dedicated visual interface showing the current progress, the active step, and the upcoming steps of the cycle
+- **Finish Notice**: When an interval ends, a quiet notice appears on any tab (and as a popup when the app isn't focused) with **Restart**, **Done** and, for unsaved intervals, **Save**
 
 ### ⚙️ Settings
 | Setting | Description |
@@ -75,7 +76,7 @@ A modern, elegant desktop app for time management and productivity, built with *
 | **Notification Position** | 4 preset corners or a custom position (visual picker via drag & drop) |
 | **Auto-Close Duration** | Time until the notification closes automatically (5s – 10min, a custom value in seconds, or Never) |
 | **Auto Action Settings** | Timeout actions, with customizable duration, once the time limit is reached. Alarms (Stop or Auto-Snooze) and Timers (Stop or Auto-Repeat) |
-| **Global Shortcuts** | Shortcuts work even when the app is minimized |
+| **Global Shortcuts** | Stopwatch shortcuts work even when the app isn't focused (off by default on new installs). Shortcuts another program already uses are flagged in Settings and in the Keybinds modal |
 
 ### 🔔 Notifications
 - **Hybrid Notifications**: Support for native OS notifications and/or custom overlay windows
@@ -271,7 +272,7 @@ npm run electron:build
 | `Ctrl+Shift+I` | DevTools (development only) |
 | `Ctrl+Q` | Fully quit the application (while the app is focused) |
 
-\* Default shortcuts; they can be reconfigured in the Stopwatch keybinds modal. With **Global Shortcuts** on, they work system-wide, so other programs won't receive these key combinations.
+\* Default shortcuts; they can be reconfigured in the Stopwatch keybinds modal. With **Global Shortcuts** on, they work system-wide, so other programs won't receive these key combinations; with it off, they work while the app is focused, on any tab.
 
 ---
 

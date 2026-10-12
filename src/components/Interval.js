@@ -277,9 +277,9 @@ export function Interval() {
             listEl.innerHTML = editSteps.map((step, i) => {
                 const totalSecs = (step.hours || 0) * 3600 + (step.minutes || 0) * 60 + (step.seconds || 0);
                 return `
-                    <div class="interval-step-item interval-step-draggable" data-idx="${i}" style="padding: 8px 0;">
+                    <div class="interval-step-item interval-step-draggable" data-idx="${i}">
                         <span class="interval-step-number">${i + 1}</span>
-                        <div class="interval-step-info" style="flex: 1;">
+                        <div class="interval-step-info">
                             <div class="interval-step-label interval-step-label-editable" data-idx="${i}" title="Click to rename">${escapeHtml(step.label || `Step ${i + 1}`)}</div>
                             <div class="interval-step-time">${formatTime(totalSecs)}</div>
                         </div>
@@ -287,7 +287,7 @@ export function Interval() {
                             <button class="interval-step-action-btn modal-step-move-up" data-idx="${i}" title="Move up" ${i === 0 ? 'disabled' : ''}>▲</button>
                             <button class="interval-step-action-btn modal-step-move-down" data-idx="${i}" title="Move down" ${i === editSteps.length - 1 ? 'disabled' : ''}>▼</button>
                             <button class="interval-step-action-btn modal-step-copy" data-idx="${i}" title="Duplicate step">⧉</button>
-                            <button class="interval-step-delete modal-step-delete" data-idx="${i}" title="Remove" style="background: none; border: none; color: var(--accent-red); font-size: 18px; cursor: pointer; padding: 4px 8px;">✕</button>
+                            <button class="interval-step-delete modal-step-delete" data-idx="${i}" title="Remove step">✕</button>
                         </div>
                         <div class="interval-drag-handle" draggable="true" title="Drag to reorder">≡</div>
                     </div>
@@ -296,7 +296,7 @@ export function Interval() {
 
             if (totalEl) {
                 const totalSecs = intervalTimerManager.getTotalTime(editSteps);
-                totalEl.textContent = `${editSteps.length} step${editSteps.length !== 1 ? 's' : ''} · ${formatTime(totalSecs)}`;
+                totalEl.textContent = `${editSteps.length} step${editSteps.length !== 1 ? 's' : ''}, ${formatTime(totalSecs)} total`;
             }
 
             // Inline label editing
@@ -390,33 +390,33 @@ export function Interval() {
                   <input type="hidden" id="modal-sound-value" value="${preset.soundId}">
               </div>
           </div>
-          <div class="modal-section" style="padding: 12px 15px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                  <span style="font-weight: 600;">Steps</span>
-                  <span id="modal-steps-total" style="color:var(--text-secondary); font-size:13px;"></span>
+          <div class="modal-section interval-modal-section">
+              <div class="interval-modal-section-head">
+                  <span class="section-title">Steps</span>
+                  <span id="modal-steps-total" class="interval-modal-steps-total"></span>
               </div>
-              <div id="modal-steps-list" style="max-height: 200px; overflow-y: auto;"></div>
+              <div id="modal-steps-list" class="interval-modal-steps"></div>
           </div>
-          <div class="modal-section" style="padding: 12px 15px;">
-              <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 8px;">
-                  <input type="number" id="modal-new-h" min="0" max="23" value="0" style="width: 60px; text-align: center; padding: 8px 4px; font-size: 15px; border-radius: 8px;" placeholder="H">
+          <div class="modal-section interval-modal-section">
+              <div class="interval-modal-add-row">
+                  <input type="number" id="modal-new-h" class="interval-time-input" min="0" max="23" value="0" placeholder="H" aria-label="Hours">
                   <span>:</span>
-                  <input type="number" id="modal-new-m" min="0" max="59" value="5" style="width: 60px; text-align: center; padding: 8px 4px; font-size: 15px; border-radius: 8px;" placeholder="M">
+                  <input type="number" id="modal-new-m" class="interval-time-input" min="0" max="59" value="5" placeholder="M" aria-label="Minutes">
                   <span>:</span>
-                  <input type="number" id="modal-new-s" min="0" max="59" value="0" style="width: 60px; text-align: center; padding: 8px 4px; font-size: 15px; border-radius: 8px;" placeholder="S">
+                  <input type="number" id="modal-new-s" class="interval-time-input" min="0" max="59" value="0" placeholder="S" aria-label="Seconds">
               </div>
-              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                  <div class="label-input-wrapper" style="flex: 1;">
-                      <input type="text" id="modal-new-label" placeholder="Step name" maxlength="${LABEL_MAX}" style="width: 100%; padding: 8px; font-size: 14px; border-radius: 8px;">
+              <div class="interval-modal-label-row">
+                  <div class="label-input-wrapper">
+                      <input type="text" id="modal-new-label" placeholder="Step name" maxlength="${LABEL_MAX}">
                       <span class="label-char-counter" id="modal-new-label-counter">0/${LABEL_MAX}</span>
                   </div>
-                  <button id="modal-add-step-btn" style="background: rgba(255,159,10,0.2); color: var(--accent-orange); border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 14px; white-space: nowrap;">Add</button>
+                  <button id="modal-add-step-btn" class="interval-modal-add-btn">Add step</button>
               </div>
           </div>
         `;
 
         const overlay = showModal({
-            title: 'Edit Interval',
+            title: 'Edit interval',
             content,
             onSave: (overlay) => {
                 if (editSteps.length === 0) {
@@ -495,52 +495,11 @@ export function Interval() {
     }
 
     function openReplaceModal(newPreset) {
-        const presets = intervalTimerManager.getPresets();
-        const content = `
-            <div style="text-align: center; padding: 10px 0;">
-                <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
-                <h3 style="margin-bottom: 10px;">Replace Interval</h3>
-                <p style="color: var(--text-secondary); margin-bottom: 20px;">Saved Intervals are full (${LIMITS.MAX_INTERVAL_PRESETS}/${LIMITS.MAX_INTERVAL_PRESETS}).<br>Choose an interval to replace:</p>
-            </div>
-            <div class="replace-timer-list" style="max-height: 300px; overflow-y: auto;">
-                ${presets.map(s => {
-            const totalSecs = intervalTimerManager.getTotalTime(s.steps);
-            const stepCount = s.steps.length;
-            return `
-                        <div class="replace-item" data-id="${s.id}" style="padding: 12px; margin-bottom: 8px; background: var(--bg-secondary); border-radius: 12px; cursor: pointer;">
-                            <div class="alarm-info">
-                                <span class="alarm-time" style="font-size: 20px;">${escapeHtml(s.label || 'Interval')}</span>
-                                <span class="alarm-label" style="font-size: 14px;">${stepCount} step${stepCount !== 1 ? 's' : ''} · ${formatTime(totalSecs)}</span>
-                            </div>
-                        </div>
-                    `;
-        }).join('')}
-            </div>
-        `;
-
-        const overlay = showModal({
-            title: 'Replace Saved Interval',
-            content,
-            onSave: () => { }
-        });
-
-        // Use direct overlay reference
-        const saveBtn = overlay.querySelector('.save');
-        if (saveBtn) saveBtn.style.display = 'none';
-
-        overlay.querySelectorAll('.replace-item').forEach(item => {
-            item.onclick = () => {
-                const oldId = item.dataset.id;
-                intervalTimerManager.replacePreset(oldId, newPreset);
-                overlay.close();
-                showAlert('Interval replaced!', 'Success');
-
-                draftSteps = [];
-                draftLabel = '';
-                saveDraft();
-
-                render();
-            };
+        openReplaceIntervalModal(newPreset, () => {
+            draftSteps = [];
+            draftLabel = '';
+            saveDraft();
+            render();
         });
     }
 
@@ -577,11 +536,11 @@ export function Interval() {
 
         container.innerHTML = `
       <div class="header">
-        <button class="edit-btn" id="edit-intervals-btn" style="visibility: hidden">${isEditing ? 'Done' : 'Edit'}</button>
+        <button class="header-btn" id="edit-intervals-btn" style="visibility: hidden">${isEditing ? 'Done' : 'Edit'}</button>
         <h1>Intervals</h1>
-        <div class="add-btn-container" style="display: flex; gap: 10px;">
-          <button class="add-btn" id="cancel-edit-interval-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
-          <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
+        <div class="add-btn-container">
+          <button class="header-btn" id="cancel-edit-interval-btn" style="display: none;">Cancel</button>
+          <button class="header-btn" id="audio-settings-btn">Sound</button>
         </div>
       </div>
       <div class="timer-picker">
@@ -608,7 +567,7 @@ export function Interval() {
               </div>
           </div>
           <div class="modal-row">
-              <span>When Step Ends</span>
+              <span>Sound</span>
               <button id="interval-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${escapeHtml(audioManager.getSoundName(soundId))}">
                   ${escapeHtml(audioManager.getSoundName(soundId))}
               </button>
@@ -617,9 +576,9 @@ export function Interval() {
       </div>
 
       <div class="interval-draft-actions">
-          <button class="control-btn pause" id="add-step-btn" style="font-size: 14px; padding: 8px 20px; background-color: rgba(255, 159, 10, 0.2); color: var(--accent-orange);">Add Step</button>
-          <button class="control-btn start" id="start-interval-btn" style="font-size: 14px; padding: 8px 20px; display: none;">Start</button>
-          <button class="control-btn" id="save-interval-btn" style="font-size: 14px; padding: 8px 20px; display: none; background-color: rgba(100, 160, 255, 0.2); color: #64a0ff;">Save</button>
+          <button class="control-btn pause" id="add-step-btn">Add step</button>
+          <button class="control-btn start" id="start-interval-btn" style="display: none;">Start</button>
+          <button class="control-btn save-draft" id="save-interval-btn" style="display: none;">Save</button>
       </div>
 
       <div class="recents-container"></div>
@@ -816,7 +775,7 @@ export function Interval() {
 
         recentsContainer.innerHTML = `
             <div class="recents-section">
-                <div class="interval-total-time" style="text-align: center; padding: 8px 0;">Total: ${formatTime(totalSecs)} — ${draftSteps.length} step${draftSteps.length !== 1 ? 's' : ''}</div>
+                <div class="interval-total-time" style="text-align: center; padding: 8px 0;">${draftSteps.length} step${draftSteps.length !== 1 ? 's' : ''}, ${formatTime(totalSecs)} total</div>
                 <div class="alarm-list">
                     ${stepsHTML}
                 </div>
@@ -922,7 +881,7 @@ export function Interval() {
         if (presets.length === 0) {
             recentsContainer.innerHTML = `
                 <div class="recents-section">
-                    <p style="text-align:center; color:var(--text-secondary); margin-top:20px;">Add steps to create an interval timer</p>
+                    <p style="text-align:center; color:var(--text-secondary); margin-top:20px;">Set a duration and add your first step.</p>
                 </div>
                     `;
             return;
@@ -947,7 +906,8 @@ export function Interval() {
         if (editBtn) {
             const presets = intervalTimerManager.getPresets();
             editBtn.style.visibility = presets.length > 0 ? 'visible' : 'hidden';
-            editBtn.textContent = isEditing ? (selectedPresets.size > 0 ? `Delete(${selectedPresets.size})` : 'Done') : 'Edit';
+            editBtn.textContent = isEditing ? (selectedPresets.size > 0 ? `Delete (${selectedPresets.size})` : 'Done') : 'Edit';
+            editBtn.classList.toggle('danger', isEditing && selectedPresets.size > 0);
         }
         if (audioBtn) audioBtn.style.display = isEditing ? 'none' : '';
         if (cancelBtn) cancelBtn.style.display = isEditing ? '' : 'none';
@@ -964,7 +924,7 @@ export function Interval() {
                     <div class="alarm-info recent-item-info" data-id="${preset.id}" data-type="interval" style="padding-left: ${isEditing ? '40px' : '0'}; transition: padding 0.3s; cursor: pointer; width: 100%;">
                         <span class="alarm-time" style="font-size: 32px;">${escapeHtml(preset.label || 'Interval')}</span>
                         <span class="alarm-label">
-                            ${stepCount} step${stepCount !== 1 ? 's' : ''} · ${formatTime(totalSecs)}
+                            ${stepCount} step${stepCount !== 1 ? 's' : ''}, ${formatTime(totalSecs)} total
                         </span>
                     </div>
                     ${!isEditing ? `
@@ -984,12 +944,12 @@ export function Interval() {
     function initRunningView(state) {
         container.innerHTML = `
             <div class="header">
-        <button class="edit-btn" style="visibility: hidden;"></button>
+        <button class="header-btn" style="visibility: hidden;" tabindex="-1" aria-hidden="true"></button>
         <h1>Interval</h1>
-        <div class="add-btn-container" style="display: flex; gap: 10px;">
-          <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
+        <div class="add-btn-container">
+          <button class="header-btn" id="audio-settings-btn">Sound</button>
         </div>
-    </div >
+    </div>
     <div class="interval-step-progress">
         <div class="step-label" id="interval-step-label">${escapeHtml(state.currentStepLabel || `Step ${state.currentStepIndex + 1}`)}</div>
         <div class="step-counter" id="interval-step-counter">Step ${state.currentStepIndex + 1} of ${state.totalStepsCount}</div>
@@ -999,10 +959,19 @@ export function Interval() {
     </div>
     <div class="timer-display-container">
         <svg class="progress-ring" width="300" height="300">
-          <circle 
+          <circle
+            class="progress-ring__track"
+            stroke-width="8"
+            fill="transparent"
+            r="${radius}"
+            cx="150"
+            cy="150"
+          />
+          <circle
             class="progress-ring__circle"
             stroke="var(--accent-orange)"
             stroke-width="8"
+            stroke-linecap="round"
             fill="transparent"
             r="${radius}"
             cx="150"
@@ -1012,10 +981,10 @@ export function Interval() {
         </svg>
         <div class="timer-display-text">${formatTime(state.remainingSeconds)}</div>
     </div>
-    <div class="controls">
+    <div class="controls interval-controls">
         <button class="control-btn stop" id="interval-cancel-btn">Cancel</button>
-        <button class="control-btn reset" id="interval-prev-btn" title="Previous Step" style="width: 50px; height: 50px; font-size: 18px;">⏮</button>
-        <button class="control-btn reset" id="interval-skip-btn" title="Next Step" style="width: 50px; height: 50px; font-size: 18px;">⏭</button>
+        <button class="control-btn reset interval-step-btn" id="interval-prev-btn" title="Previous step" aria-label="Previous step">⏮</button>
+        <button class="control-btn reset interval-step-btn" id="interval-skip-btn" title="Next step" aria-label="Next step">⏭</button>
         <button class="control-btn ${state.isPaused ? 'start' : 'pause'}" id="interval-pause-btn">
           ${state.isPaused ? 'Resume' : 'Pause'}
         </button>
@@ -1090,7 +1059,7 @@ export function Interval() {
 
         const upcoming = state.steps.slice(state.currentStepIndex + 1);
         return `
-                <div class="interval-upcoming-title">Up Next</div>
+                <div class="interval-upcoming-title">Up next</div>
                 ${upcoming.map((step, i) => {
             const realIndex = state.currentStepIndex + 1 + i;
             const totalSecs = (step.hours || 0) * 3600 + (step.minutes || 0) * 60 + (step.seconds || 0);
@@ -1124,75 +1093,12 @@ export function Interval() {
         render();
     }
 
-    function onIntervalFinished() {
-        const state = intervalTimerManager.getState();
-        const isPreset = !!state.activePresetId;
-
-        const modalOptions = {
-            title: 'Interval Finished',
-            content: `<div style="text-align: center; padding: 20px;">
-                        <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
-                        <h2 style="margin-bottom: 10px;">All steps completed!</h2>
-                      </div>`
-        };
-
-        if (!isPreset) {
-            modalOptions.onSave = (overlay) => {
-                const finishOverlay = showModal({
-                    title: 'Save Interval',
-                    content: `
-                        <div class="modal-section">
-                            <div class="modal-row">
-                                <span>Name</span>
-                                <div class="label-input-wrapper">
-                                    <input type="text" id="finish-interval-name" placeholder="Interval name" maxlength="30">
-                                    <span class="label-char-counter" id="finish-interval-name-counter">0/30</span>
-                                </div>
-                            </div>
-                        </div>
-                    `,
-                    onSave: (saveOverlay) => {
-                        const name = saveOverlay.querySelector('#finish-interval-name').value || 'Interval';
-                        const presetData = {
-                            label: name,
-                            soundId: state.soundId,
-                            steps: state.steps
-                        };
-                        const result = intervalTimerManager.addPreset(presetData);
-                        if (result.success) {
-                            showAlert('Interval saved!', 'Success');
-                            render();
-                        } else {
-                            saveOverlay.close();
-                            openReplaceModal(presetData);
-                        }
-                    }
-                });
-
-                if (finishOverlay) {
-                    const finishNameInput = finishOverlay.querySelector('#finish-interval-name');
-                    const finishNameCounter = finishOverlay.querySelector('#finish-interval-name-counter');
-                    if (finishNameInput && finishNameCounter) {
-                        finishNameInput.addEventListener('input', () => {
-                            const len = finishNameInput.value.length;
-                            finishNameCounter.textContent = `${len}/30`;
-                            finishNameCounter.classList.toggle('at-limit', len >= 30);
-                        });
-                    }
-                }
-            };
-        }
-
-        showModal(modalOptions);
-        render();
-    }
-
     function onPresetsUpdated() {
         render();
     }
 
     document.addEventListener('interval-timer-updated', onIntervalUpdated);
-    document.addEventListener('interval-timer-finished', onIntervalFinished);
+    document.addEventListener('interval-timer-finished', onIntervalUpdated);
     document.addEventListener('interval-presets-updated', onPresetsUpdated);
 
     render();
@@ -1201,9 +1107,90 @@ export function Interval() {
         element: container,
         cleanup: () => {
             document.removeEventListener('interval-timer-updated', onIntervalUpdated);
-            document.removeEventListener('interval-timer-finished', onIntervalFinished);
+            document.removeEventListener('interval-timer-finished', onIntervalUpdated);
             document.removeEventListener('interval-presets-updated', onPresetsUpdated);
             swipe.destroy();
         }
     };
+}
+
+// Picker shown when the saved intervals are full: replace one of them with newPreset
+function openReplaceIntervalModal(newPreset, onReplaced) {
+    const presets = intervalTimerManager.getPresets();
+    const content = `
+        <div class="replace-interval-intro">
+            <p>All ${LIMITS.MAX_INTERVAL_PRESETS} saved slots are used. Choose an interval to replace.</p>
+        </div>
+        <div class="replace-timer-list" style="max-height: 300px; overflow-y: auto;">
+            ${presets.map(s => {
+        const totalSecs = intervalTimerManager.getTotalTime(s.steps);
+        const stepCount = s.steps.length;
+        return `
+                    <div class="replace-item" data-id="${s.id}" style="padding: 12px; margin-bottom: 8px; background: var(--bg-secondary); border-radius: 12px; cursor: pointer;">
+                        <div class="alarm-info">
+                            <span class="alarm-time" style="font-size: 20px;">${escapeHtml(s.label || 'Interval')}</span>
+                            <span class="alarm-label" style="font-size: 14px;">${stepCount} step${stepCount !== 1 ? 's' : ''}, ${formatTime(totalSecs)} total</span>
+                        </div>
+                    </div>
+                `;
+    }).join('')}
+        </div>
+    `;
+
+    const overlay = showModal({
+        title: 'Replace a saved interval',
+        content,
+        onSave: () => { }
+    });
+
+    // Use direct overlay reference
+    const saveBtn = overlay.querySelector('.save');
+    if (saveBtn) saveBtn.style.display = 'none';
+
+    overlay.querySelectorAll('.replace-item').forEach(item => {
+        item.onclick = () => {
+            intervalTimerManager.replacePreset(item.dataset.id, newPreset);
+            overlay.close();
+            showAlert('Interval replaced!', 'Success');
+            if (onReplaced) onReplaced();
+        };
+    });
+}
+
+// Ask for a name and save a finished interval that wasn't a saved preset (Save in its finish overlay)
+export function promptSaveInterval({ steps, soundId }) {
+    const overlay = showModal({
+        title: 'Save Interval',
+        content: `
+            <div class="modal-section">
+                <div class="modal-row">
+                    <span>Name</span>
+                    <div class="label-input-wrapper">
+                        <input type="text" id="finish-interval-name" placeholder="Interval name" maxlength="30">
+                        <span class="label-char-counter" id="finish-interval-name-counter">0/30</span>
+                    </div>
+                </div>
+            </div>
+        `,
+        onSave: (saveOverlay) => {
+            const name = saveOverlay.querySelector('#finish-interval-name').value || 'Interval';
+            const presetData = { label: name, soundId, steps };
+            const result = intervalTimerManager.addPreset(presetData);
+            if (result.success) {
+                showAlert('Interval saved!', 'Success');
+            } else {
+                saveOverlay.close();
+                openReplaceIntervalModal(presetData);
+            }
+        }
+    });
+
+    const nameInput = overlay.querySelector('#finish-interval-name');
+    const nameCounter = overlay.querySelector('#finish-interval-name-counter');
+    nameInput.addEventListener('input', () => {
+        const len = nameInput.value.length;
+        nameCounter.textContent = `${len}/30`;
+        nameCounter.classList.toggle('at-limit', len >= 30);
+    });
+    nameInput.focus();
 }

@@ -40,31 +40,11 @@ export function Stopwatch() {
   let showKeybindsModal = false;
   let showSpeedSelector = false;
 
-  // Keybind manager (encapsulates state, recording, conflicts, shortcuts)
+  // Keybind manager (recording, conflicts and the keybinds modal). The shortcuts themselves run
+  // in utils/shortcuts.js and reach this view through 'stopwatch-update' events
   const keybindManager = new KeybindManager({
-    onAction: (action) => handleShortcutAction(action),
     onUpdate: () => render()
   });
-
-  function handleShortcutAction(action) {
-    switch (action) {
-      case 'toggle': toggle(); break;
-      case 'lap': stopwatchManager.isRunning ? stopwatchManager.lap() : null; render(); break;
-      case 'stop':
-        if (stopwatchManager.isRunning) {
-          stopwatchManager.stop();
-          stopInterval();
-          render();
-        }
-        break;
-      case 'reset':
-        // Special reset: Stop, Reset, Start
-        stopwatchManager.specialReset();
-        startInterval();
-        render();
-        break;
-    }
-  }
 
   function formatTime(ms) {
     const totalSeconds = Math.floor(ms / 1000);
@@ -109,16 +89,16 @@ export function Stopwatch() {
     return `
             <div class="modal-overlay" id="color-selection-overlay">
                 <div class="modal-content" style="max-width: 280px;">
-                    <h2>Lap Colors</h2>
+                    <h2>Lap colors</h2>
                     <div class="color-selection-options">
-                        <div class="color-selection-item" id="select-fastest">
+                        <button type="button" class="color-selection-item" id="select-fastest">
                             <span class="color-dot" style="background-color: ${fastestColor}"></span>
                             <span>Fastest lap</span>
-                        </div>
-                        <div class="color-selection-item" id="select-slowest">
+                        </button>
+                        <button type="button" class="color-selection-item" id="select-slowest">
                             <span class="color-dot" style="background-color: ${slowestColor}"></span>
                             <span>Slowest lap</span>
-                        </div>
+                        </button>
                     </div>
                     <div class="modal-actions">
                         <button class="modal-btn cancel" id="close-selection">Close</button>
@@ -264,9 +244,9 @@ export function Stopwatch() {
             <div class="header">
                 <h1>Stopwatch</h1>
                 <div class="add-btn-container">
-                    <button class="add-btn" id="download-btn" style="font-size: 14px; width: auto; padding: 0 10px; display: none">Download</button>
-                    <button class="add-btn" id="keybinds-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Keybinds</button>
-                    <button class="add-btn" id="colors-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Colors</button>
+                    <button class="header-btn" id="download-btn" style="display: none">Download</button>
+                    <button class="header-btn" id="keybinds-btn">Shortcuts</button>
+                    <button class="header-btn" id="colors-btn">Lap colors</button>
                 </div>
             </div>
             <div class="speed-btn-container">
@@ -283,8 +263,8 @@ export function Stopwatch() {
                         </div>
                     </div>
                     <div class="stopwatch-view-dots">
-                        <span class="view-dot ${viewMode === 'digital' ? 'active' : ''}" data-view="digital"></span>
-                        <span class="view-dot ${viewMode === 'analog' ? 'active' : ''}" data-view="analog"></span>
+                        <button type="button" class="view-dot ${viewMode === 'digital' ? 'active' : ''}" data-view="digital" aria-label="Digital view" aria-pressed="${viewMode === 'digital'}"></button>
+                        <button type="button" class="view-dot ${viewMode === 'analog' ? 'active' : ''}" data-view="analog" aria-label="Analog view" aria-pressed="${viewMode === 'analog'}"></button>
                     </div>
                 </div>
                 <button id="speed-btn" class="speed-toggle-btn${state.speed !== 1.0 ? ' active' : ''}">
@@ -472,7 +452,7 @@ export function Stopwatch() {
         track.classList.remove('no-transition');
       }
     }
-    dots.forEach(d => d.classList.toggle('active', d.dataset.view === viewMode));
+    dots.forEach(d => { const on = d.dataset.view === viewMode; d.classList.toggle('active', on); d.setAttribute('aria-pressed', on); });
 
     if (wasRunning) startInterval();
     updateDisplay(stopwatchManager.getState());
@@ -550,7 +530,7 @@ export function Stopwatch() {
       track.style.transform = viewMode === 'analog' ? 'translateX(-50%)' : 'translateX(0%)';
 
       const dots = container.querySelectorAll('.view-dot');
-      dots.forEach(d => d.classList.toggle('active', d.dataset.view === viewMode));
+      dots.forEach(d => { const on = d.dataset.view === viewMode; d.classList.toggle('active', on); d.setAttribute('aria-pressed', on); });
 
       updateDisplay(stopwatchManager.getState());
     }

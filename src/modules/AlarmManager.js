@@ -54,6 +54,15 @@ export class AlarmManager {
     setupIPCListeners() {
         if (window.electronAPI && window.electronAPI.onNotificationAction) {
             window.electronAPI.onNotificationAction((data) => {
+                if (data.id === 'interval') {
+                    if (data.action === 'repeat') {
+                        document.dispatchEvent(new CustomEvent('interval-restart-requested'));
+                    } else {
+                        notificationService.stopAlert(data.id);
+                    }
+                    return;
+                }
+
                 if (data.action === 'stop') {
                     if (data.id === 'timer' || String(data.id).startsWith('timer-')) {
                         notificationService.stopAlert(data.id);

@@ -40,7 +40,9 @@ const DEFAULT_SETTINGS = {
     customNotificationY: 0,
     minimizeToTray: true,
     stealFocus: true,
-    notificationDuration: 30 // seconds, 0 for never
+    notificationDuration: 30, // seconds, 0 for never
+    // Off for new installs: system-wide shortcuts keep other programs from receiving those keys
+    globalShortcuts: false
 };
 
 let appSettings = { ...DEFAULT_SETTINGS };
@@ -50,6 +52,8 @@ try {
         const saved = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
         // Merge so keys added in newer versions get their defaults
         if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+            // Installs from before the off-by-default change keep the global shortcuts they had
+            if (!('globalShortcuts' in saved)) saved.globalShortcuts = true;
             appSettings = { ...DEFAULT_SETTINGS, ...saved };
         }
     }
@@ -420,7 +424,9 @@ ipcMain.handle('show-custom-notification', (event, data) => {
         snooze: data.snoozeEnabled,
         repeat: data.repeatEnabled,
         id: data.id,
-        repeatCount: data.repeatCount
+        repeatCount: data.repeatCount,
+        meta: data.meta,
+        type: data.type
     };
 
     // Reuse the window if it's already on screen: just swap its content
@@ -487,7 +493,9 @@ ipcMain.handle('show-custom-notification', (event, data) => {
             snooze: data.snoozeEnabled ? 'true' : 'false',
             repeat: data.repeatEnabled ? 'true' : 'false',
             id: String(data.id ?? ''),
-            repeatCount: String(data.repeatCount || 0)
+            repeatCount: String(data.repeatCount || 0),
+            meta: data.meta || '',
+            type: data.type || ''
         }
     });
 
@@ -766,10 +774,12 @@ ipcMain.on('window-close', () => {
 });
 
 // Global shortcuts
-ipcMain.on('register-global-shortcuts', (event, shortcuts) => {
+// Returns the accelerators that couldn't be registered, so the UI can say another program uses them
+ipcMain.handle('register-global-shortcuts', (event, shortcuts) => {
     // Unregister existing ones to avoid conflicts
     globalShortcut.unregisterAll();
 
+    const refused = [];
     Object.entries(shortcuts || {}).forEach(([action, accelerator]) => {
         if (!accelerator) return;
         try {
@@ -778,16 +788,13 @@ ipcMain.on('register-global-shortcuts', (event, shortcuts) => {
                     win.webContents.send('global-shortcut-triggered', action);
                 }
             });
-            if (!registered) {
-                console.log('Shortcut already taken by another program:', accelerator);
-            }
+            if (!registered) refused.push(accelerator);
         } catch (err) {
-            // Suppress error logging for expected conflicts (like Alt+R with the Nvidia overlay)
-            if (!err.message.includes('Registration failed')) {
-                console.log('Error registering shortcut', accelerator, err);
-            }
+            // "Registration failed" when another program holds it (like Alt+R with the Nvidia overlay)
+            refused.push(accelerator);
         }
     });
+    return refused;
 });
 
 ipcMain.on('unregister-global-shortcuts', () => {

@@ -1,5 +1,8 @@
 import { audioManager } from '../utils/AudioManager.js';
 import { STORAGE_KEYS, LIMITS } from '../utils/constants.js';
+import { notificationService } from '../services/NotificationService.js';
+
+export const INTERVAL_ALERT_ID = 'interval';
 
 // Ticks are frequent so steps change on time; the UI is only notified when a displayed second changes
 const TICK_MS = 250;
@@ -36,6 +39,11 @@ class IntervalTimerManager {
         // Listener for stop requests
         document.addEventListener('interval-timer-stop-requested', () => {
             this.cancel();
+        });
+
+        // Restart button of the "Interval Finished" popup
+        document.addEventListener('interval-restart-requested', () => {
+            this.restartFromAlert();
         });
     }
 
@@ -166,6 +174,11 @@ class IntervalTimerManager {
         this.isPaused = false;
         this.pausedRemainingMs = null;
 
+        // Starting a new run means the previous "finished" alert has been seen
+        if (notificationService.activeAlerts.some(a => a.id === INTERVAL_ALERT_ID)) {
+            notificationService.stopAlert(INTERVAL_ALERT_ID);
+        }
+
         this._startCurrentStep();
         this.saveState();
         this.updatePowerBlocker();
@@ -249,6 +262,35 @@ class IntervalTimerManager {
             activePresetId: this.activePresetId,
             presetLabel: this.presetLabel
         });
+
+        // Shown from any tab (and as a popup when the app isn't focused). It's silent:
+        // the step chime already played once, an interval shouldn't ring until stopped
+        notificationService.triggerAlert({
+            id: INTERVAL_ALERT_ID,
+            type: 'interval',
+            title: 'Interval Finished',
+            body: this.presetLabel || 'All steps completed!',
+            soundId: this.soundId,
+            silent: true,
+            snoozeEnabled: false,
+            repeatEnabled: true,
+            data: {
+                steps: this.steps.map(s => ({ ...s })),
+                soundId: this.soundId,
+                presetLabel: this.presetLabel,
+                presetId: this.activePresetId
+            }
+        });
+    }
+
+    // Run the finished interval again (Restart in its alert)
+    restartFromAlert() {
+        const alert = notificationService.activeAlerts.find(a => a.id === INTERVAL_ALERT_ID);
+        if (!alert) return;
+
+        const { steps, soundId, presetLabel, presetId } = alert.data;
+        notificationService.stopAlert(INTERVAL_ALERT_ID);
+        this.start(steps, soundId, presetLabel, presetId);
     }
 
     pause() {
