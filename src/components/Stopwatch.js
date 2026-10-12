@@ -146,7 +146,7 @@ export function Stopwatch() {
     content += `LAP      LAP TIME      TOTAL TIME\n`;
     content += `-------------------------------------------\n`;
 
-    state.laps.reverse().forEach((lap, revIndex) => {
+    [...state.laps].reverse().forEach((lap, revIndex) => {
       const originalIndex = state.laps.length - 1 - revIndex;
       const lapNum = String(revIndex + 1).padEnd(8);
       const lapTime = formatTime(lap.lapTime).padEnd(14);
@@ -162,9 +162,6 @@ export function Stopwatch() {
 
       content += line + `\n`;
     });
-
-    // Revert back so the internal state isn't broken if laps is passed by reference
-    state.laps.reverse();
 
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -402,25 +399,37 @@ export function Stopwatch() {
     });
   }
 
+  // Only one outside-click listener at a time, removed when the dropdown closes or the tab is left
+  let closeSpeedListener = null;
+  function removeCloseSpeedListener() {
+    if (closeSpeedListener) document.removeEventListener('click', closeSpeedListener);
+    closeSpeedListener = null;
+  }
+
   function attachSpeedListeners() {
     container.querySelectorAll('.speed-option').forEach(opt => {
       opt.onclick = () => {
         const newSpeed = parseFloat(opt.dataset.speed);
+        removeCloseSpeedListener();
         stopwatchManager.setSpeed(newSpeed);
         showSpeedSelector = false;
         render();
       };
     });
 
+    removeCloseSpeedListener();
     const closeSpeed = (e) => {
       if (!e.target.closest('.speed-selector-dropdown') && !e.target.closest('#speed-btn')) {
+        removeCloseSpeedListener();
         showSpeedSelector = false;
         render();
-        document.removeEventListener('click', closeSpeed);
       }
     };
+    closeSpeedListener = closeSpeed;
     // setTimeout to avoid immediate trigger
-    setTimeout(() => document.addEventListener('click', closeSpeed), 0);
+    setTimeout(() => {
+      if (closeSpeedListener === closeSpeed) document.addEventListener('click', closeSpeed);
+    }, 0);
   }
 
   function toggle() {
@@ -673,10 +682,14 @@ export function Stopwatch() {
 
   render();
 
+  document.addEventListener('stopwatch-update', render);
+
   return {
     element: container,
     cleanup: () => {
       stopInterval();
+      document.removeEventListener('stopwatch-update', render);
+      removeCloseSpeedListener();
       window.removeEventListener('keydown', handleEsc);
       keybindManager.cleanup();
       if (colorPickerInstance) colorPickerInstance.destroy();

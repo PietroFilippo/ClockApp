@@ -1,4 +1,3 @@
-import { showModal } from '../utils/modal.js';
 import { showConfirm } from '../utils/notification.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { DEFAULT_KEYBINDS } from '../utils/KeybindManager.js';
@@ -13,7 +12,6 @@ export function Settings() {
         autoLaunch: true,
         notificationType: 'app',
         minimizeToTray: true,
-        showTimerInTray: false,
         notificationPosition: 'bottom-right',
         notificationDuration: 30,
         stealFocus: true,

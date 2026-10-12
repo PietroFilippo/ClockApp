@@ -392,8 +392,8 @@ export function Alarm() {
                 </div>
                 <div class="modal-row">
                     <span>Sound</span>
-                    <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${alarm.sound}" title="${audioManager.getSoundName(alarm.sound)}">
-                        ${audioManager.getSoundName(alarm.sound)}
+                    <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${alarm.sound}" title="${escapeHtml(audioManager.getSoundName(alarm.sound))}">
+                        ${escapeHtml(audioManager.getSoundName(alarm.sound))}
                     </button>
                     <input type="hidden" id="modal-sound-value" value="${alarm.sound}">
                 </div>

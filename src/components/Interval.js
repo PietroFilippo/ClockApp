@@ -75,7 +75,7 @@ export function Interval() {
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
 
-    function setupStepDragDelegation(parentEl, listSelector, stepsArray, onReorder) {
+    function setupStepDragDelegation(parentEl, listSelector, getSteps, onReorder) {
         parentEl.addEventListener('dragstart', (e) => {
             const handle = e.target.closest('.interval-drag-handle');
             if (!handle) return; // Only drag via the handle
@@ -117,6 +117,7 @@ export function Interval() {
             if (!list) return;
 
             // Rebuild the array order based on the DOM order
+            const stepsArray = getSteps();
             const reordered = [];
             list.querySelectorAll('.interval-step-draggable').forEach(item => {
                 const idx = parseInt(item.dataset.idx ?? item.dataset.stepIndex);
@@ -135,7 +136,7 @@ export function Interval() {
     initDelegatedListeners();
 
     // Drag-and-drop delegated on the container (set up once, works for any re-render)
-    setupStepDragDelegation(container, '.alarm-list', draftSteps, () => {
+    setupStepDragDelegation(container, '.alarm-list', () => draftSteps, () => {
         saveDraft();
         renderDraftSteps();
     });
@@ -383,8 +384,8 @@ export function Interval() {
               </div>
               <div class="modal-row">
                   <span>Sound</span>
-                  <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${preset.soundId}" title="${audioManager.getSoundName(preset.soundId)}">
-                      ${audioManager.getSoundName(preset.soundId)}
+                  <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${preset.soundId}" title="${escapeHtml(audioManager.getSoundName(preset.soundId))}">
+                      ${escapeHtml(audioManager.getSoundName(preset.soundId))}
                   </button>
                   <input type="hidden" id="modal-sound-value" value="${preset.soundId}">
               </div>
@@ -418,6 +419,10 @@ export function Interval() {
             title: 'Edit Interval',
             content,
             onSave: (overlay) => {
+                if (editSteps.length === 0) {
+                    showAlert('Add at least one step.', 'Invalid Interval');
+                    return false;
+                }
                 const name = overlay.querySelector('#modal-interval-name').value || 'Interval';
                 const soundId = overlay.querySelector('#modal-sound-value').value;
                 intervalTimerManager.updatePreset(id, { label: name, soundId, steps: editSteps });
@@ -449,7 +454,7 @@ export function Interval() {
             });
         }
 
-        setupStepDragDelegation(overlay, '#modal-steps-list', editSteps, () => {
+        setupStepDragDelegation(overlay, '#modal-steps-list', () => editSteps, () => {
             renderEditSteps(overlay);
         });
         const soundTrigger = overlay.querySelector('#modal-sound-trigger');
@@ -527,9 +532,7 @@ export function Interval() {
             item.onclick = () => {
                 const oldId = item.dataset.id;
                 intervalTimerManager.replacePreset(oldId, newPreset);
-                if (document.body.contains(overlay)) {
-                    document.body.removeChild(overlay);
-                }
+                overlay.close();
                 showAlert('Interval replaced!', 'Success');
 
                 draftSteps = [];
@@ -606,8 +609,8 @@ export function Interval() {
           </div>
           <div class="modal-row">
               <span>When Step Ends</span>
-              <button id="interval-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${audioManager.getSoundName(soundId)}">
-                  ${audioManager.getSoundName(soundId)}
+              <button id="interval-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${escapeHtml(audioManager.getSoundName(soundId))}">
+                  ${escapeHtml(audioManager.getSoundName(soundId))}
               </button>
               <input type="hidden" id="interval-sound-value" value="${soundId}">
           </div>
@@ -741,9 +744,7 @@ export function Interval() {
                             saveDraft();
                             render();
                         } else {
-                            if (document.body.contains(overlay)) {
-                                document.body.removeChild(overlay);
-                            }
+                            overlay.close();
                             openReplaceModal(presetData);
                         }
                     }
@@ -1132,10 +1133,7 @@ export function Interval() {
             content: `<div style="text-align: center; padding: 20px;">
                         <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
                         <h2 style="margin-bottom: 10px;">All steps completed!</h2>
-                      </div>`,
-            showCancel: false,
-            confirmText: 'OK',
-            onConfirm: () => { }
+                      </div>`
         };
 
         if (!isPreset) {
@@ -1165,9 +1163,7 @@ export function Interval() {
                             showAlert('Interval saved!', 'Success');
                             render();
                         } else {
-                            if (document.body.contains(saveOverlay)) {
-                                document.body.removeChild(saveOverlay);
-                            }
+                            saveOverlay.close();
                             openReplaceModal(presetData);
                         }
                     }

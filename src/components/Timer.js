@@ -436,8 +436,8 @@ export function Timer() {
           </div>
           <div class="modal-row">
               <span>When Timer Ends</span>
-              <button id="timer-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${audioManager.getSoundName(soundId)}">
-                  ${audioManager.getSoundName(soundId)}
+              <button id="timer-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${escapeHtml(audioManager.getSoundName(soundId))}">
+                  ${escapeHtml(audioManager.getSoundName(soundId))}
               </button>
               <input type="hidden" id="timer-sound-value" value="${soundId}">
           </div>
@@ -627,8 +627,8 @@ export function Timer() {
           </div>
           <div class="modal-row">
               <span>When Timer Ends</span>
-              <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${audioManager.getSoundName(soundId)}">
-                  ${audioManager.getSoundName(soundId)}
+              <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${soundId}" title="${escapeHtml(audioManager.getSoundName(soundId))}">
+                  ${escapeHtml(audioManager.getSoundName(soundId))}
               </button>
               <input type="hidden" id="modal-sound-value" value="${soundId}">
           </div>
@@ -787,8 +787,8 @@ export function Timer() {
         </div>
         <div class="modal-row">
             <span>Sound</span>
-            <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${timer.soundId}" title="${audioManager.getSoundName(timer.soundId)}">
-                ${audioManager.getSoundName(timer.soundId)}
+            <button id="modal-sound-trigger" class="sound-select-btn" data-sound="${timer.soundId}" title="${escapeHtml(audioManager.getSoundName(timer.soundId))}">
+                ${escapeHtml(audioManager.getSoundName(timer.soundId))}
             </button>
             <input type="hidden" id="modal-sound-value" value="${timer.soundId}">
         </div>
@@ -868,9 +868,7 @@ export function Timer() {
             item.onclick = () => {
                 const oldId = item.dataset.id;
                 timerManager.replaceSavedTimer(oldId, newTimer);
-                if (document.body.contains(overlay)) {
-                    document.body.removeChild(overlay);
-                }
+                overlay.close();
                 showAlert('Timer replaced!', 'Success');
                 render();
             };

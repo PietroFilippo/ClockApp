@@ -1,6 +1,6 @@
 import { audioManager } from './AudioManager.js';
 import { showModal } from './modal.js';
-import { truncate } from './notification.js';
+import { escapeHtml } from './sanitize.js';
 
 export function openSoundPicker(currentSoundId, onSelect) {
     const builtInSounds = audioManager.getBuiltInSounds();
@@ -28,6 +28,10 @@ export function openSoundPicker(currentSoundId, onSelect) {
     });
 
     function stopPreview() {
+        const previewAudio = audioManager.getPreviewAudio();
+        previewAudio.onended = null;
+        previewAudio.ontimeupdate = null;
+        previewAudio.onloadedmetadata = null;
         audioManager.stopPreview();
         playingId = null;
     }
@@ -44,7 +48,7 @@ export function openSoundPicker(currentSoundId, onSelect) {
         container.innerHTML = sounds.map(s => `
             <div class="picker-item ${s.id === currentSoundId ? 'selected' : ''}" data-id="${s.id}">
                 <div class="picker-item-info">
-                    <span class="picker-item-name" title="${s.name}">${s.name}</span>
+                    <span class="picker-item-name" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span>
                 </div>
                 <button class="picker-preview-btn ${playingId === s.id ? 'playing' : ''}" data-src="${s.data}" data-id="${s.id}">
                     ${playingId === s.id ? '⏸' : '▶'}
@@ -58,7 +62,7 @@ export function openSoundPicker(currentSoundId, onSelect) {
                 if (e.target.closest('.picker-preview-btn')) return;
                 stopPreview();
                 onSelect(item.dataset.id);
-                overlay.remove();
+                overlay.close();
             };
         });
 

@@ -39,12 +39,10 @@ export class KeybindManager {
 
         // Register initial shortcuts
         if (window.electronAPI) {
-            window.electronAPI.removeGlobalShortcutListener();
             window.electronAPI.unregisterGlobalShortcuts();
 
             if (this.useGlobalShortcuts) {
                 window.electronAPI.registerGlobalShortcuts(this.keybinds);
-                window.electronAPI.onGlobalShortcut((action) => this.onAction(action));
             }
         }
 
