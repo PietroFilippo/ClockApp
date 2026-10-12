@@ -122,8 +122,6 @@ export class NotificationService {
     }
 
     async handleNotification(alert) {
-        if (!this.permissionsGranted) return;
-
         let type = 'system';
         if (window.electronAPI) {
             const settings = await window.electronAPI.getSettings();
@@ -133,7 +131,7 @@ export class NotificationService {
         // Don't show a notification for an alert that was stopped while settings were loading
         if (!this.isTopAlert(alert)) return;
 
-        if (type === 'system' || type === 'both') {
+        if ((type === 'system' || type === 'both') && this.permissionsGranted) {
             new Notification(alert.title, { body: alert.body });
         }
 

@@ -41,6 +41,12 @@ function createModalBase(title, message, buttons) {
     return overlay;
 }
 
+// Only the dialog on top reacts to the keyboard when several are stacked
+function isTopmost(overlay) {
+    const overlays = document.querySelectorAll('.modal-overlay');
+    return overlays[overlays.length - 1] === overlay;
+}
+
 function cleanup(overlay, handleKey) {
     if (document.body.contains(overlay)) {
         document.body.removeChild(overlay);
@@ -70,6 +76,7 @@ export function showAlert(message, title = 'Notification') {
         };
 
         const handleKey = (e) => {
+            if (!isTopmost(overlay)) return;
             if (e.key === 'Escape' || e.key === 'Enter') close();
         };
         window.addEventListener('keydown', handleKey);
@@ -94,6 +101,7 @@ export function showConfirm(message, title = 'Confirm', confirmLabel = 'OK') {
         };
 
         const handleKey = (e) => {
+            if (!isTopmost(overlay)) return;
             if (e.key === 'Escape') handleResult(false);
             else if (e.key === 'Enter') handleResult(true);
         };

@@ -3,6 +3,7 @@ import { showAlert } from '../utils/notification.js';
 import { ColorPicker } from '../utils/ColorPicker.js';
 import { KeybindManager } from '../utils/KeybindManager.js';
 import { STORAGE_KEYS, COLORS, LIMITS } from '../utils/constants.js';
+import { loadJSON } from '../utils/storage.js';
 import { AnalogStopwatch } from '../utils/AnalogStopwatch.js';
 
 export function Stopwatch() {
@@ -35,7 +36,7 @@ export function Stopwatch() {
   window.addEventListener('keydown', handleEsc);
 
   // Load custom colors from localStorage
-  let customColors = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_CUSTOM_COLORS)) || [];
+  let customColors = loadJSON(STORAGE_KEYS.STOPWATCH_CUSTOM_COLORS, [], Array.isArray);
 
   let showKeybindsModal = false;
   let showSpeedSelector = false;

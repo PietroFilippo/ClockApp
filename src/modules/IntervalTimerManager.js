@@ -23,6 +23,7 @@ class IntervalTimerManager {
         this.presetLabel = '';
         this.activePresetId = null;
         this.intervalId = null;
+        this.chimeStopTimeout = null; // Cuts the finishing chime short, see finish()
 
         this.loadState();
         if (this.isRunning && !this.isPaused) {
@@ -173,6 +174,8 @@ class IntervalTimerManager {
         this.isRunning = true;
         this.isPaused = false;
         this.pausedRemainingMs = null;
+        // A quick restart must not let the previous run's delayed stop cut this run's chimes
+        clearTimeout(this.chimeStopTimeout);
 
         // Starting a new run means the previous "finished" alert has been seen
         if (notificationService.activeAlerts.some(a => a.id === INTERVAL_ALERT_ID)) {
@@ -255,7 +258,7 @@ class IntervalTimerManager {
         this.isRunning = false;
         this.isPaused = false;
         // Stop the sound when finished
-        setTimeout(() => audioManager.stopChime(), 2000);
+        this.chimeStopTimeout = setTimeout(() => audioManager.stopChime(), 2000);
         this.saveState();
         this.updatePowerBlocker();
         this.notify('interval-timer-finished', {

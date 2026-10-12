@@ -359,7 +359,7 @@ class TimerManager {
             snoozeEnabled: false,
             repeatEnabled: true,
             repeatCount: timer.repeatCount,
-            data: { initialHours: timer.initialHours, initialMinutes: timer.initialMinutes, initialSeconds: timer.initialSeconds }
+            data: { label: timer.label || '', initialHours: timer.initialHours, initialMinutes: timer.initialMinutes, initialSeconds: timer.initialSeconds }
         });
 
         this.notify('timer-finished', {
@@ -387,7 +387,8 @@ class TimerManager {
             initialHours: alert.data.initialHours,
             initialMinutes: alert.data.initialMinutes,
             initialSeconds: alert.data.initialSeconds,
-            label: alert.body,
+            // The body falls back to "Time is up!" for unlabeled timers; repeat with the real label
+            label: alert.data.label ?? (alert.body === 'Time is up!' ? '' : alert.body),
             soundId: alert.soundId,
             repeatCount: alert.repeatCount
         });
