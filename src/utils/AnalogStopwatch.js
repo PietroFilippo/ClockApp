@@ -7,14 +7,15 @@ export class AnalogStopwatch {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
-        // HiDPI scaling
-        this.dpr = window.devicePixelRatio || 1;
+        // The dial is drawn in a fixed 300px space; the bitmap follows the canvas's CSS width
+        // (set in stopwatch-analog.css) so small windows get a smaller, still crisp dial
         this.cssSize = 300;
-        this.canvas.width = this.cssSize * this.dpr;
-        this.canvas.height = this.cssSize * this.dpr;
-        this.canvas.style.width = `${this.cssSize}px`;
-        this.canvas.style.height = `${this.cssSize}px`;
-        this.ctx.scale(this.dpr, this.dpr);
+        this.lastElapsedMs = 0;
+        this.resize();
+        this.resizeObserver = new ResizeObserver(() => {
+            if (this.resize()) this.draw(this.lastElapsedMs);
+        });
+        this.resizeObserver.observe(canvas);
 
         // Center and radius
         this.cx = this.cssSize / 2;
@@ -34,7 +35,22 @@ export class AnalogStopwatch {
         this.subHandColor = '#ffffff';
     }
 
+    // Match the bitmap to the rendered size; returns true when it changed
+    resize() {
+        const dpr = window.devicePixelRatio || 1;
+        const rendered = this.canvas.clientWidth || this.cssSize;
+        const pixels = Math.round(rendered * dpr);
+        if (pixels === this.canvas.width && pixels === this.canvas.height) return false;
+        this.canvas.width = pixels;
+        this.canvas.height = pixels;
+        // Scaling once here keeps every drawing routine in the 300px space
+        this.ctx.setTransform(pixels / this.cssSize, 0, 0, pixels / this.cssSize, 0, 0);
+        return true;
+    }
+
     draw(elapsedMs) {
+        if (!this.ctx) return;
+        this.lastElapsedMs = elapsedMs;
         const ctx = this.ctx;
         const size = this.cssSize;
 
@@ -212,6 +228,8 @@ export class AnalogStopwatch {
     }
 
     destroy() {
+        if (this.resizeObserver) this.resizeObserver.disconnect();
+        this.resizeObserver = null;
         this.ctx = null;
         this.canvas = null;
     }

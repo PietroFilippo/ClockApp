@@ -19,8 +19,8 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #38383a;
-    transition: .4s;
+    background-color: var(--separator-color);
+    transition: background-color 0.2s ease;
 }
 
 .slider:before {
@@ -31,7 +31,13 @@
     left: 2px;
     bottom: 2px;
     background-color: white;
-    transition: .4s;
+    transition: transform 0.2s ease;
+}
+
+/* The native checkbox is visually hidden, so show keyboard focus on the track instead */
+.switch input:focus-visible+.slider {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
 }
 
 input:checked+.slider {
@@ -56,13 +62,20 @@ input:checked+.slider:before {
     justify-content: space-between;
     align-items: center;
     padding: 15px 0;
-    border-bottom: 1px solid #38383a;
+    border-bottom: 1px solid var(--separator-color);
     color: white;
     font-size: 16px;
 }
 
 .modal-row:last-child {
     border-bottom: none;
+}
+
+/* Short windows: slightly tighter rows so inline forms (Timer / Interval pages) fit above the nav */
+@media (max-height: 600px) {
+    .modal-row {
+        padding: 12px 0;
+    }
 }
 
 .modal-row span:first-child {
@@ -76,11 +89,10 @@ input:checked+.slider:before {
     color: var(--text-primary);
     font-size: 16px;
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     flex: 1;
     margin-left: 20px;
     min-width: 0;
-    transition: border-color 0.2s, background-color 0.2s;
 }
 
 .modal-row input[type="text"]:focus {
@@ -94,23 +106,28 @@ input:checked+.slider:before {
     border: none;
     color: var(--text-secondary);
     font-size: 16px;
-    outline: none;
     cursor: pointer;
     color-scheme: dark;
     text-align: right;
     text-align-last: right;
     direction: rtl;
     max-width: 70%;
+    border-radius: 6px;
+}
+
+.modal-row select:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
 }
 
 .modal-row select option {
-    background-color: #1c1c1e;
+    background-color: var(--surface-color);
     color: white;
     direction: ltr;
 }
 
 optgroup {
-    background-color: #1c1c1e;
+    background-color: var(--surface-color);
     color: var(--accent-orange);
     font-style: normal;
     font-weight: 600;

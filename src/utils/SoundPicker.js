@@ -9,11 +9,11 @@ export function openSoundPicker(currentSoundId, onSelect) {
     let playingId = null;
 
     const overlay = showModal({
-        title: 'Select Sound',
+        title: 'Choose a sound',
         content: `
-            <div class="sound-picker-tabs">
-                <div class="picker-tab active" data-tab="pre-installed">Pre-installed</div>
-                <div class="picker-tab" data-tab="custom">Custom</div>
+            <div class="sound-picker-tabs" role="tablist">
+                <button type="button" class="picker-tab active" role="tab" aria-selected="true" data-tab="pre-installed">Built-in</button>
+                <button type="button" class="picker-tab" role="tab" aria-selected="false" data-tab="custom">Custom</button>
             </div>
             <div class="sound-picker-list" id="picker-list-container">
                 <!-- List items rendered here -->
@@ -41,7 +41,7 @@ export function openSoundPicker(currentSoundId, onSelect) {
         const sounds = currentTab === 'pre-installed' ? builtInSounds : customSounds;
 
         if (sounds.length === 0) {
-            container.innerHTML = '<div style="text-align:center; color:#555; padding:20px;">No sounds available</div>';
+            container.innerHTML = '<div style="text-align:center; color:var(--text-secondary); padding:20px;">No custom sounds yet. Add one under Sound in the header.</div>';
             return;
         }
 
@@ -106,8 +106,9 @@ export function openSoundPicker(currentSoundId, onSelect) {
     // Tab switching
     overlay.querySelectorAll('.picker-tab').forEach(tab => {
         tab.onclick = () => {
-            overlay.querySelectorAll('.picker-tab').forEach(t => t.classList.remove('active'));
+            overlay.querySelectorAll('.picker-tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
             tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
             currentTab = tab.dataset.tab;
             stopPreview();
             renderList();

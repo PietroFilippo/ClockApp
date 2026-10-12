@@ -10,9 +10,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 15px 0;
-    border-bottom: 1px solid #38383a;
+    border-bottom: 1px solid var(--separator-color);
     position: relative;
-    transition: background-color 0.2s;
     cursor: default;
 }
 
@@ -141,15 +140,14 @@
 }
 
 .city-sort-dropdown select {
-    background: #2c2c2e;
+    background: var(--surface-raised);
     color: var(--text-primary);
-    border: 1px solid #48484a;
-    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
     padding: 6px 10px;
     font-size: 13px;
     font-family: var(--font-family);
     cursor: pointer;
-    outline: none;
     min-width: 80px;
 }
 
@@ -157,11 +155,16 @@
     border-color: var(--accent-orange);
 }
 
+.city-sort-dropdown select:focus-visible {
+    outline: none;
+    border-color: var(--accent-orange);
+}
+
 .city-clear-btn {
     background: rgba(255, 69, 58, 0.15);
     color: var(--accent-red);
     border: 1px solid rgba(255, 69, 58, 0.3);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     width: 32px;
     height: 32px;
     display: flex;
@@ -170,7 +173,6 @@
     cursor: pointer;
     font-size: 14px;
     font-family: var(--font-family);
-    transition: all 0.2s ease;
     flex-shrink: 0;
 }
 
@@ -200,7 +202,6 @@
     align-items: center;
     justify-content: center;
     border-radius: 4px;
-    transition: all 0.15s ease;
 }
 
 .letter-btn:hover:not(.disabled) {
@@ -213,7 +214,7 @@
 }
 
 .letter-btn.disabled {
-    color: #48484a;
+    color: var(--border-strong);
     cursor: default;
     pointer-events: none;
 }
@@ -228,22 +229,21 @@
 }
 
 .city-item-btn {
-    background: #2c2c2e;
+    background: var(--surface-raised);
     border: none;
     padding: 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     color: white;
     text-align: left;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: background-color 0.2s, color 0.2s;
     width: 100%;
 }
 
 .city-item-btn:hover {
-    background: #3a3a3c;
+    background: var(--surface-hover);
 }
 
 .city-item-btn.selected {
@@ -262,14 +262,14 @@
     accent-color: var(--accent-orange);
 }
 
+/* Sits on a raised surface: use the higher-contrast secondary tone */
 .city-meta {
-    color: #8e8e93;
+    color: var(--text-tertiary);
     font-size: 14px;
-    transition: color 0.2s;
 }
 
 .city-item-btn.selected .city-meta {
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
 }
 
 .city-offset {

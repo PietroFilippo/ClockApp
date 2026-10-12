@@ -40,40 +40,66 @@
 
 .stopwatch-analog-container canvas {
     display: block;
+    /* The renderer sizes its bitmap from this width (AnalogStopwatch.js), so the dial stays crisp
+       when small windows shrink it to keep Start/Reset in view */
+    width: min(300px, 70vw, calc(100vh - 360px));
+    aspect-ratio: 1;
 }
 
 .analog-digital-readout {
-    font-size: 28px;
+    font-size: clamp(20px, 5vh, 28px);
     font-weight: 300;
     text-align: center;
     margin-top: 10px;
     font-variant-numeric: tabular-nums;
     color: var(--text-primary);
-    letter-spacing: 1px;
 }
 
-/* Pagination Dots */
+/* Pagination dots: real buttons with a 20px hit area around an 8px dot */
 .stopwatch-view-dots {
     display: flex;
-    gap: 8px;
+    gap: 4px;
     justify-content: center;
     align-items: center;
-    margin: 8px 0 4px;
+    margin: 2px 0 0;
 }
 
 .view-dot {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.view-dot::before {
+    content: "";
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.3);
-    cursor: pointer;
-    transition: background 0.2s;
 }
 
-.view-dot.active {
+.view-dot.active::before {
     background: var(--text-primary);
 }
 
-.view-dot:hover:not(.active) {
+.view-dot:hover:not(.active)::before {
     background: rgba(255, 255, 255, 0.5);
+}
+
+/* Short windows: tighter spacing around the dial so Start/Reset stay in view */
+@media (max-height: 600px) {
+    .stopwatch-analog-container {
+        margin: 4px 0;
+    }
+
+    .analog-digital-readout {
+        margin-top: 6px;
+    }
 }

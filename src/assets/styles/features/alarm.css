@@ -10,7 +10,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 15px 0;
-    border-bottom: 1px solid #38383a;
+    border-bottom: 1px solid var(--separator-color);
     overflow: hidden;
     /* Ensure the item does not overflow the container */
 }
@@ -30,7 +30,6 @@
     font-size: 48px;
     font-weight: 200;
     color: var(--text-primary);
-    transition: color 0.2s;
 }
 
 .alarm-time.disabled {
@@ -72,16 +71,21 @@
 .day-option {
     width: 30px;
     height: 30px;
+    padding: 0;
     border-radius: 50%;
-    border: 1px solid #38383a;
+    border: 1px solid var(--separator-color);
     background: none;
     color: white;
     display: flex;
     justify-content: center;
     align-items: center;
+    font-family: inherit;
     font-size: 12px;
     cursor: pointer;
-    transition: all 0.2s;
+}
+
+.day-option:hover:not(.selected) {
+    border-color: var(--text-secondary);
 }
 
 .day-option.selected {
@@ -105,5 +109,5 @@
 
 .alarm-item.selected {
     background: rgba(255, 159, 10, 0.08);
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
 }

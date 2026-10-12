@@ -321,12 +321,12 @@ export function Timer() {
 
         container.innerHTML = `
       <div class="header">
-        <button class="edit-btn" id="edit-recents-btn" style="visibility: ${showEditBtn ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
+        <button class="header-btn" id="edit-recents-btn" style="visibility: ${showEditBtn ? 'visible' : 'hidden'}">${isEditing ? 'Done' : 'Edit'}</button>
         <h1>Timers</h1>
-        <div class="add-btn-container" style="display: flex; gap: 10px;">
-          <button class="add-btn" id="cancel-edit-timer-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
-          <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
-          <button class="add-timer-btn" title="Add Timer" ${!canAddMore ? 'disabled' : ''}>+</button>
+        <div class="add-btn-container">
+          <button class="header-btn" id="cancel-edit-timer-btn" style="display: none;">Cancel</button>
+          <button class="header-btn" id="audio-settings-btn">Sound</button>
+          <button class="add-timer-btn header-icon-btn" title="New timer" aria-label="New timer" ${!canAddMore ? 'disabled' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
         </div>
       </div>
       <div class="active-timers-section"></div>
@@ -377,7 +377,7 @@ export function Timer() {
         <div class="timer-card-ring">
           <svg width="44" height="44">
             <circle
-              stroke="rgba(255,255,255,0.1)"
+              class="progress-ring__track"
               stroke-width="3"
               fill="transparent"
               r="${cardRadius}"
@@ -388,6 +388,7 @@ export function Timer() {
               class="card-ring-circle"
               stroke="var(--accent-orange)"
               stroke-width="3"
+              stroke-linecap="round"
               fill="transparent"
               r="${cardRadius}"
               cx="22"
@@ -492,10 +493,10 @@ export function Timer() {
         if (editBtn) {
             if (isEditing && selectedRecents.size > 0) {
                 editBtn.textContent = `Delete (${selectedRecents.size})`;
-                editBtn.style.color = 'var(--accent-red)';
+                editBtn.classList.add('danger');
             } else {
                 editBtn.textContent = isEditing ? 'Done' : 'Edit';
-                editBtn.style.color = '';
+                editBtn.classList.remove('danger');
             }
             const hasActive = timerManager.getActiveTimerCount() > 0;
             const hasItems = activeTab === 'saved' ? savedTimers.length > 0 : recents.length > 0;
@@ -526,19 +527,28 @@ export function Timer() {
 
         container.innerHTML = `
       <div class="header">
-        <button class="timer-back-btn">← Back</button>
+        <button class="timer-back-btn header-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back</button>
         <h1>Timers</h1>
-        <div class="add-btn-container" style="display: flex; gap: 10px;">
-          <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
+        <div class="add-btn-container">
+          <button class="header-btn" id="audio-settings-btn">Sound</button>
         </div>
       </div>
       <div class="timer-detail-label">${escapeHtml(timer.label || 'Timer')}</div>
       <div class="timer-display-container">
         <svg class="progress-ring" width="300" height="300">
           <circle
+            class="progress-ring__track"
+            stroke-width="8"
+            fill="transparent"
+            r="${detailRadius}"
+            cx="150"
+            cy="150"
+          />
+          <circle
             class="progress-ring__circle"
             stroke="var(--accent-orange)"
             stroke-width="8"
+            stroke-linecap="round"
             fill="transparent"
             r="${detailRadius}"
             cx="150"

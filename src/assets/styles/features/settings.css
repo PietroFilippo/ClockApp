@@ -6,7 +6,6 @@
     cursor: pointer;
     padding: 5px;
     opacity: 0.7;
-    transition: opacity 0.2s;
     color: var(--accent-orange);
 }
 
@@ -25,18 +24,17 @@
     position: absolute;
     right: 20px;
     top: 10px;
-    background: #3a3a3c;
+    background: var(--surface-hover);
     border: none;
     color: white;
     border-radius: 20px;
     padding: 5px 12px;
     cursor: pointer;
     font-size: 14px;
-    transition: background 0.2s;
 }
 
 .speed-toggle-btn:hover {
-    background: #48484a;
+    background: var(--border-strong);
 }
 
 .speed-toggle-btn.active {
@@ -53,8 +51,8 @@
     position: absolute;
     top: 50px;
     right: 20px;
-    background: #2c2c2e;
-    border-radius: 8px;
+    background: var(--surface-raised);
+    border-radius: var(--radius-md);
     padding: 5px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     z-index: 100;
@@ -80,48 +78,70 @@
     color: var(--accent-orange);
 }
 
-/* Modal keybinds */
+/* Keyboard shortcuts modal */
 .keybind-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 8px;
+    margin-bottom: 10px;
 }
 
 .keybind-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #2c2c2e;
-    padding: 10px;
-    border-radius: 8px;
+    gap: 12px;
+    background: var(--surface-raised);
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
 }
 
-.keybind-item span {
-    text-transform: capitalize;
+.keybind-label {
+    min-width: 0;
 }
 
+/* Shown under a shortcut Windows refused because another program already uses it */
+.keybind-warning {
+    font-size: 12px;
+    color: var(--accent-yellow);
+    margin-top: 2px;
+}
+
+/* The current key combo, drawn like a keycap */
 .record-btn {
-    background: #3a3a3c;
-    border: none;
+    background: var(--surface-hover);
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
     padding: 5px 10px;
-    border-radius: 4px;
+    border-radius: 6px;
     color: white;
-    min-width: 80px;
+    min-width: 88px;
     cursor: pointer;
-    font-family: monospace;
-    transition: background 0.2s, color 0.2s;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.record-btn:hover {
+    border-color: var(--accent-orange);
 }
 
 .record-btn.recording {
     background: var(--accent-orange);
+    border-color: var(--accent-orange);
     color: black;
+}
+
+.keybind-item.unavailable .record-btn {
+    border-color: var(--accent-yellow);
 }
 
 /* Colors Modal */
 .color-picker-modal {
     background: #2d2d30;
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     padding: 20px;
     width: 600px;
     max-width: 95vw;
@@ -153,7 +173,6 @@
     font-size: 24px;
     cursor: pointer;
     opacity: 0.7;
-    transition: opacity 0.2s;
 }
 
 .color-picker-close:hover {
@@ -165,8 +184,6 @@
     color: var(--text-secondary);
     margin: 15px 0 10px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
@@ -174,22 +191,12 @@
     user-select: none;
     padding: 5px 10px;
     border-radius: 4px;
-    transition: background 0.2s;
 }
 
 .sound-category-header:hover {
     background: rgba(255, 255, 255, 0.05);
 }
 
-.modal-section {
-    width: 100%;
-    max-width: 400px;
-    margin: 0 auto 30px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 0 15px;
-    box-sizing: border-box;
-}
 
 .color-picker-left {
     display: flex;
@@ -222,20 +229,27 @@
 .sound-picker-tabs {
     display: flex;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 4px;
     margin-bottom: 20px;
 }
 
 .picker-tab {
     flex: 1;
+    min-width: 0;
     text-align: center;
     padding: 8px;
     cursor: pointer;
+    border: none;
+    background: none;
     border-radius: 6px;
+    font-family: inherit;
     font-size: 14px;
-    color: var(--text-secondary);
-    transition: all 0.2s;
+    color: var(--text-tertiary);
+}
+
+.picker-tab:hover:not(.active) {
+    color: var(--text-primary);
 }
 
 .picker-tab.active {
@@ -256,11 +270,10 @@
     justify-content: space-between;
     align-items: center;
     padding: 12px 15px;
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     margin-bottom: 8px;
     background: rgba(255, 255, 255, 0.03);
     cursor: pointer;
-    transition: background 0.2s;
     gap: 10px;
 }
 
@@ -308,7 +321,6 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    transition: background 0.2s;
 }
 
 .picker-preview-btn:hover {
@@ -319,15 +331,14 @@
 .sound-select-btn {
     background: rgba(255, 255, 255, 0.05);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 8px 12px;
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
     font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: all 0.2s;
     max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -392,7 +403,7 @@
 
 .color-input-group label {
     font-size: 12px;
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
 }
 
 .hex-input {
@@ -402,7 +413,7 @@
     padding: 8px 10px;
     color: white;
     font-size: 14px;
-    font-family: monospace;
+    font-variant-numeric: tabular-nums;
     width: 100%;
 }
 
@@ -441,7 +452,7 @@
 
 .rgb-input-row span {
     font-size: 12px;
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
     min-width: 40px;
 }
 
@@ -452,7 +463,7 @@
 
 .section-label {
     font-size: 12px;
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
     display: block;
     margin-bottom: 10px;
 }
@@ -469,7 +480,6 @@
     border-radius: 50%;
     cursor: pointer;
     border: 2px solid transparent;
-    transition: transform 0.1s, border-color 0.1s;
 }
 
 .basic-color-swatch:hover {
@@ -510,7 +520,6 @@
     line-height: 1;
     padding: 0;
     opacity: 0.7;
-    transition: all 0.2s;
 }
 
 .custom-action-btn:hover {
@@ -547,7 +556,6 @@
 
 .custom-color-swatch {
     border: 2px solid transparent;
-    transition: transform 0.1s, border-color 0.1s;
 }
 
 .custom-colors-grid.deleting .custom-color-swatch:hover {
@@ -594,7 +602,7 @@
     padding: 10px 20px;
 }
 
-/* Color Options */
+/* Lap color chips (buttons: Enter / Space open the picker) */
 .color-selection-options {
     display: flex;
     flex-direction: column;
@@ -606,15 +614,20 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    width: 100%;
     padding: 12px 15px;
-    background: #2c2c2e;
-    border-radius: 10px;
+    background: var(--surface-raised);
+    border: none;
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 16px;
+    text-align: left;
     cursor: pointer;
-    transition: background 0.2s;
 }
 
 .color-selection-item:hover {
-    background: #3a3a3c;
+    background: var(--surface-hover);
 }
 
 .color-selection-item .color-dot {
@@ -627,7 +640,7 @@
 /* Audio Settings */
 .audio-controls {
     padding: 10px 0;
-    border-bottom: 1px solid #38383a;
+    border-bottom: 1px solid var(--separator-color);
     margin-bottom: 20px;
 }
 
@@ -647,8 +660,8 @@
     display: flex;
     flex-direction: column;
     padding: 10px;
-    background: #2c2c2e;
-    border-radius: 8px;
+    background: var(--surface-raised);
+    border-radius: var(--radius-md);
     margin-bottom: 8px;
 }
 
@@ -692,19 +705,18 @@
 }
 
 .upload-btn {
-    background: #2c2c2e;
+    background: var(--surface-raised);
     color: var(--accent-orange);
     border: 1px dashed var(--accent-orange);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     padding: 12px;
     width: 100%;
     text-align: center;
     cursor: pointer;
-    transition: background 0.2s;
 }
 
 .upload-btn:hover {
-    background: #3a3a3c;
+    background: var(--surface-hover);
 }
 
 .file-input-wrapper {
@@ -723,4 +735,180 @@
     cursor: pointer;
     width: 100%;
     height: 100%;
+}
+/* Settings page */
+.settings-list {
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.settings-group-title {
+    color: var(--text-secondary);
+    font-size: 18px;
+    font-weight: 600;
+    margin: 20px 0 10px;
+}
+
+.settings-subgroup-title {
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    margin: 15px 0 5px;
+}
+
+.setting-item {
+    background: var(--surface-overlay);
+    padding: 15px;
+    border-radius: var(--radius-xl);
+    margin-bottom: 10px;
+}
+
+.setting-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.setting-item-label {
+    font-size: 16px;
+}
+
+.setting-item-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 5px;
+}
+
+.setting-select {
+    background: var(--surface-hover);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.setting-select:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.custom-duration-input {
+    display: none;
+    align-items: center;
+    margin-top: 10px;
+    gap: 10px;
+}
+
+.custom-duration-input.open {
+    display: flex;
+}
+
+.custom-duration-input .duration-input {
+    background: var(--surface-color);
+    border: 1px solid var(--border-strong);
+    color: white;
+    padding: 8px;
+    border-radius: 6px;
+    width: 100px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.custom-duration-input .duration-input:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+}
+
+.custom-duration-unit {
+    font-size: 14px;
+    color: var(--text-tertiary);
+}
+
+.settings-action-btn {
+    margin-top: 10px;
+    width: 100%;
+    background: var(--accent-orange);
+    border: none;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: black;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.settings-action-btn:hover {
+    background: #ffb340;
+}
+
+/* Shortcuts Windows couldn't register: sits right under the Global shortcuts card */
+.settings-warning {
+    font-size: 12px;
+    color: var(--accent-yellow);
+    margin: -4px 0 10px;
+    padding: 0 15px;
+}
+
+.settings-exit-btn {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--accent-red-dim);
+    border: none;
+    border-radius: var(--radius-xl);
+    color: var(--accent-red);
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.settings-exit-btn:hover {
+    background: rgba(255, 69, 58, 0.22);
+}
+
+.settings-download {
+    text-align: center;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.settings-download h3 {
+    margin-bottom: 10px;
+}
+
+.settings-download p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.settings-download a {
+    text-decoration: none;
+}
+
+.settings-download-btn {
+    background: var(--accent-orange);
+    color: black;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.settings-version {
+    margin-top: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 12px;
 }

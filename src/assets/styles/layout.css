@@ -1,10 +1,10 @@
 /* Navigation Bar */
 .nav-bar {
     background-color: var(--surface-color);
-    padding: 10px 20px;
+    padding: 6px 20px;
     display: flex;
     justify-content: space-around;
-    border-top: 0.5px solid #38383a;
+    border-top: 0.5px solid var(--separator-color);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     position: sticky;
@@ -21,17 +21,40 @@
     align-items: center;
     gap: 4px;
     cursor: pointer;
-    transition: color 0.2s ease;
+    padding: 4px 8px;
+    border-radius: var(--radius-lg);
     font-size: 10px;
     font-weight: 500;
 }
 
-.nav-item.active {
-    color: var(--accent-orange);
+.nav-item:hover {
+    color: var(--text-primary);
+    background-color: rgba(255, 255, 255, 0.06);
 }
 
+.nav-item:active {
+    transform: scale(0.96);
+}
+
+.nav-item.active {
+    color: var(--accent-orange);
+    font-weight: 600;
+}
+
+/* Inactive tabs show a muted grayscale icon so the active (full-color) one stands out */
 .nav-icon {
     font-size: 24px;
+    filter: grayscale(1);
+    opacity: 0.6;
+}
+
+.nav-item:hover .nav-icon {
+    opacity: 0.85;
+}
+
+.nav-item.active .nav-icon {
+    filter: none;
+    opacity: 1;
 }
 
 /* Custom Title Bar */
@@ -83,7 +106,6 @@
     align-items: center;
     cursor: pointer;
     font-size: 16px;
-    transition: background 0.2s;
 }
 
 .title-btn:hover {
@@ -147,7 +169,6 @@
     padding: 4px 12px;
     font-size: 12px;
     cursor: pointer;
-    transition: all 0.2s ease;
     font-weight: 500;
 }
 

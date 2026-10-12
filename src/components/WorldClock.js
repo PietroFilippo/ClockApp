@@ -40,11 +40,11 @@ export function WorldClock() {
         if (!container.querySelector('.header')) {
             container.innerHTML = `
           <div class="header">
-            <button class="edit-btn" id="edit-clock-btn">Edit</button>
+            <button class="header-btn" id="edit-clock-btn">Edit</button>
             <h1>World Clock</h1>
-            <div class="add-btn-container" style="display: flex; gap: 10px;">
-              <button class="add-btn" id="cancel-edit-clock-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
-              <button class="add-btn" id="add-clock-btn">+</button>
+            <div class="add-btn-container">
+              <button class="header-btn" id="cancel-edit-clock-btn" style="display: none;">Cancel</button>
+              <button class="header-icon-btn" id="add-clock-btn" title="Add city" aria-label="Add city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
             </div>
           </div>
           <div class="clock-list"></div>
@@ -62,10 +62,10 @@ export function WorldClock() {
         if (editBtn) {
             if (isEditing && selectedClocks.size > 0) {
                 editBtn.textContent = `Delete (${selectedClocks.size})`;
-                editBtn.style.color = 'var(--accent-red)';
+                editBtn.classList.add('danger');
             } else {
                 editBtn.textContent = isEditing ? 'Done' : 'Edit';
-                editBtn.style.color = '';
+                editBtn.classList.remove('danger');
             }
         }
 

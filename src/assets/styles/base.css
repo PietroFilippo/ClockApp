@@ -51,3 +51,33 @@ h1 {
     font-weight: 700;
     font-size: 34px;
 }
+
+/* Keyboard focus: visible ring for anything focusable, mouse clicks stay clean */
+:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+}
+
+/* Text fields draw their own focus border, so keep the ring flush when it does show */
+input[type="text"]:focus-visible,
+input[type="number"]:focus-visible,
+input[type="time"]:focus-visible {
+    outline-offset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    /* The paused-timer pulse is gone, so dim the time statically instead */
+    .timer-card.paused .timer-card-time {
+        opacity: 0.5;
+    }
+}

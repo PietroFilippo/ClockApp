@@ -9,6 +9,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 16px;
     z-index: 1000;
     backdrop-filter: blur(5px);
     animation: fadeIn 0.2s;
@@ -17,9 +18,13 @@
 .modal-content {
     background: var(--surface-color);
     padding: 20px;
-    border-radius: 14px;
+    border-radius: var(--radius-2xl);
     width: 90%;
     max-width: 320px;
+    /* Tall modals scroll inside the window instead of clipping past its edges */
+    max-height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     display: flex;
     flex-direction: column;
     gap: 15px;
@@ -30,13 +35,18 @@
     font-size: 18px;
     text-align: center;
     margin-bottom: 0;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
 .modal-input {
-    background: #2c2c2e;
+    background: var(--surface-raised);
     border: none;
     padding: 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     color: white;
     font-size: 16px;
 }
@@ -44,36 +54,138 @@
 .modal-actions {
     display: flex;
     gap: 10px;
+    flex-shrink: 0;
 }
 
 .modal-btn {
     flex: 1;
     padding: 12px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
+    font-family: inherit;
     font-size: 16px;
     cursor: pointer;
     font-weight: 500;
+    background: var(--surface-raised);
+    color: var(--text-primary);
+}
+
+.modal-btn:hover {
+    background: var(--surface-hover);
+}
+
+.modal-btn:active {
+    opacity: 0.8;
 }
 
 .modal-btn.cancel {
-    background: #2c2c2e;
     color: var(--accent-red);
 }
 
-.modal-btn.save {
-    background: #2c2c2e;
+.modal-btn.save,
+.modal-btn.primary {
     color: var(--accent-orange);
 }
 
+/* A lone OK button spans the row */
+.modal-btn.cancel.primary {
+    width: 100%;
+    color: var(--accent-orange);
+}
+
+/* Grouped rows: used inside modals and inline on the Timer / Interval pages (single definition) */
 .modal-section {
-    background: #1c1c1e;
-    border-radius: 10px;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto 30px;
+    background: var(--surface-overlay);
+    border-radius: var(--radius-xl);
     padding: 0 15px;
-    margin-bottom: 20px;
-    max-width: 1000px;
-    margin-left: auto;
-    margin-right: auto;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+/* Ring overlay (alarm / timer / interval going off) */
+.ring-overlay-body {
+    text-align: center;
+}
+
+.ring-overlay-time {
+    font-size: 48px;
+    margin: 20px 0;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+/* Timer and interval headlines are words (a label, a preset name), not a clock time */
+.ring-overlay--timer .ring-overlay-time,
+.ring-overlay--interval .ring-overlay-time {
+    font-size: 34px;
+    line-height: 1.2;
+}
+
+.ring-overlay-label {
+    color: var(--text-secondary);
+    font-size: 20px;
+    margin-bottom: 15px;
+    overflow-wrap: anywhere;
+}
+
+.ring-overlay-label:empty {
+    display: none;
+}
+
+.modal-btn.ring-overlay-action,
+.modal-btn.ring-overlay-secondary {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+/* Ringing: hot buttons (orange action, red stop) */
+.modal-btn.ring-overlay-action {
+    background: var(--accent-orange);
+    color: black;
+}
+
+.modal-btn.ring-overlay-action:hover {
+    background: #ffb340;
+}
+
+.modal-btn.ring-overlay-secondary {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+}
+
+.modal-btn.ring-overlay-secondary:hover {
+    background: var(--surface-hover);
+}
+
+.modal-btn.save.ring-overlay-stop {
+    background: var(--accent-red);
+    color: white;
+}
+
+.modal-btn.save.ring-overlay-stop:hover {
+    background: #ff6961;
+}
+
+/* Finished interval: nothing is ringing, so the buttons cool down and Done is the green way out */
+.ring-overlay--interval .modal-btn.ring-overlay-action {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+}
+
+.ring-overlay--interval .modal-btn.ring-overlay-action:hover {
+    background: var(--surface-hover);
+}
+
+.ring-overlay--interval .modal-btn.save.ring-overlay-stop {
+    background: var(--accent-green);
+    color: black;
+}
+
+.ring-overlay--interval .modal-btn.save.ring-overlay-stop:hover {
+    background: #4cd964;
 }
 
 /* Notification Modal Specifics */
@@ -84,7 +196,7 @@
     display: flex;
     flex-direction: column;
     background: var(--surface-color);
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 

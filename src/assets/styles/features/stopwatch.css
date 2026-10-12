@@ -1,15 +1,17 @@
 /* Stopwatch */
 .stopwatch-display {
-    font-size: 72px;
+    font-size: clamp(48px, 16vw, 72px);
     font-weight: 200;
     text-align: center;
-    margin: 40px 0;
+    margin: clamp(16px, 5vh, 40px) 0;
     font-variant-numeric: tabular-nums;
 }
 
+/* Start/Reset stay centered with a gap that scales with the window instead of hugging the edges */
 .controls {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
+    gap: clamp(60px, 28vw, 240px);
     padding: 0 20px;
     margin-bottom: 20px;
 }
@@ -17,6 +19,7 @@
 .control-btn {
     width: 80px;
     height: 80px;
+    flex-shrink: 0;
     border-radius: 50%;
     border: none;
     font-size: 16px;
@@ -47,7 +50,7 @@
 .laps-list {
     display: flex;
     flex-direction: column;
-    border-top: 1px solid #38383a;
+    border-top: 1px solid var(--separator-color);
     /* max-height: 300px;  Removed to fix double scrollbar */
     /* overflow-y: auto; */
 }
@@ -56,7 +59,7 @@
     display: flex;
     justify-content: space-between;
     padding: 15px 0;
-    border-bottom: 1px solid #38383a;
+    border-bottom: 1px solid var(--separator-color);
     color: var(--text-secondary);
 }
 
@@ -81,12 +84,11 @@
     cursor: pointer;
     padding: 8px 12px;
     background: var(--surface-color);
-    border-radius: 8px;
-    transition: background 0.2s;
+    border-radius: var(--radius-md);
 }
 
 .lap-color-item:hover {
-    background: #2c2c2e;
+    background: var(--surface-raised);
 }
 
 .color-dot {
@@ -99,4 +101,10 @@
 .lap-item.lap-fastest span,
 .lap-item.lap-slowest span {
     font-weight: 600;
+}
+
+/* The highlight color (set inline on the row) applies to the lap time as well as the lap number */
+.lap-item.lap-fastest span:last-child,
+.lap-item.lap-slowest span:last-child {
+    color: inherit;
 }

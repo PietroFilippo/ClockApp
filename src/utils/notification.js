@@ -81,11 +81,11 @@ export function showAlert(message, title = 'Notification') {
     });
 }
 
-export function showConfirm(message, title = 'Confirm') {
+export function showConfirm(message, title = 'Confirm', confirmLabel = 'OK') {
     return new Promise((resolve) => {
         const overlay = createModalBase(title, message, [
             { label: 'Cancel', className: 'cancel', id: 'notif-cancel' },
-            { label: 'OK', className: 'save', id: 'notif-confirm' }
+            { label: confirmLabel, className: 'save', id: 'notif-confirm' }
         ]);
 
         const handleResult = (result) => {
@@ -120,5 +120,5 @@ export async function confirmDelete(label, context = 'Item') {
     container.appendChild(labelSpan);
     container.appendChild(document.createTextNode(`"?`));
 
-    return await showConfirm(container, `Delete ${context}`);
+    return await showConfirm(container, `Delete ${context.toLowerCase()}?`, 'Delete');
 }

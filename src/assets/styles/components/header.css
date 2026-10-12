@@ -1,9 +1,10 @@
 /* Header & Shared */
 .header {
-    display: flex;
-    justify-content: center;
-    /* Center the title */
+    display: grid;
+    /* Equal side columns keep the title centered; actions wrap before they can overlap it */
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
+    column-gap: 8px;
     margin-bottom: 25px;
     min-height: 50px;
 
@@ -18,38 +19,145 @@
 }
 
 .header h1 {
+    grid-column: 2;
+    grid-row: 1;
     margin-bottom: 0;
     text-align: center;
+    white-space: nowrap;
+    font-size: clamp(24px, 5.5vw, 34px);
 }
 
-.header>.edit-btn {
-    position: absolute;
-    left: 20px;
+.header>.header-btn,
+.header>.edit-btn,
+.header>.timer-back-btn {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    position: static;
 }
 
+.header>.header-icon-btn,
 .header>.add-btn,
 .header>.add-btn-container {
-    position: absolute;
-    right: 20px;
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    position: static;
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
 }
 
-.add-btn {
+/* Narrow windows: actions on the first row, title on its own row below (iOS large-title style) */
+@media (max-width: 560px) {
+    .header {
+        grid-template-columns: auto minmax(0, 1fr);
+        row-gap: 0;
+        margin-bottom: 8px;
+    }
+
+    .header h1 {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .header>.header-btn,
+    .header>.edit-btn,
+    .header>.timer-back-btn {
+        grid-column: 1;
+    }
+
+    .header>.header-icon-btn,
+    .header>.add-btn,
+    .header>.add-btn-container {
+        grid-column: 2;
+    }
+}
+
+/* Header actions: one text style (Edit, Sound, Shortcuts, Cancel, Back) and one icon style (+) */
+.header-btn,
+.edit-btn,
+.add-btn,
+.timer-back-btn {
     background: none;
     border: none;
     color: var(--accent-orange);
-    font-size: 32px;
-    cursor: pointer;
-    padding: 0 10px;
-}
-
-.edit-btn {
-    background: none;
-    border: none;
-    color: var(--accent-orange);
-    font-size: 18px;
-    cursor: pointer;
+    font-family: inherit;
+    font-size: 16px;
     font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: var(--radius-md);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/* Edit becomes "Delete (n)" with a selection: the danger color says what the click will do */
+.header-btn.danger,
+.edit-btn.danger {
+    color: var(--accent-red);
+}
+
+.header-btn svg,
+.timer-back-btn svg {
+    width: 18px;
+    height: 18px;
+    margin-left: -4px;
+    flex-shrink: 0;
+}
+
+.header-icon-btn,
+.add-timer-btn {
+    background: none;
+    border: none;
+    color: var(--accent-orange);
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.header-icon-btn svg,
+.add-timer-btn svg {
+    width: 22px;
+    height: 22px;
+}
+
+.header-icon-btn:disabled,
+.add-timer-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.header-btn:hover,
+.edit-btn:hover,
+.add-btn:hover,
+.timer-back-btn:hover,
+.header-icon-btn:hover:not(:disabled),
+.add-timer-btn:hover:not(:disabled) {
+    background-color: var(--accent-orange-dim);
+}
+
+.header-btn.danger:hover,
+.edit-btn.danger:hover {
+    background-color: var(--accent-red-dim);
+}
+
+.header-btn:active,
+.edit-btn:active,
+.add-btn:active,
+.timer-back-btn:active,
+.header-icon-btn:active,
+.add-timer-btn:active {
+    opacity: 0.7;
 }

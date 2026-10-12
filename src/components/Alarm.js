@@ -35,12 +35,12 @@ export function Alarm() {
     if (!container.querySelector('.header')) {
       container.innerHTML = `
         <div class="header">
-          <button class="edit-btn" id="edit-alarm-btn">Edit</button>
+          <button class="header-btn" id="edit-alarm-btn">Edit</button>
           <h1>Alarm</h1>
-          <div class="add-btn-container" style="display: flex; gap: 10px;">
-              <button class="add-btn" id="cancel-edit-alarm-btn" style="display: none; font-size: 14px; width: auto; padding: 0 10px;">Cancel</button>
-              <button class="add-btn" id="audio-settings-btn" style="font-size: 14px; width: auto; padding: 0 10px;">Sound</button>
-              <button class="add-btn" id="add-alarm-btn">+</button>
+          <div class="add-btn-container">
+              <button class="header-btn" id="cancel-edit-alarm-btn" style="display: none;">Cancel</button>
+              <button class="header-btn" id="audio-settings-btn">Sound</button>
+              <button class="header-icon-btn" id="add-alarm-btn" title="New alarm" aria-label="New alarm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
           </div>
         </div>
         <div class="alarm-list"></div>
@@ -57,10 +57,10 @@ export function Alarm() {
     if (editBtn) {
       if (isEditing && selectedAlarms.size > 0) {
         editBtn.textContent = `Delete (${selectedAlarms.size})`;
-        editBtn.style.color = 'var(--accent-red)';
+        editBtn.classList.add('danger');
       } else {
         editBtn.textContent = isEditing ? 'Done' : 'Edit';
-        editBtn.style.color = '';
+        editBtn.classList.remove('danger');
       }
     }
 
@@ -126,7 +126,7 @@ export function Alarm() {
       // Remove all existing items
       alarmList.querySelectorAll('.alarm-item').forEach(el => el.remove());
       if (!emptyMsg) {
-        alarmList.innerHTML = '<p class="alarm-empty-msg" style="text-align:center; color:var(--text-secondary); margin-top:50px;">No Alarms</p>';
+        alarmList.innerHTML = '<p class="alarm-empty-msg" style="text-align:center; color:var(--text-secondary); margin-top:50px;">No alarms yet. Add one with the + button.</p>';
       }
       return;
     }
@@ -365,8 +365,9 @@ export function Alarm() {
     }
 
     const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const allDaysSelected = days.every((_, i) => alarm.repeat.includes(i));
-    const buttonText = allDaysSelected ? 'Clear' : 'Select All';
+    const buttonText = allDaysSelected ? 'Clear' : 'Select all';
 
     const content = `
       <div style="text-align:center; padding: 20px 0;">
@@ -380,7 +381,7 @@ export function Alarm() {
                 </div>
                 <div class="day-selector">
                     ${days.map((d, i) => `
-                        <div class="day-option ${alarm.repeat.includes(i) ? 'selected' : ''}" data-day="${i}">${d}</div>
+                        <button type="button" class="day-option ${alarm.repeat.includes(i) ? 'selected' : ''}" data-day="${i}" aria-label="${dayNames[i]}" aria-pressed="${alarm.repeat.includes(i)}">${d}</button>
                     `).join('')}
                 </div>
             </div>
@@ -406,16 +407,16 @@ export function Alarm() {
                 </div>
                 <div class="modal-row" id="snooze-duration-row" style="display: ${alarm.snoozeEnabled ? 'flex' : 'none'}; flex-direction: column; align-items: stretch; gap: 10px;">
                     <div style="display:flex; justify-content:space-between;">
-                        <span>Duration</span>
+                        <span>Snooze for</span>
                         <span id="snooze-val-display" style="color:var(--text-secondary)">${alarm.snoozeInterval} min</span>
                     </div>
-                    <input type="range" id="modal-snooze-interval" min="1" max="30" value="${alarm.snoozeInterval}" style="width: 100%; accent-color: var(--accent-orange);"> 
+                    <input type="range" id="modal-snooze-interval" min="1" max="30" value="${alarm.snoozeInterval}" aria-label="Snooze for, in minutes" style="width: 100%; accent-color: var(--accent-orange);">
                 </div>
             </div>
 `;
 
     const overlay = showModal({
-      title: existingId ? 'Edit Alarm' : 'Add Alarm',
+      title: existingId ? 'Edit alarm' : 'New alarm',
       content: content,
       onSave: (ov) => {
         const time = ov.querySelector('#modal-time').value;
@@ -455,7 +456,8 @@ export function Alarm() {
 
     const updateButtonState = () => {
       const allSelected = Array.from(dayOptions).every(opt => opt.classList.contains('selected'));
-      toggleBtn.textContent = allSelected ? 'Clear' : 'Select All';
+      toggleBtn.textContent = allSelected ? 'Clear' : 'Select all';
+      dayOptions.forEach(opt => opt.setAttribute('aria-pressed', opt.classList.contains('selected')));
     };
     updateButtonState();
 

@@ -25,7 +25,7 @@ export function openSoundSettingsModal(onSave) {
     const content = `
       <div class="audio-settings">
         <div class="audio-controls">
-          <label>Master Volume</label>
+          <label for="master-volume">Volume</label>
           <div class="volume-slider-container">
             <span id="vol-low">🔈</span>
             <input type="range" id="master-volume" class="volume-slider" min="0" max="1" step="0.1" value="${volume}">
@@ -33,9 +33,9 @@ export function openSoundSettingsModal(onSave) {
           </div>
         </div>
 
-        <div class="sound-picker-tabs">
-          <div class="picker-tab active" data-tab="pre-installed">Pre-installed</div>
-          <div class="picker-tab" data-tab="custom">Custom (<span id="custom-count">${audioManager.getCustomSounds().length}</span>/${limit})</div>
+        <div class="sound-picker-tabs" role="tablist">
+          <button type="button" class="picker-tab active" role="tab" aria-selected="true" data-tab="pre-installed">Built-in</button>
+          <button type="button" class="picker-tab" role="tab" aria-selected="false" data-tab="custom">Custom (<span id="custom-count">${audioManager.getCustomSounds().length}</span>/${limit})</button>
         </div>
 
         <div class="sound-picker-list" id="sound-list-container">
@@ -64,7 +64,7 @@ export function openSoundSettingsModal(onSave) {
     }
 
     const overlay = showModal({
-        title: 'Sound Settings',
+        title: 'Sounds',
         content,
         onSave: () => {
             stopPreview();
@@ -277,8 +277,9 @@ export function openSoundSettingsModal(onSave) {
     // Tab switching
     overlay.querySelectorAll('.picker-tab').forEach(tab => {
         tab.onclick = () => {
-            overlay.querySelectorAll('.picker-tab').forEach(t => t.classList.remove('active'));
+            overlay.querySelectorAll('.picker-tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
             tab.classList.add('active');
+            tab.setAttribute('aria-selected', 'true');
             currentTab = tab.dataset.tab;
             stopPreview();
             renderList();
