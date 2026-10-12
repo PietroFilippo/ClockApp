@@ -117,7 +117,7 @@ export function Settings() {
         }
 
         content += `
-                <div class="settings-version">Clock App v3.3.6</div>
+                <div class="settings-version">Clock App v3.4.0</div>
             </div>
         `;
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clock-app-v3.3.6';
+const CACHE_NAME = 'clock-app-v3.4.0';
 
 // Activate immediately without waiting for open tabs
 self.addEventListener('install', () => {
