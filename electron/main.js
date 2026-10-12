@@ -3,7 +3,7 @@ import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 // Global error handlers — prevent silent crashes
 process.on('uncaughtException', (error) => {
@@ -569,7 +569,8 @@ ipcMain.handle('save-file', async (event, name, buffer) => {
     const targetPath = path.join(soundsDir, safeName);
 
     await fs.promises.writeFile(targetPath, Buffer.from(buffer));
-    return `file://${targetPath.replace(/\\/g, '/')}`;
+    // Properly encoded, so user folders with spaces, # or % still give a valid URL
+    return pathToFileURL(targetPath).href;
 });
 
 ipcMain.handle('delete-file', async (event, filename) => {
@@ -584,10 +585,6 @@ ipcMain.handle('delete-file', async (event, filename) => {
         }
     }
     return true;
-});
-
-ipcMain.handle('get-store-path', () => {
-    return `file://${soundsDir.replace(/\\/g, '/')}`;
 });
 
 // IPC Handlers: Auto-Update

@@ -46,3 +46,11 @@ FunctionEnd
     CreateShortCut "$DESKTOP\${SHORTCUT_NAME}.lnk" "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
   ${EndIf}
 !macroend
+
+# createDesktopShortcut is off in package.json (the checkbox page above replaces it), so
+# electron-builder won't remove the shortcut on uninstall: do it here, but keep it across updates
+!macro customUnInstall
+  ${ifNot} ${isUpdated}
+    Delete "$DESKTOP\${SHORTCUT_NAME}.lnk"
+  ${endIf}
+!macroend

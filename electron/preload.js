@@ -8,7 +8,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // End global shortcuts
     saveFile: (filename, content) => ipcRenderer.invoke('save-file', filename, content),
     deleteFile: (filename) => ipcRenderer.invoke('delete-file', filename),
-    getStorePath: () => ipcRenderer.invoke('get-store-path'),
     // Settings API
     getSettings: () => ipcRenderer.invoke('get-settings'),
     saveSetting: (key, value) => ipcRenderer.invoke('save-setting', key, value),
