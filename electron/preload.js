@@ -5,14 +5,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     unregisterGlobalShortcuts: () => ipcRenderer.send('unregister-global-shortcuts'),
     onGlobalShortcut: (callback) => ipcRenderer.on('global-shortcut-triggered', (event, action) => callback(action)),
     removeGlobalShortcutListener: () => ipcRenderer.removeAllListeners('global-shortcut-triggered'),
-    // End Shortcuts globais
+    // End global shortcuts
     saveFile: (filename, content) => ipcRenderer.invoke('save-file', filename, content),
     deleteFile: (filename) => ipcRenderer.invoke('delete-file', filename),
     getStorePath: () => ipcRenderer.invoke('get-store-path'),
     // Settings API
     getSettings: () => ipcRenderer.invoke('get-settings'),
     saveSetting: (key, value) => ipcRenderer.invoke('save-setting', key, value),
-    setPowerBlocker: (enabled) => ipcRenderer.invoke('set-power-blocker', enabled),
+    setPowerBlocker: (enabled, source) => ipcRenderer.invoke('set-power-blocker', enabled, source),
     showCustomNotification: (data) => ipcRenderer.invoke('show-custom-notification', data),
     closeCustomNotification: () => ipcRenderer.invoke('close-custom-notification'),
     onNotificationAction: (callback) => ipcRenderer.on('notification-action', (event, data) => callback(data)),
@@ -23,11 +23,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     closeWindow: () => ipcRenderer.send('window-close'),
     pickCustomPosition: () => ipcRenderer.invoke('pick-custom-notification-position'),
 
-    // Taskbar: título da janela e barra de progresso
+    // Taskbar: window title and progress bar
     setWindowTitle: (title) => ipcRenderer.send('set-window-title', title),
     setProgressBar: (progress) => ipcRenderer.send('set-progress-bar', progress),
 
-    // Windows API Secundaria
+    // Secondary windows API
     moveWindow: (data) => ipcRenderer.send('window-move', data),
     sendNotificationAction: (data) => ipcRenderer.send('notification-action', data),
     saveCustomPosition: () => ipcRenderer.send('save-custom-position'),
@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     removeUpdateProgressListener: () => ipcRenderer.removeAllListeners('update-progress'),
     onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', () => callback()),
     removeUpdateDownloadedListener: () => ipcRenderer.removeAllListeners('update-downloaded'),
+    onUpdateError: (callback) => ipcRenderer.on('update-error', () => callback()),
     startUpdateDownload: () => ipcRenderer.invoke('start-update-download'),
     openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

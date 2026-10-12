@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, powerSaveBlocker, screen, globalShortcut, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, powerSaveBlocker, screen, globalShortcut, shell, crashReporter, session } from 'electron';
 import pkg from 'electron-updater';
 const { autoUpdater } = pkg;
 import path from 'path';
@@ -14,7 +14,7 @@ process.on('unhandledRejection', (reason) => {
     console.error('Unhandled Rejection:', reason);
 });
 
-// Padroniza nome do app para caminho de dados do usuario
+// Standardize the app name so the user data path is stable
 app.setName('Clock App');
 if (process.platform === 'win32') {
     app.setAppUserModelId('com.pietrofilippo.clockapp');
@@ -25,63 +25,134 @@ const userDataPath = app.getPath('userData');
 const soundsDir = path.join(userDataPath, 'sounds');
 const settingsPath = path.join(userDataPath, 'settings.json');
 
-// Garante que o diretório de sons exista
+// Make sure the sounds directory exists
 if (!fs.existsSync(soundsDir)) {
     fs.mkdirSync(soundsDir, { recursive: true });
 }
 
-// Carrega Configurações
-let appSettings = {
+// Load settings
+const DEFAULT_SETTINGS = {
     preventSuspend: false,
     autoLaunch: true,
-    notificationType: 'app', // 'system', 'app', 'both'
+    notificationType: 'app', // 'system', 'app', 'both', 'none'
     notificationPosition: 'bottom-right',
     customNotificationX: 0,
     customNotificationY: 0,
     minimizeToTray: true,
-    showTimerInTray: false,
     stealFocus: true,
-    notificationDuration: 30 // segundos, 0 para nunca
+    notificationDuration: 30 // seconds, 0 for never
 };
+
+let appSettings = { ...DEFAULT_SETTINGS };
 
 try {
     if (fs.existsSync(settingsPath)) {
-        appSettings = JSON.parse(fs.readFileSync(settingsPath));
+        const saved = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        // Merge so keys added in newer versions get their defaults
+        if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+            appSettings = { ...DEFAULT_SETTINGS, ...saved };
+        }
     }
 } catch (e) {
     console.error('Error loading settings', e);
 }
 
+// Write to a temp file and rename, so a crash or power loss mid-write can't leave a corrupt settings.json
+function saveSettings() {
+    try {
+        const tmpPath = `${settingsPath}.tmp`;
+        fs.writeFileSync(tmpPath, JSON.stringify(appSettings, null, 2));
+        fs.renameSync(tmpPath, settingsPath);
+    } catch (e) {
+        console.error('Error saving settings:', e);
+    }
+}
+
 let win = null;
 let tray = null;
 let isQuitting = false;
+let sessionEnding = false;
 let powerBlockerId = null;
 let notificationWindow = null;
+let notificationRevealed = false;
+let notificationCloseTimer = null;
 let positionPickerWindow = null;
+
+const NOTIFICATION_WIDTH = 350;
+const NOTIFICATION_HEIGHT = 160;
+const NOTIFICATION_MARGIN = 20;
+const WM_ENDSESSION = 0x0016;
+const UNRESPONSIVE_GRACE_MS = 15_000;
 
 function getIconPath() {
     if (process.env.VITE_DEV_SERVER_URL) {
         return path.join(__dirname, '../public/icon.png');
     } else {
-        // Em prod, vite copia assets publicos pra dist
+        // In prod, Vite copies public assets into dist
         return path.join(__dirname, '../dist/icon.png');
     }
 }
 
+// True if a meaningful part of the rectangle is on a connected display (monitors can be unplugged between runs)
+function isOnScreen({ x, y, width, height }) {
+    const minVisible = 50;
+    return screen.getAllDisplays().some(({ workArea: area }) => {
+        const overlapX = Math.min(x + width, area.x + area.width) - Math.max(x, area.x);
+        const overlapY = Math.min(y + height, area.y + area.height) - Math.max(y, area.y);
+        return overlapX >= minVisible && overlapY >= minVisible;
+    });
+}
+
+function showMainWindow() {
+    if (!win || win.isDestroyed()) return;
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+}
+
+function saveWindowState() {
+    if (!win || win.isDestroyed()) return;
+    // getNormalBounds() returns the restored size even when maximized or minimized
+    const bounds = win.getNormalBounds();
+    appSettings.windowState = {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        isMaximized: win.isMaximized()
+    };
+    saveSettings();
+}
+
+// Recovering a crashed or hung renderer is fine, but never in a loop
+let recentRecoveries = [];
+function canRecoverRenderer() {
+    if (isQuitting || sessionEnding) return false;
+    const now = Date.now();
+    recentRecoveries = recentRecoveries.filter(time => now - time < 60_000);
+    if (recentRecoveries.length >= 3) return false;
+    recentRecoveries.push(now);
+    return true;
+}
+
 function createWindow() {
     const iconPath = getIconPath();
-    // Salva estado da janela
+    // Restore the saved window state
     const windowState = appSettings.windowState || {};
+    const width = windowState.width || 900;
+    const height = windowState.height || 700;
+    const hasSavedPosition = Number.isFinite(windowState.x) && Number.isFinite(windowState.y)
+        && isOnScreen({ x: windowState.x, y: windowState.y, width, height });
 
-    win = new BrowserWindow({
-        width: windowState.width || 900,
-        height: windowState.height || 700,
-        x: windowState.x,
-        y: windowState.y,
+    const mainWindow = new BrowserWindow({
+        width,
+        height,
+        x: hasSavedPosition ? windowState.x : undefined,
+        y: hasSavedPosition ? windowState.y : undefined,
         minWidth: 400,
         minHeight: 520,
-        frame: false, // Barra de título customizada
-        backgroundColor: '#000000', // Previne flash branco durante minimize/restore
+        frame: false, // Custom title bar
+        backgroundColor: '#000000', // Prevents white flash during minimize/restore
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -90,90 +161,105 @@ function createWindow() {
         },
         autoHideMenuBar: true,
         icon: iconPath,
-        show: false // Mostra manualmente via ready-to-show
+        show: false // Shown manually via ready-to-show
     });
+    win = mainWindow;
 
     if (windowState.isMaximized) {
-        win.maximize();
+        mainWindow.maximize();
     }
 
-    // Mostra janela apenas quando o conteúdo estiver pronto (evita flash branco)
-    win.once('ready-to-show', () => {
-        win.show();
+    // Only show the window once the content is ready (avoids white flash)
+    mainWindow.once('ready-to-show', () => {
+        mainWindow.show();
     });
 
-    // Carrega dev/prod
+    // Load dev/prod
     if (process.env.VITE_DEV_SERVER_URL) {
-        win.loadURL(process.env.VITE_DEV_SERVER_URL);
-        // win.webContents.openDevTools(); 
+        mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+        // mainWindow.webContents.openDevTools();
     } else {
-        win.loadFile(path.join(__dirname, '../dist/index.html'));
+        mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
     }
 
-    win.on('close', (event) => {
-        // Salva estado da janela antes de fechar/ocultar
-        if (win && !win.isDestroyed()) {
-            const bounds = win.getBounds();
-            appSettings.windowState = {
-                x: bounds.x,
-                y: bounds.y,
-                width: bounds.width,
-                height: bounds.height,
-                isMaximized: win.isMaximized()
-            };
-            try {
-                fs.writeFileSync(settingsPath, JSON.stringify(appSettings, null, 2));
-            } catch (e) {
-                console.error('Error saving window state:', e);
+    mainWindow.on('close', (event) => {
+        // Save window state before closing/hiding
+        saveWindowState();
+
+        // Minimize to tray if the setting is enabled and the tray icon exists
+        if (!isQuitting && appSettings.minimizeToTray && tray && !tray.isDestroyed()) {
+            event.preventDefault();
+            mainWindow.hide();
+            return;
+        }
+
+        // Without minimize to tray, closing the main window quits the app
+        isQuitting = true;
+    });
+
+    mainWindow.on('closed', () => {
+        if (win === mainWindow) win = null;
+    });
+
+    // Reload if the renderer crashes. Never while quitting or while Windows ends the session:
+    // spawning processes at that point is what trips Chromium's internal CHECKs.
+    mainWindow.webContents.on('render-process-gone', (event, details) => {
+        console.error('Renderer gone:', details.reason);
+        if (details.reason === 'clean-exit' || !canRecoverRenderer()) return;
+        mainWindow.webContents.reload();
+    });
+
+    // Reload if the page stays hung (a reload drops any alert that is ringing, so give it time to recover first)
+    let unresponsiveTimer = null;
+    mainWindow.on('unresponsive', () => {
+        console.error('Window became unresponsive');
+        clearTimeout(unresponsiveTimer);
+        unresponsiveTimer = setTimeout(() => {
+            if (!mainWindow.isDestroyed() && canRecoverRenderer()) {
+                console.error('Still unresponsive, reloading...');
+                mainWindow.webContents.reload();
             }
-        }
+        }, UNRESPONSIVE_GRACE_MS);
+    });
+    mainWindow.on('responsive', () => clearTimeout(unresponsiveTimer));
 
-        // Minimiza pra tray se a setting é valida e habilitada
-        if (!isQuitting && appSettings.minimizeToTray) {
-            // Verifica se tray existe antes de esconder
-            if (tray && !tray.isDestroyed()) {
-                event.preventDefault();
-                win.hide();
-                return false;
-            }
-        }
+    // Auto-updater: check for updates after the window loads
+    mainWindow.webContents.on('did-finish-load', () => {
+        checkForUpdates();
+    });
+}
+
+// Windows shutdown / restart / log off. These are BrowserWindow events (App has no 'session-end'),
+// so they're attached to every window: whichever window Windows messages first must handle it.
+function attachSessionEndHandlers(window) {
+    if (process.platform !== 'win32') return;
+
+    // Windows asks whether the session may end. Never block it: stop all self-healing
+    // (renderer reloads, window recreation) and persist state while there's still time.
+    window.on('query-session-end', () => {
+        if (sessionEnding) return;
+        sessionEnding = true;
+        saveWindowState();
+        session.defaultSession.flushStorageData();
     });
 
-    // Limpa quando a janela é fechada (se não minimizada)
-    win.on('closed', () => {
-        win = null;
+    // wParam is FALSE when another app cancelled the shutdown, so go back to normal
+    window.hookWindowMessage(WM_ENDSESSION, (wParam) => {
+        if (wParam.every(byte => byte === 0)) sessionEnding = false;
     });
 
-    // Recupera janela se o renderizador crashar
-    win.webContents.on('render-process-gone', (event, details) => {
-        console.error('Renderer crashed:', details.reason);
-        if (win && !win.isDestroyed()) {
-            win.destroy();
-        }
-        win = null;
-        createWindow();
-    });
-
-    // Recupera janela se ficar sem resposta
-    win.on('unresponsive', () => {
-        console.error('Window became unresponsive, reloading...');
-        if (win && !win.isDestroyed()) {
-            win.webContents.reload();
-        }
-    });
-
-    // Auto-updater: verifica atualização após a janela carregar
-    win.webContents.on('did-finish-load', () => {
-        if (app.isPackaged) {
-            autoUpdater.checkForUpdates().catch(err => {
-                console.log('Update check failed:', err.message);
-            });
-        }
+    // The session is ending for real. Terminate immediately (as Chrome does) rather than an
+    // orderly app.exit(): Windows kills our child processes in parallel, and a teardown racing
+    // that trips Chromium CHECKs, the 0x80000003 "unknown software exception" dialog.
+    window.on('session-end', () => {
+        sessionEnding = true;
+        stopPowerBlocker();
+        process.kill(process.pid, 'SIGKILL'); // TerminateProcess on Windows
     });
 }
 
 function createTray() {
-    // Se já existe um tray válido, não recria
+    // If a valid tray already exists, don't recreate it
     if (tray && !tray.isDestroyed()) return;
 
     try {
@@ -182,7 +268,7 @@ function createTray() {
         const contextMenu = Menu.buildFromTemplate([
             {
                 label: 'Show App',
-                click: () => { if (win) win.show(); }
+                click: showMainWindow
             },
             {
                 label: 'Quit',
@@ -195,20 +281,11 @@ function createTray() {
         tray.setToolTip('Clock App');
         tray.setContextMenu(contextMenu);
 
-        tray.on('double-click', () => {
-            if (win) win.show();
-        });
+        tray.on('click', showMainWindow);
     } catch (error) {
         console.error("Failed to create tray icon:", error);
-        // Desabilita minimize to tray se não conseguir criar a UI pra ele
+        // Disable minimize to tray if its UI can't be created
         appSettings.minimizeToTray = false;
-    }
-}
-
-// Garante que o tray esteja válido (recria se o Explorer reiniciar e destruir o ícone)
-function ensureTray() {
-    if (!tray || tray.isDestroyed()) {
-        createTray();
     }
 }
 
@@ -217,17 +294,13 @@ ipcMain.handle('get-settings', () => {
     return appSettings;
 });
 
-ipcMain.handle('save-setting', async (event, key, value) => {
+ipcMain.handle('save-setting', (event, key, value) => {
     appSettings[key] = value;
-    try {
-        await fs.promises.writeFile(settingsPath, JSON.stringify(appSettings, null, 2));
-    } catch (e) {
-        console.error('Error saving settings:', e);
-    }
+    saveSettings();
 
-    // Aplica efeitos imediatos
+    // Apply immediate effects
     if (key === 'autoLaunch') {
-        // Apenas modifica auto-launch se empacotado pra evitar "zombie" dev processes
+        // Only change auto-launch when packaged to avoid "zombie" dev processes
         if (app.isPackaged) {
             app.setLoginItemSettings({ openAtLogin: value });
         }
@@ -235,181 +308,211 @@ ipcMain.handle('save-setting', async (event, key, value) => {
 });
 
 // IPC: Power
-ipcMain.handle('set-power-blocker', (event, enabled) => {
+// Timers and intervals request the blocker independently; keep it on while any of them needs it
+const powerBlockRequests = new Set();
+
+function stopPowerBlocker() {
+    if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
+        powerSaveBlocker.stop(powerBlockerId);
+    }
+    powerBlockerId = null;
+}
+
+ipcMain.handle('set-power-blocker', (event, enabled, source = 'default') => {
     if (enabled) {
+        powerBlockRequests.add(source);
+    } else {
+        powerBlockRequests.delete(source);
+    }
+
+    if (powerBlockRequests.size > 0) {
         if (powerBlockerId === null) {
             powerBlockerId = powerSaveBlocker.start('prevent-display-sleep');
-            // Power Blocker ligado
         }
     } else {
-        if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
-            powerSaveBlocker.stop(powerBlockerId);
-            // Power Blocker desligado
-            powerBlockerId = null;
-        }
+        stopPowerBlocker();
     }
 });
 
 // IPC: Custom Notification
+function getDefaultNotificationPosition() {
+    const area = screen.getPrimaryDisplay().workArea;
+    const left = area.x + NOTIFICATION_MARGIN;
+    const right = area.x + area.width - NOTIFICATION_WIDTH - NOTIFICATION_MARGIN;
+    const top = area.y + NOTIFICATION_MARGIN;
+    const bottom = area.y + area.height - NOTIFICATION_HEIGHT - NOTIFICATION_MARGIN;
+
+    switch (appSettings.notificationPosition) {
+        case 'top-right': return { x: right, y: top };
+        case 'top-left': return { x: left, y: top };
+        case 'bottom-left': return { x: left, y: bottom };
+        default: return { x: right, y: bottom };
+    }
+}
+
+// The saved custom position, or null if it was never picked or its monitor is gone
+function getCustomNotificationPosition() {
+    const x = appSettings.customNotificationX;
+    const y = appSettings.customNotificationY;
+    if (!Number.isFinite(x) || !Number.isFinite(y) || (x === 0 && y === 0)) return null;
+    return isOnScreen({ x, y, width: NOTIFICATION_WIDTH, height: NOTIFICATION_HEIGHT }) ? { x, y } : null;
+}
+
+function getNotificationPosition() {
+    if (appSettings.notificationPosition === 'custom') {
+        return getCustomNotificationPosition() || getDefaultNotificationPosition();
+    }
+    return getDefaultNotificationPosition();
+}
+
+function revealNotification(notifWindow) {
+    if (appSettings.stealFocus !== false) { // Default true
+        if (notifWindow.isMinimized()) notifWindow.restore();
+        notifWindow.show();
+        notifWindow.moveTop();
+    } else {
+        notifWindow.showInactive(); // Show without stealing focus
+    }
+}
+
+function closeNotificationWindow() {
+    clearTimeout(notificationCloseTimer);
+    notificationCloseTimer = null;
+    if (notificationWindow && !notificationWindow.isDestroyed()) {
+        // destroy() is synchronous, so a notification arriving right after this
+        // can't end up reusing a window that's still in the middle of closing
+        notificationWindow.destroy();
+    }
+    notificationWindow = null;
+}
+
+// (Re)start the auto-close countdown, so every new alert gets the full duration
+function scheduleNotificationAutoClose() {
+    clearTimeout(notificationCloseTimer);
+    notificationCloseTimer = null;
+    const duration = appSettings.notificationDuration ?? 30; // 0 = never
+    if (duration > 0) {
+        notificationCloseTimer = setTimeout(closeNotificationWindow, duration * 1000);
+    }
+}
+
 ipcMain.handle('show-custom-notification', (event, data) => {
-    // Se o tipo for 'none', não mostra nada (apenas notificação interna do app que já acontece no renderizador)
-    if (appSettings.notificationType === 'none') {
+    // With type 'none', don't show anything (the in-app ring overlay is handled by the renderer)
+    if (appSettings.notificationType === 'none' || isQuitting || sessionEnding) {
         return;
     }
 
-    // Fecha o modal de posição se aberto pra não sobrepor e bugar o foco 
+    // Close the position picker so it doesn't overlap the notification and break focus
     if (positionPickerWindow && !positionPickerWindow.isDestroyed()) {
         positionPickerWindow.close();
         positionPickerWindow = null;
     }
 
-    // Se o app está focado, não mostra notificação customizada
+    // If the app is focused the user already sees the in-app overlay, so close any leftover popup
     if (win && win.isVisible() && win.isFocused()) {
-        // se já existe uma janela de notificação (ex: de um alarme anterior), fecha ela pois o usuário já está no app
-        if (notificationWindow && !notificationWindow.isDestroyed()) {
-            notificationWindow.close();
-        }
+        closeNotificationWindow();
         return;
     }
 
-    // Se janela já existe e não foi destruída, reutiliza!
-    if (notificationWindow && !notificationWindow.isDestroyed()) {
-        const notifData = {
-            title: data.title,
-            body: data.body,
-            snooze: data.snoozeEnabled,
-            repeat: data.repeatEnabled,
-            id: data.id,
-            repeatCount: data.repeatCount
-        };
+    const content = {
+        title: data.title,
+        body: data.body,
+        snooze: data.snoozeEnabled,
+        repeat: data.repeatEnabled,
+        id: data.id,
+        repeatCount: data.repeatCount
+    };
 
-        notificationWindow.webContents.send('update-content', notifData);
-
-        if (appSettings.stealFocus !== false) {
-            if (notificationWindow.isMinimized()) notificationWindow.restore();
-            notificationWindow.show();
-            notificationWindow.moveTop();
-        } else {
-            notificationWindow.showInactive();
-        }
-
-        // Reinicia timer de auto-close se necessário (opcional, mas bom pra UX)
-        // Resetar o timeout seria complexo aqui sem trackear var global, 
-        // mas como o 'updateActiveAlert' é chamado frequentemente, o risco é baixo.
+    // Reuse the window if it's already on screen: just swap its content
+    if (notificationWindow && !notificationWindow.isDestroyed() && notificationRevealed) {
+        notificationWindow.webContents.send('update-content', content);
+        revealNotification(notificationWindow);
+        scheduleNotificationAutoClose();
         return;
     }
 
-    const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+    // A popup that's still loading can't receive content yet: replace it with one built for this alert
+    closeNotificationWindow();
 
-    const notifWidth = 350;
-    const notifHeight = 160;
+    const { x, y } = getNotificationPosition();
 
-    let x, y;
-    const position = appSettings.notificationPosition || 'bottom-right';
-    const padding = 20;
-
-    switch (position) {
-        case 'top-right':
-            x = width - notifWidth - padding;
-            y = padding;
-            break;
-        case 'top-left':
-            x = padding;
-            y = padding;
-            break;
-        case 'bottom-left':
-            x = padding;
-            y = height - notifHeight - padding;
-            break;
-        case 'bottom-right':
-            x = width - notifWidth - padding;
-            y = height - notifHeight - padding;
-            break;
-        case 'custom':
-            x = appSettings.customNotificationX || (width - notifWidth - padding);
-            y = appSettings.customNotificationY || (height - notifHeight - padding);
-            break;
-        default:
-            x = width - notifWidth - padding;
-            y = height - notifHeight - padding;
-            break;
-    }
-
-    notificationWindow = new BrowserWindow({
-        width: notifWidth,
-        height: notifHeight,
-        x: x,
-        y: y,
+    const notifWindow = new BrowserWindow({
+        width: NOTIFICATION_WIDTH,
+        height: NOTIFICATION_HEIGHT,
+        x,
+        y,
         frame: false,
         alwaysOnTop: true,
         skipTaskbar: true,
         resizable: false,
-        focusable: true, // Necessário para tooltips funcionarem em alguns sistemas
-        show: false, // Inicia oculto para respeitar a configuração de foco depois
+        focusable: true, // Needed for tooltips to work on some systems
+        show: false, // Revealed on ready-to-show, so the first frame is the rendered page
+        backgroundColor: '#1a1a1a', // Same as notification.html: anything painted before the page is dark, never white
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
         }
     });
+    notificationWindow = notifWindow;
+    notificationRevealed = false;
 
-    notificationWindow.setAlwaysOnTop(true, 'screen-saver');
+    notifWindow.setAlwaysOnTop(true, 'screen-saver');
 
-    if (appSettings.stealFocus !== false) { // Default true
-        notificationWindow.show();
-    } else {
-        notificationWindow.showInactive(); // Mostra sem roubar o foco
-    }
+    let revealed = false;
+    const reveal = () => {
+        if (revealed || notifWindow.isDestroyed() || isQuitting || sessionEnding) return;
+        revealed = true;
+        if (notificationWindow === notifWindow) notificationRevealed = true;
+        revealNotification(notifWindow);
+    };
+    notifWindow.once('ready-to-show', reveal);
+    // Safety net: an alarm popup must never stay hidden if ready-to-show doesn't fire
+    setTimeout(reveal, 1000);
 
-    // Monta query string
-    const params = new URLSearchParams({
-        title: data.title,
-        body: data.body, // Alinhado com o que notification.html espera
-        snooze: data.snoozeEnabled ? 'true' : 'false',
-        repeat: data.repeatEnabled ? 'true' : 'false',
-        id: data.id || '',
-        repeatCount: data.repeatCount || '0'
+    // Retire the popup as soon as it starts closing (e.g. its × button), so a new alert
+    // never gets sent to a window that's about to disappear
+    notifWindow.on('close', () => {
+        if (notificationWindow === notifWindow) {
+            notificationWindow = null;
+            clearTimeout(notificationCloseTimer);
+            notificationCloseTimer = null;
+        }
     });
 
-    notificationWindow.loadURL(`file://${path.join(__dirname, 'notification.html')}?${params.toString()}`);
-
-    // Fecha automaticamente baseado na setting
-    const duration = appSettings.notificationDuration || 30;
-    const currentWindow = notificationWindow; // Referência local para evitar race condition
-    if (duration > 0) {
-        setTimeout(() => {
-            if (currentWindow && !currentWindow.isDestroyed()) {
-                currentWindow.close();
-            }
-        }, duration * 1000);
-    }
-
-    notificationWindow.on('closed', () => {
-        notificationWindow = null;
+    notifWindow.loadFile(path.join(__dirname, 'notification.html'), {
+        query: {
+            title: data.title || '',
+            body: data.body || '',
+            snooze: data.snoozeEnabled ? 'true' : 'false',
+            repeat: data.repeatEnabled ? 'true' : 'false',
+            id: String(data.id ?? ''),
+            repeatCount: String(data.repeatCount || 0)
+        }
     });
+
+    scheduleNotificationAutoClose();
 });
 
-// Fecha a notificação remotamente
+// Close the notification remotely
 ipcMain.handle('close-custom-notification', () => {
-    if (notificationWindow && !notificationWindow.isDestroyed()) {
-        notificationWindow.close();
-    }
+    closeNotificationWindow();
 });
 
-// Transmite ação de notificação de janela -> janela principal -> renderizador
+// Relay notification actions: notification window -> main process -> main renderer
 ipcMain.on('notification-action', (event, data) => {
     if (win && !win.isDestroyed()) {
         win.webContents.send('notification-action', data);
     }
 
-    // Fecha a janela de notificação ao interagir (Stop, Snooze, Repeat)
-    // Isso garante que a próxima notificação crie uma nova janela com o estado de foco correto
-    if (notificationWindow && !notificationWindow.isDestroyed()) {
-        notificationWindow.close();
-    }
+    // Close the notification window on interaction (Stop, Snooze, Repeat)
+    // This ensures the next notification creates a new window with the right focus state
+    closeNotificationWindow();
 });
 
 ipcMain.handle('pick-custom-notification-position', () => {
+    if (isQuitting || sessionEnding) return;
+
     if (positionPickerWindow && !positionPickerWindow.isDestroyed()) {
         if (positionPickerWindow.isMinimized()) positionPickerWindow.restore();
         if (!positionPickerWindow.isVisible()) positionPickerWindow.show();
@@ -417,54 +520,46 @@ ipcMain.handle('pick-custom-notification-position', () => {
         return;
     }
 
-    const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-    const notifWidth = 350;
-    const notifHeight = 160;
+    const { x, y } = getCustomNotificationPosition() || getDefaultNotificationPosition();
 
-    positionPickerWindow = new BrowserWindow({
-        width: notifWidth,
-        height: notifHeight,
-        x: appSettings.customNotificationX || (width - notifWidth - 20),
-        y: appSettings.customNotificationY || (height - notifHeight - 20),
+    const pickerWindow = new BrowserWindow({
+        width: NOTIFICATION_WIDTH,
+        height: NOTIFICATION_HEIGHT,
+        x,
+        y,
         frame: false,
         transparent: false,
+        resizable: false,
         backgroundColor: '#1c1c1e',
         alwaysOnTop: true,
         skipTaskbar: true,
+        show: false,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
         }
     });
+    positionPickerWindow = pickerWindow;
 
-    positionPickerWindow.setAlwaysOnTop(true, 'screen-saver');
+    pickerWindow.setAlwaysOnTop(true, 'screen-saver');
+    pickerWindow.once('ready-to-show', () => pickerWindow.show());
 
-    positionPickerWindow.loadURL(`file://${path.join(__dirname, 'positionPicker.html')}`);
+    pickerWindow.loadFile(path.join(__dirname, 'positionPicker.html'));
 
-    positionPickerWindow.on('closed', () => {
-        positionPickerWindow = null;
+    pickerWindow.on('closed', () => {
+        if (positionPickerWindow === pickerWindow) positionPickerWindow = null;
     });
 });
 
-ipcMain.on('save-custom-position', async (event) => {
-    if (positionPickerWindow) {
+ipcMain.on('save-custom-position', () => {
+    if (positionPickerWindow && !positionPickerWindow.isDestroyed()) {
         const [x, y] = positionPickerWindow.getPosition();
         appSettings.customNotificationX = x;
         appSettings.customNotificationY = y;
-
-        try {
-            await fs.promises.writeFile(settingsPath, JSON.stringify(appSettings, null, 2));
-        } catch (e) {
-            console.error('Error saving settings:', e);
-        }
+        saveSettings();
 
         positionPickerWindow.close();
-
-        // Opcional: Notifica o front que mudou (embora o Settings.js possa carregar do getSettings)
-        if (win) {
-            win.webContents.send('settings-updated', { key: 'customNotificationPosition', x, y });
-        }
     }
 });
 
@@ -474,13 +569,6 @@ ipcMain.handle('save-file', async (event, name, buffer) => {
     const targetPath = path.join(soundsDir, safeName);
 
     await fs.promises.writeFile(targetPath, Buffer.from(buffer));
-    return `file://${targetPath.replace(/\\/g, '/')}`;
-});
-
-ipcMain.handle('copy-sound-file', async (event, sourcePath, filename) => {
-    const safeName = path.basename(filename);
-    const targetPath = path.join(soundsDir, safeName);
-    await fs.promises.copyFile(sourcePath, targetPath);
     return `file://${targetPath.replace(/\\/g, '/')}`;
 });
 
@@ -503,6 +591,13 @@ ipcMain.handle('get-store-path', () => {
 });
 
 // IPC Handlers: Auto-Update
+function checkForUpdates() {
+    if (!app.isPackaged) return;
+    autoUpdater.checkForUpdates().catch(err => {
+        console.log('Update check failed:', err.message);
+    });
+}
+
 ipcMain.handle('start-update-download', () => {
     autoUpdater.downloadUpdate().catch(err => {
         console.error('Download update failed:', err.message);
@@ -510,7 +605,7 @@ ipcMain.handle('start-update-download', () => {
 });
 
 ipcMain.handle('open-external', (event, url) => {
-    // Valida URL por segurança
+    // Validate the URL for security
     if (typeof url === 'string' && url.startsWith('https://github.com/')) {
         shell.openExternal(url);
     }
@@ -522,16 +617,20 @@ const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
     app.quit();
 } else {
-    app.on('second-instance', (event, commandLine, workingDirectory) => {
-        if (win) {
-            if (win.isMinimized()) win.restore();
-            if (!win.isVisible()) win.show();
-            win.focus();
-        }
+    // If any process crashes, write a minidump to app.getPath('crashDumps') instead of letting
+    // Windows show a blocking "Application Error" dialog. Must run before 'ready' to cover child processes.
+    crashReporter.start({ uploadToServer: false });
+
+    app.on('browser-window-created', (event, window) => {
+        attachSessionEndHandlers(window);
+    });
+
+    app.on('second-instance', () => {
+        showMainWindow();
     });
 
     app.whenReady().then(() => {
-        // Configuração do autoUpdater
+        // autoUpdater configuration
         autoUpdater.autoDownload = false;
         autoUpdater.autoInstallOnAppQuit = false;
 
@@ -556,53 +655,69 @@ if (!gotTheLock) {
             if (win && !win.isDestroyed()) {
                 win.webContents.send('update-downloaded');
             }
-            // Aguarda um breve momento e instala
+            // Wait a brief moment, then install
             setTimeout(() => {
-                autoUpdater.quitAndInstall(false, true);
+                if (!sessionEnding) autoUpdater.quitAndInstall(false, true);
             }, 1500);
+        });
+
+        autoUpdater.on('error', (err) => {
+            console.error('Auto-updater error:', err?.message || err);
+            if (win && !win.isDestroyed()) {
+                win.webContents.send('update-error');
+            }
         });
 
         createWindow();
         createTray();
 
-        // Auto-launch (Apenas em prod)
+        // The app usually lives in the tray for days, so don't only check at startup
+        setInterval(checkForUpdates, 6 * 60 * 60 * 1000);
+
+        // Auto-launch (prod only)
         if (app.isPackaged) {
             app.setLoginItemSettings({
                 openAtLogin: appSettings.autoLaunch
             });
         }
-
-        app.on('activate', () => {
-            if (BrowserWindow.getAllWindows().length === 0) {
-                createWindow();
-            } else {
-                if (win) win.show();
-            }
-        });
-
-        // Registra atalho global para desligamento (Dev helper)
-
-        globalShortcut.register('CommandOrControl+Q', () => {
-            isQuitting = true;
-            app.quit();
-        });
     });
 
     app.on('web-contents-created', (event, contents) => {
+        // The app only shows its own local pages: open GitHub links in the browser, block everything else
+        contents.setWindowOpenHandler(({ url }) => {
+            if (url.startsWith('https://github.com/')) {
+                shell.openExternal(url);
+            }
+            return { action: 'deny' };
+        });
+        contents.on('will-navigate', (event) => {
+            event.preventDefault();
+        });
+
         contents.on('before-input-event', (event, input) => {
-            // Bloqueia DevTools (Ctrl+Shift+I) em Produção
-            if (input.control && input.shift && input.key.toLowerCase() === 'i') {
+            if (input.type !== 'keyDown') return;
+            const key = input.key.toLowerCase();
+
+            // Ctrl+Q quits, but only while the app itself is focused (a global shortcut
+            // would steal Ctrl+Q from every other program)
+            if (input.control && !input.shift && !input.alt && key === 'q') {
+                event.preventDefault();
+                isQuitting = true;
+                app.quit();
+                return;
+            }
+            // Block DevTools (Ctrl+Shift+I) in production
+            if (input.control && input.shift && key === 'i') {
                 if (app.isPackaged) {
                     event.preventDefault();
                 }
             }
-            // Bloqueia Ctrl+R em Produção
-            if (input.control && input.key.toLowerCase() === 'r') {
+            // Block Ctrl+R in production
+            if (input.control && key === 'r') {
                 if (app.isPackaged) {
                     event.preventDefault();
                 } else {
-                    // reload em Dev
-                    // win.reload() ou contents.reload()
+                    // Reload in dev
                     contents.reload();
                 }
             }
@@ -616,7 +731,7 @@ ipcMain.handle('exit-app', () => {
     app.quit();
 });
 
-// Controles da janela
+// Window controls
 ipcMain.on('window-minimize', () => {
     if (win) win.minimize();
 });
@@ -634,7 +749,7 @@ ipcMain.on('window-maximize', () => {
     }
 });
 
-// IPC: Taskbar — título da janela e barra de progresso
+// IPC: Taskbar — window title and progress bar
 ipcMain.on('set-window-title', (event, title) => {
     if (win && !win.isDestroyed()) {
         win.setTitle(title);
@@ -643,7 +758,7 @@ ipcMain.on('set-window-title', (event, title) => {
 
 ipcMain.on('set-progress-bar', (event, progress) => {
     if (win && !win.isDestroyed()) {
-        // progress: 0.0 a 1.0 para mostrar, -1 para remover
+        // progress: 0.0 to 1.0 to show, -1 to remove
         win.setProgressBar(progress);
     }
 });
@@ -652,29 +767,24 @@ ipcMain.on('window-close', () => {
     if (win) win.close();
 });
 
-// Shortcuts globais
+// Global shortcuts
 ipcMain.on('register-global-shortcuts', (event, shortcuts) => {
-    // Desregistra existentes para evitar conflitos
+    // Unregister existing ones to avoid conflicts
     globalShortcut.unregisterAll();
 
-    // Re-registra padrões ou passados pelo usuário
-    globalShortcut.register('CommandOrControl+Q', () => {
-        isQuitting = true;
-        app.quit();
-    });
-
-    Object.entries(shortcuts).forEach(([action, accelerator]) => {
+    Object.entries(shortcuts || {}).forEach(([action, accelerator]) => {
         if (!accelerator) return;
         try {
-            const ret = globalShortcut.register(accelerator, () => {
+            const registered = globalShortcut.register(accelerator, () => {
                 if (win && !win.isDestroyed()) {
                     win.webContents.send('global-shortcut-triggered', action);
                 }
             });
-            if (!ret) {
+            if (!registered) {
+                console.log('Shortcut already taken by another program:', accelerator);
             }
         } catch (err) {
-            // Suprime error logging para conflitos esperados (como Alt+R com Overlay Nvidia)
+            // Suppress error logging for expected conflicts (like Alt+R with the Nvidia overlay)
             if (!err.message.includes('Registration failed')) {
                 console.log('Error registering shortcut', accelerator, err);
             }
@@ -684,11 +794,6 @@ ipcMain.on('register-global-shortcuts', (event, shortcuts) => {
 
 ipcMain.on('unregister-global-shortcuts', () => {
     globalShortcut.unregisterAll();
-    // fallback
-    globalShortcut.register('CommandOrControl+Q', () => {
-        isQuitting = true;
-        app.quit();
-    });
 });
 
 
@@ -700,49 +805,22 @@ ipcMain.on('window-move', (event, { deltaX, deltaY }) => {
     }
 });
 
-// Manipulador de saída
+// Quit handler
 app.on('before-quit', () => {
     isQuitting = true;
 
-    // Fecha a janela de notificação se estiver aberta
-    if (notificationWindow && !notificationWindow.isDestroyed()) {
-        notificationWindow.close();
-    }
-
-    // Para o bloqueador de energia se estiver rodando
-    if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
-        powerSaveBlocker.stop(powerBlockerId);
-    }
+    closeNotificationWindow();
+    stopPowerBlocker();
 });
 
-// Windows shutdown/logoff — saída rápida antes do OS matar o processo
-// Evita STATUS_BREAKPOINT (0x80000003) por teardown do Chromium interrompido
-app.on('session-end', () => {
-    isQuitting = true;
-    if (powerBlockerId !== null && powerSaveBlocker.isStarted(powerBlockerId)) {
-        powerSaveBlocker.stop(powerBlockerId);
-    }
-    if (notificationWindow && !notificationWindow.isDestroyed()) {
-        notificationWindow.destroy();
-    }
-    if (tray && !tray.isDestroyed()) {
-        tray.destroy();
-    }
-    app.exit(0);
+app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
 });
 
 app.on('window-all-closed', () => {
-    // Só encerra se o usuário já está saindo. Se não, tenta recriar a janela.
-    if (isQuitting) {
+    // The main window only really closes when quitting (otherwise it hides to the tray).
+    // During a Windows session end the process terminates itself, so do nothing here.
+    if (!sessionEnding) {
         app.quit();
-    } else if (process.platform !== 'darwin') {
-        // Verifica se o tray existe — se sim, mantém o app vivo (minimize to tray)
-        ensureTray();
-        if (!tray || tray.isDestroyed()) {
-            // Sem tray funcional, recria a janela ao invés de fechar tudo
-            createWindow();
-        }
     }
 });
-
-
