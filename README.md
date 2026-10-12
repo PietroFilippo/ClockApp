@@ -85,7 +85,7 @@ A modern, elegant desktop app for time management and productivity, built with *
 - **Truncation**: Long labels are truncated to 60 characters
 
 ### 🔄 Automatic Updates
-- Automatic check for new versions via **GitHub Releases** on startup
+- Automatic check for new versions via **GitHub Releases** on startup and every 6 hours
 - Banner with an **Update** button (downloads and installs automatically) and a **View Release** button (opens the page in the browser)
 - Animated progress bar during download
 - Powered by `electron-updater`
@@ -94,7 +94,8 @@ A modern, elegant desktop app for time management and productivity, built with *
 - **Scroll Persistence**: The scroll position of each main section (Alarms, Timers, World Clock, Intervals) is preserved perfectly when switching tabs.
 - **Swipe Gestures**: Advanced fling physics (`translateX`) integration for deleting elements.
 - **Live Taskbar Preview**: The window title and the taskbar icon progress bar are updated in real time with the active timer's countdown, visible when hovering over the minimized app.
-- **Stability**: Global error handlers, automatic renderer crash recovery, and tray re-creation ensure the app doesn't close unexpectedly.
+- **Accurate Timing**: Timers, intervals and snoozes run on absolute deadlines, so they stay exact across sleep/resume. Alarms that came due while the PC was asleep ring on wake (if missed by at most 30 minutes).
+- **Stability**: Global error handlers, bounded renderer crash recovery, corrupt-data fallbacks and clean handling of Windows shutdown/restart. If a crash ever happens, a minidump is written to `%APPDATA%\Clock App\Crashpad` instead of showing an error dialog.
 
 ---
 
@@ -146,7 +147,7 @@ clockapp/
 │   │
 │   ├── utils/                      # Shared utilities
 │   │   ├── AnalogStopwatch.js      # Canvas-based analog dial component
-│   │   ├── AudioManager.js         # Centralized audio manager (Web Audio API)
+│   │   ├── AudioManager.js         # Centralized audio (alarm, interval chime and preview channels)
 │   │   ├── ColorPicker.js          # Interactive color picker (canvas)
 │   │   ├── KeybindManager.js       # Shortcut recording, conflicts, and modal
 │   │   ├── SoundPicker.js          # Sound selector (bundled + custom)
@@ -157,6 +158,7 @@ clockapp/
 │   │   ├── modal.js                # Generic modal utility
 │   │   ├── notification.js         # Alerts, confirms, and truncate
 │   │   ├── sanitize.js             # HTML escaping
+│   │   ├── storage.js              # Safe localStorage JSON loading
 │   │   └── time.js                 # Time input helpers and validation
 │   │
 │   ├── data/
@@ -267,9 +269,9 @@ npm run electron:build
 | `Alt+R` | Reset stopwatch* |
 | `Ctrl+R` | Reload application (development only) |
 | `Ctrl+Shift+I` | DevTools (development only) |
-| `Ctrl+Q` | Fully quit the application |
+| `Ctrl+Q` | Fully quit the application (while the app is focused) |
 
-\* Default shortcuts; they can be reconfigured in the Stopwatch keybinds modal.
+\* Default shortcuts; they can be reconfigured in the Stopwatch keybinds modal. With **Global Shortcuts** on, they work system-wide, so other programs won't receive these key combinations.
 
 ---
 

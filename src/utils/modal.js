@@ -18,11 +18,17 @@ export function showModal({ title, content, onSave, onClose }) {
 
   document.body.appendChild(overlay);
 
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
     if (document.body.contains(overlay)) {
       document.body.removeChild(overlay);
     }
     window.removeEventListener('keydown', handleEsc);
+    overlay.onclick = null;
+    saveBtn.onclick = null;
+    cancelBtn.onclick = null;
     if (onClose) onClose(overlay);
   };
 
@@ -55,5 +61,6 @@ export function showModal({ title, content, onSave, onClose }) {
     if (e.target === overlay) close();
   };
 
+  overlay.close = close;
   return overlay;
 }

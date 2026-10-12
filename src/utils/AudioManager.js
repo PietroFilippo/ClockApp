@@ -1,5 +1,6 @@
 import { showAlert } from './notification.js';
 import { STORAGE_KEYS, LIMITS } from './constants.js';
+import { loadJSON } from './storage.js';
 
 class AudioManager {
     constructor() {
@@ -19,12 +20,17 @@ class AudioManager {
             { id: 'sci-fi-confirmation', name: 'Sci-Fi Confirmation', data: 'sounds/sci-fi-confirmation.wav' }
         ];
 
-        this.customSounds = JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOM_SOUNDS)) || [];
-        this.volume = parseFloat(localStorage.getItem(STORAGE_KEYS.ALARM_VOLUME)) || 1.0;
+        this.customSounds = loadJSON(STORAGE_KEYS.CUSTOM_SOUNDS, [], Array.isArray);
+        const storedVolume = parseFloat(localStorage.getItem(STORAGE_KEYS.ALARM_VOLUME));
+        this.volume = Number.isFinite(storedVolume) ? Math.max(0, Math.min(1, storedVolume)) : 1.0;
 
         // Main audio for alarms and timers
         this.mainAudio = new Audio();
         this.mainAudio.volume = this.volume;
+
+        // Interval step chimes get their own channel so they never cut off a ringing alarm
+        this.chimeAudio = new Audio();
+        this.chimeAudio.volume = this.volume;
 
         // Audio preview for settings
         this.previewAudio = new Audio();
@@ -67,6 +73,7 @@ class AudioManager {
     setVolume(value) {
         this.volume = Math.max(0, Math.min(1, value));
         this.mainAudio.volume = this.volume;
+        this.chimeAudio.volume = this.volume;
         this.previewAudio.volume = this.volume;
         localStorage.setItem(STORAGE_KEYS.ALARM_VOLUME, this.volume);
     }
@@ -90,6 +97,18 @@ class AudioManager {
         this.mainAudio.currentTime = 0;
     }
 
+    // One-shot chime for interval steps
+    playChime(soundId) {
+        this.chimeAudio.src = this.getSoundSrc(soundId);
+        this.chimeAudio.currentTime = 0;
+        return this.chimeAudio.play().catch(e => console.error("Chime play failed", e));
+    }
+
+    stopChime() {
+        this.chimeAudio.pause();
+        this.chimeAudio.currentTime = 0;
+    }
+
     // Preview methods
     playPreview(soundId) {
         this.stopPreview();
@@ -109,7 +128,8 @@ class AudioManager {
     }
 
     // Custom sound management
-    async addCustomSound(name, data) {
+    // data: the file bytes (Uint8Array) in Electron, a data URL in the browser
+    async addCustomSound(name, data, extension = '.mp3') {
         const isElectron = !!window.electronAPI;
         const limit = isElectron ? LIMITS.MAX_CUSTOM_SOUNDS_ELECTRON : LIMITS.MAX_CUSTOM_SOUNDS_BROWSER;
 
@@ -118,17 +138,13 @@ class AudioManager {
             return false;
         }
 
+        const id = 'custom_' + Date.now();
         let soundData = data;
 
         if (isElectron) {
             try {
-                if (typeof data === 'string' && !data.startsWith('data:')) {
-                    soundData = await window.electronAPI.copySoundFile(data, name + '.mp3');
-                } else {
-                    const base64Data = data.split(',')[1];
-                    const buffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-                    soundData = await window.electronAPI.saveFile(name + '.mp3', buffer);
-                }
+                // Name the file after the unique id so two sounds with the same name can't overwrite each other
+                soundData = await window.electronAPI.saveFile(id + extension, data);
             } catch (err) {
                 console.error('Failed to save file natively:', err);
                 showAlert('Failed to save sound file.', 'Error');
@@ -137,7 +153,7 @@ class AudioManager {
         }
 
         const newSound = {
-            id: 'custom_' + Date.now(),
+            id,
             name: name,
             data: soundData,
             isNative: isElectron

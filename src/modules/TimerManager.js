@@ -1,18 +1,21 @@
 import { notificationService } from '../services/NotificationService.js';
 import { STORAGE_KEYS, LIMITS } from '../utils/constants.js';
 
+// Ticks are frequent so a timer finishes on time; the UI is only notified when a displayed second changes
+const TICK_MS = 250;
+
 class TimerManager {
     constructor() {
-        /** @type {Map<string, Object>} id → timer state */
+        /** @type {Map<string, Object>} id → timer state. Running timers keep their deadline in endsAt (ms) */
         this.timers = new Map();
         this.tickIntervalId = null;
-        this._tickCount = 0;
 
         this.loadState();
 
         // Start the tick if any timer is active
         if (this._hasActiveTimers()) {
             this.startTicking();
+            this.updatePowerBlocker();
         }
 
         // Listener for settings changes to update the power blocker
@@ -22,27 +25,9 @@ class TimerManager {
             }
         });
 
-        // Listener for timer repeat requests
+        // Listener for timer repeat requests (from the notification popup)
         document.addEventListener('timer-repeat-requested', (e) => {
-            const timerId = e.detail?.timerId;
-            if (timerId) {
-                // If it tried to repeat via TimerManager using the timerId (if applicable internally)
-                this.repeat(timerId);
-            } else if (e.detail?.id) {
-                // Came from IPC / Notification (External)
-                const alert = notificationService.activeAlerts.find(a => a.id === e.detail.id);
-                if (alert && alert.data) {
-                     this.repeatFromConfig({
-                         initialHours: alert.data.initialHours,
-                         initialMinutes: alert.data.initialMinutes,
-                         initialSeconds: alert.data.initialSeconds,
-                         label: alert.body,
-                         soundId: alert.soundId,
-                         repeatCount: alert.repeatCount
-                     });
-                     notificationService.stopAlert(e.detail.id, 'timer');
-                }
-            }
+            if (e.detail?.id) this.repeatFromAlert(e.detail.id);
         });
     }
 
@@ -50,13 +35,6 @@ class TimerManager {
     _hasActiveTimers() {
         for (const timer of this.timers.values()) {
             if (timer.isRunning && !timer.isPaused) return true;
-        }
-        return false;
-    }
-
-    _hasRunningTimers() {
-        for (const timer of this.timers.values()) {
-            if (timer.isRunning) return true;
         }
         return false;
     }
@@ -71,24 +49,25 @@ class TimerManager {
         if (saved) {
             try {
                 const timersArray = JSON.parse(saved);
+                if (!Array.isArray(timersArray)) throw new Error('Saved timers are not an array');
                 const now = Date.now();
                 this.timers.clear();
 
                 for (const state of timersArray) {
-                    if (state.isRunning) {
-                        if (state.isPaused) {
-                            // Paused — keep the remaining time as is
-                        } else {
-                            // Running — calculate the time elapsed since it was saved
-                            const elapsedSinceSave = Math.floor((now - state.lastSaved) / 1000);
-                            state.remainingSeconds = Math.max(0, state.remainingSeconds - elapsedSinceSave);
-                            if (state.remainingSeconds === 0) {
-                                // Finishes after initialization
-                                const id = state.id;
-                                this.timers.set(id, state);
-                                setTimeout(() => this.finish(id), 100);
-                                continue;
-                            }
+                    if (state.isRunning && !state.isPaused) {
+                        // Saves from older versions only have the remaining seconds at lastSaved
+                        if (!Number.isFinite(state.endsAt)) {
+                            state.endsAt = (state.lastSaved || now) + state.remainingSeconds * 1000;
+                        }
+                        delete state.lastSaved;
+                        this._syncRemaining(state, now);
+
+                        if (now >= state.endsAt) {
+                            // Finished while the app was closed: ring after initialization
+                            const id = state.id;
+                            this.timers.set(id, state);
+                            setTimeout(() => this.finish(id), 100);
+                            continue;
                         }
                     }
                     this.timers.set(state.id, state);
@@ -102,11 +81,7 @@ class TimerManager {
     }
 
     saveState() {
-        const timersArray = [];
-        for (const timer of this.timers.values()) {
-            timersArray.push({ ...timer, lastSaved: Date.now() });
-        }
-        localStorage.setItem(STORAGE_KEYS.TIMER_STATES, JSON.stringify(timersArray));
+        localStorage.setItem(STORAGE_KEYS.TIMER_STATES, JSON.stringify(this.getAllTimers()));
     }
 
     // Recents
@@ -230,9 +205,9 @@ class TimerManager {
             const settings = await window.electronAPI.getSettings();
             if (settings.preventSuspend) {
                 const shouldBlock = this._hasActiveTimers();
-                window.electronAPI.setPowerBlocker(shouldBlock);
+                window.electronAPI.setPowerBlocker(shouldBlock, 'timer');
             } else {
-                window.electronAPI.setPowerBlocker(false);
+                window.electronAPI.setPowerBlocker(false, 'timer');
             }
         }
     }
@@ -251,6 +226,7 @@ class TimerManager {
             id,
             totalSeconds,
             remainingSeconds: totalSeconds,
+            endsAt: Date.now() + totalSeconds * 1000,
             isRunning: true,
             isPaused: false,
             label: label || '',
@@ -275,7 +251,7 @@ class TimerManager {
 
     startTicking() {
         if (this.tickIntervalId) return;
-        this.tickIntervalId = setInterval(() => this.tick(), 1000);
+        this.tickIntervalId = setInterval(() => this.tick(), TICK_MS);
     }
 
     stopTicking() {
@@ -285,25 +261,30 @@ class TimerManager {
         }
     }
 
+    // Recompute the displayed seconds from the deadline. Returns true if they changed
+    _syncRemaining(timer, now) {
+        const remaining = Math.max(0, Math.ceil((timer.endsAt - now) / 1000));
+        if (remaining === timer.remainingSeconds) return false;
+        timer.remainingSeconds = remaining;
+        return true;
+    }
+
+    // Remaining time is derived from each deadline, so timers stay exact across
+    // sleep/resume and late callbacks instead of drifting one tick at a time
     tick() {
+        const now = Date.now();
         const finishedTimers = [];
+        let changed = false;
 
         for (const [id, timer] of this.timers) {
             if (timer.isRunning && !timer.isPaused) {
-                if (timer.remainingSeconds > 0) {
-                    timer.remainingSeconds--;
-                } else {
-                    finishedTimers.push(id);
-                }
+                if (this._syncRemaining(timer, now)) changed = true;
+                if (now >= timer.endsAt) finishedTimers.push(id);
             }
         }
 
-        // Save every 5 ticks
-        this._tickCount++;
-        if (this._tickCount % 5 === 0) this.saveState();
-
         // Notify the UI to update all timers
-        this.notify('timers-tick');
+        if (changed) this.notify('timers-tick');
 
         // Finish timers that reached zero
         for (const id of finishedTimers) {
@@ -318,9 +299,12 @@ class TimerManager {
 
     pause(timerId) {
         const timer = this.timers.get(timerId);
-        if (!timer || !timer.isRunning) return;
+        if (!timer || !timer.isRunning || timer.isPaused) return;
 
         timer.isPaused = true;
+        timer.remainingMs = Math.max(0, timer.endsAt - Date.now());
+        timer.remainingSeconds = Math.ceil(timer.remainingMs / 1000);
+        delete timer.endsAt;
         this.saveState();
         this.notify('timers-tick');
         this.updatePowerBlocker();
@@ -336,6 +320,8 @@ class TimerManager {
         if (!timer || !timer.isPaused) return;
 
         timer.isPaused = false;
+        timer.endsAt = Date.now() + (timer.remainingMs ?? timer.remainingSeconds * 1000);
+        delete timer.remainingMs;
         this.startTicking();
         this.saveState();
         this.notify('timers-tick');
@@ -391,6 +377,22 @@ class TimerManager {
         }
     }
 
+    // Stop a finished timer's alert and start the same timer again
+    repeatFromAlert(alertId) {
+        const alert = notificationService.activeAlerts.find(a => a.id === alertId);
+        if (!alert || !alert.data) return;
+
+        notificationService.stopAlert(alertId);
+        this.repeatFromConfig({
+            initialHours: alert.data.initialHours,
+            initialMinutes: alert.data.initialMinutes,
+            initialSeconds: alert.data.initialSeconds,
+            label: alert.body,
+            soundId: alert.soundId,
+            repeatCount: alert.repeatCount
+        });
+    }
+
     repeatFromConfig(config) {
         const { initialHours, initialMinutes, initialSeconds, label, soundId, repeatCount } = config;
         const totalSeconds = initialHours * 3600 + initialMinutes * 60 + initialSeconds;
@@ -401,6 +403,7 @@ class TimerManager {
             id,
             totalSeconds,
             remainingSeconds: totalSeconds,
+            endsAt: Date.now() + totalSeconds * 1000,
             isRunning: true,
             isPaused: false,
             label: label || '',

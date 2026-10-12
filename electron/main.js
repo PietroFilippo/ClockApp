@@ -690,8 +690,9 @@ if (!gotTheLock) {
             }
             return { action: 'deny' };
         });
-        contents.on('will-navigate', (event) => {
-            event.preventDefault();
+        contents.on('will-navigate', (event, url) => {
+            // Reloads (e.g. Vite's dev reload) navigate to the same URL
+            if (url !== contents.getURL()) event.preventDefault();
         });
 
         contents.on('before-input-event', (event, input) => {

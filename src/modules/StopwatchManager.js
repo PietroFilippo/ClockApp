@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from '../utils/constants.js';
+import { loadJSON, isPlainObject } from '../utils/storage.js';
 
 class StopwatchManager {
     constructor() {
@@ -12,9 +13,8 @@ class StopwatchManager {
     }
 
     loadState() {
-        const saved = localStorage.getItem(STORAGE_KEYS.STOPWATCH_STATE);
-        if (saved) {
-            const state = JSON.parse(saved);
+        const state = loadJSON(STORAGE_KEYS.STOPWATCH_STATE, null, isPlainObject);
+        if (state) {
             this.startTime = state.startTime || 0;
             this.elapsedSoFar = state.elapsedSoFar || 0;
             this.isRunning = state.isRunning || false;
@@ -41,7 +41,8 @@ class StopwatchManager {
     getElapsed() {
         if (!this.isRunning) return this.elapsedSoFar;
         const now = Date.now();
-        const delta = now - this.startTime;
+        // Never negative, even if the system clock is set back while running
+        const delta = Math.max(0, now - this.startTime);
         return this.elapsedSoFar + (delta * this.speed);
     }
 

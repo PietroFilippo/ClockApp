@@ -4,6 +4,7 @@ import { showConfirm, truncate, confirmDelete } from '../utils/notification.js';
 import { escapeHtml } from '../utils/sanitize.js';
 import { contextMenu } from '../utils/contextMenu.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
+import { loadJSON } from '../utils/storage.js';
 import { SwipeToDelete } from '../utils/SwipeToDelete.js';
 
 export function WorldClock() {
@@ -11,7 +12,7 @@ export function WorldClock() {
     container.className = 'view-container world-clock-view';
 
     // State
-    let clocks = JSON.parse(localStorage.getItem(STORAGE_KEYS.WORLD_CLOCKS)) || [
+    let clocks = loadJSON(STORAGE_KEYS.WORLD_CLOCKS, null, Array.isArray) || [
         { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, label: 'Local Time' }
     ];
     let isEditing = false;

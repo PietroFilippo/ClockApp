@@ -1,22 +1,37 @@
 import { audioManager } from '../utils/AudioManager.js';
 import { STORAGE_KEYS, LIMITS } from '../utils/constants.js';
 
+// Ticks are frequent so steps change on time; the UI is only notified when a displayed second changes
+const TICK_MS = 250;
+
+const stepSeconds = (step) => (step.hours || 0) * 3600 + (step.minutes || 0) * 60 + (step.seconds || 0);
+
 class IntervalTimerManager {
     constructor() {
         this.steps = [];
         this.currentStepIndex = 0;
         this.totalSecondsCurrentStep = 0;
         this.remainingSeconds = 0;
+        this.stepEndsAt = 0; // Deadline (ms) of the current step while running
+        this.pausedRemainingMs = null;
         this.isRunning = false;
         this.isPaused = false;
         this.soundId = 'default';
         this.presetLabel = '';
+        this.activePresetId = null;
         this.intervalId = null;
 
         this.loadState();
         if (this.isRunning && !this.isPaused) {
             this.startTicking();
+            this.updatePowerBlocker();
         }
+
+        document.addEventListener('settings-updated', (e) => {
+            if (e.detail.key === 'preventSuspend') {
+                this.updatePowerBlocker();
+            }
+        });
 
         // Listener for stop requests
         document.addEventListener('interval-timer-stop-requested', () => {
@@ -31,26 +46,26 @@ class IntervalTimerManager {
             const saved = localStorage.getItem(STORAGE_KEYS.INTERVAL_TIMER_STATE);
             if (!saved) return;
             const state = JSON.parse(saved);
-            const now = Date.now();
 
-            this.steps = state.steps || [];
+            this.steps = Array.isArray(state.steps) ? state.steps : [];
             this.currentStepIndex = state.currentStepIndex || 0;
             this.totalSecondsCurrentStep = state.totalSecondsCurrentStep || 0;
             this.soundId = state.soundId || 'default';
             this.presetLabel = state.presetLabel || '';
             this.activePresetId = state.activePresetId || null;
             this.isPaused = state.isPaused || false;
-            this.isRunning = state.isRunning || false;
+            this.isRunning = (state.isRunning || false) && this.steps.length > 0;
 
             if (this.isRunning) {
+                this.remainingSeconds = state.remainingSeconds || 0;
                 if (this.isPaused) {
-                    this.remainingSeconds = state.remainingSeconds;
+                    this.pausedRemainingMs = state.pausedRemainingMs ?? this.remainingSeconds * 1000;
                 } else {
-                    const elapsed = Math.floor((now - state.lastSaved) / 1000);
-                    this.remainingSeconds = Math.max(0, state.remainingSeconds - elapsed);
-                    if (this.remainingSeconds === 0) {
-                        setTimeout(() => this.advanceStep(), 100);
-                    }
+                    // Saves from older versions only have the remaining seconds at lastSaved.
+                    // Steps that ended while the app was closed are caught up on the first tick
+                    this.stepEndsAt = Number.isFinite(state.stepEndsAt)
+                        ? state.stepEndsAt
+                        : (state.lastSaved || Date.now()) + this.remainingSeconds * 1000;
                 }
             }
         } catch (e) {
@@ -64,11 +79,13 @@ class IntervalTimerManager {
             currentStepIndex: this.currentStepIndex,
             totalSecondsCurrentStep: this.totalSecondsCurrentStep,
             remainingSeconds: this.remainingSeconds,
+            stepEndsAt: this.stepEndsAt,
+            pausedRemainingMs: this.pausedRemainingMs,
             isRunning: this.isRunning,
             isPaused: this.isPaused,
             soundId: this.soundId,
             presetLabel: this.presetLabel,
-            lastSaved: Date.now()
+            activePresetId: this.activePresetId
         };
         localStorage.setItem(STORAGE_KEYS.INTERVAL_TIMER_STATE, JSON.stringify(state));
     }
@@ -147,6 +164,7 @@ class IntervalTimerManager {
         this.activePresetId = presetId;
         this.isRunning = true;
         this.isPaused = false;
+        this.pausedRemainingMs = null;
 
         this._startCurrentStep();
         this.saveState();
@@ -158,50 +176,73 @@ class IntervalTimerManager {
         const step = this.steps[this.currentStepIndex];
         if (!step) return;
 
-        this.totalSecondsCurrentStep = (step.hours || 0) * 3600 + (step.minutes || 0) * 60 + (step.seconds || 0);
+        this.totalSecondsCurrentStep = stepSeconds(step);
         this.remainingSeconds = this.totalSecondsCurrentStep;
-        this.startTicking();
+
+        if (this.isPaused) {
+            // Changing steps while paused: the new step starts counting when resumed
+            this.pausedRemainingMs = this.totalSecondsCurrentStep * 1000;
+        } else {
+            this.stepEndsAt = Date.now() + this.totalSecondsCurrentStep * 1000;
+            this.startTicking();
+        }
     }
 
     startTicking() {
         if (this.intervalId) clearInterval(this.intervalId);
-        this.intervalId = setInterval(() => this.tick(), 1000);
+        this.intervalId = setInterval(() => this.tick(), TICK_MS);
     }
 
+    stopTicking() {
+        if (this.intervalId) clearInterval(this.intervalId);
+        this.intervalId = null;
+    }
+
+    // Remaining time is derived from the step deadline, so it stays exact across sleep/resume
     tick() {
-        if (this.isRunning && !this.isPaused) {
-            if (this.remainingSeconds > 0) {
-                this.remainingSeconds--;
-                if (this.remainingSeconds % 5 === 0) this.saveState();
-                this.notify();
-            } else {
-                this.advanceStep();
-            }
+        if (!this.isRunning || this.isPaused) return;
+        const now = Date.now();
+
+        if (now >= this.stepEndsAt) {
+            this.advanceElapsedSteps(now);
+            return;
+        }
+
+        const remaining = Math.ceil((this.stepEndsAt - now) / 1000);
+        if (remaining !== this.remainingSeconds) {
+            this.remainingSeconds = remaining;
+            this.notify();
         }
     }
 
-    advanceStep() {
-        audioManager.stopAlarm();
-        audioManager.playAlarm(this.soundId, false);
+    // Move past every step whose deadline has passed: normally one, but several after sleep or
+    // while the app was closed. Plays a single chime however many steps were skipped
+    advanceElapsedSteps(now) {
+        audioManager.playChime(this.soundId);
 
-        if (this.currentStepIndex < this.steps.length - 1) {
-            // Next step
+        while (now >= this.stepEndsAt) {
+            if (this.currentStepIndex >= this.steps.length - 1) {
+                // Last step — finish
+                this.finish();
+                return;
+            }
             this.currentStepIndex++;
-            this._startCurrentStep();
-            this.saveState();
-            this.notify();
-        } else {
-            // Last step — finish
-            this.finish();
+            this.totalSecondsCurrentStep = stepSeconds(this.steps[this.currentStepIndex]);
+            // Chain from the previous deadline so time spent asleep counts toward the following steps
+            this.stepEndsAt += this.totalSecondsCurrentStep * 1000;
         }
+
+        this.remainingSeconds = Math.ceil((this.stepEndsAt - now) / 1000);
+        this.saveState();
+        this.notify();
     }
 
     finish() {
-        if (this.intervalId) clearInterval(this.intervalId);
+        this.stopTicking();
         this.isRunning = false;
         this.isPaused = false;
         // Stop the sound when finished
-        setTimeout(() => audioManager.stopAlarm(), 2000);
+        setTimeout(() => audioManager.stopChime(), 2000);
         this.saveState();
         this.updatePowerBlocker();
         this.notify('interval-timer-finished', {
@@ -211,14 +252,21 @@ class IntervalTimerManager {
     }
 
     pause() {
+        if (!this.isRunning || this.isPaused) return;
         this.isPaused = true;
+        this.pausedRemainingMs = Math.max(0, this.stepEndsAt - Date.now());
+        this.remainingSeconds = Math.ceil(this.pausedRemainingMs / 1000);
+        this.stopTicking();
         this.saveState();
         this.updatePowerBlocker();
         this.notify();
     }
 
     resume() {
+        if (!this.isRunning || !this.isPaused) return;
         this.isPaused = false;
+        this.stepEndsAt = Date.now() + (this.pausedRemainingMs ?? this.remainingSeconds * 1000);
+        this.pausedRemainingMs = null;
         this.startTicking();
         this.saveState();
         this.updatePowerBlocker();
@@ -226,11 +274,11 @@ class IntervalTimerManager {
     }
 
     cancel() {
-        if (this.intervalId) clearInterval(this.intervalId);
+        this.stopTicking();
         this.isRunning = false;
         this.isPaused = false;
         this.remainingSeconds = 0;
-        audioManager.stopAlarm();
+        audioManager.stopChime();
         this.saveState();
         this.updatePowerBlocker();
         this.notify();
@@ -239,7 +287,7 @@ class IntervalTimerManager {
     skipStep() {
         if (!this.isRunning) return;
         if (this.currentStepIndex < this.steps.length - 1) {
-            audioManager.stopAlarm();
+            audioManager.stopChime();
             this.currentStepIndex++;
             this._startCurrentStep();
             this.saveState();
@@ -252,13 +300,13 @@ class IntervalTimerManager {
     previousStep() {
         if (!this.isRunning) return;
         if (this.currentStepIndex > 0) {
-            audioManager.stopAlarm();
+            audioManager.stopChime();
             this.currentStepIndex--;
             this._startCurrentStep();
             this.saveState();
             this.notify();
         } else {
-            audioManager.stopAlarm();
+            audioManager.stopChime();
             this._startCurrentStep();
             this.saveState();
             this.notify();
@@ -282,9 +330,7 @@ class IntervalTimerManager {
     }
 
     getTotalTime(steps) {
-        return (steps || this.steps).reduce((sum, s) => {
-            return sum + (s.hours || 0) * 3600 + (s.minutes || 0) * 60 + (s.seconds || 0);
-        }, 0);
+        return (steps || this.steps).reduce((sum, s) => sum + stepSeconds(s), 0);
     }
 
     async updatePowerBlocker() {
@@ -292,9 +338,9 @@ class IntervalTimerManager {
             const settings = await window.electronAPI.getSettings();
             if (settings.preventSuspend) {
                 const shouldBlock = this.isRunning && !this.isPaused;
-                window.electronAPI.setPowerBlocker(shouldBlock);
+                window.electronAPI.setPowerBlocker(shouldBlock, 'interval');
             } else {
-                window.electronAPI.setPowerBlocker(false);
+                window.electronAPI.setPowerBlocker(false, 'interval');
             }
         }
     }

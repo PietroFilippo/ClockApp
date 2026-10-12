@@ -1,6 +1,7 @@
 export const STORAGE_KEYS = {
     ALARMS: 'alarms',
     SNOOZED_ALARMS: 'snoozedAlarms',
+    ALARM_LAST_CHECK: 'alarmLastCheck',
     TIMER_STATE: 'timer-state',
     TIMER_STATES: 'timer-states',
     TIMER_RECENTS: 'timer-recents',

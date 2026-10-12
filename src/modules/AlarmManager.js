@@ -1,51 +1,54 @@
-import { audioManager } from '../utils/AudioManager.js';
 import { STORAGE_KEYS } from '../utils/constants.js';
 import { notificationService } from '../services/NotificationService.js';
+import { loadJSON, isPlainObject } from '../utils/storage.js';
+
+const MINUTE_MS = 60 * 1000;
+// Alarms and snoozes that came due while the PC was asleep (or the app was closed) still ring
+// if they're at most this old; older ones are skipped rather than ringing hours late
+const MISSED_ALARM_WINDOW_MS = 30 * MINUTE_MS;
+
+const toTimeString = (date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+const floorToMinute = (ms) => Math.floor(ms / MINUTE_MS) * MINUTE_MS;
 
 export class AlarmManager {
     constructor() {
-        this.alarms = JSON.parse(localStorage.getItem(STORAGE_KEYS.ALARMS)) || [];
+        this.alarms = loadJSON(STORAGE_KEYS.ALARMS, [], Array.isArray);
         this.checkTimeout = null;
-        this.snoozedAlarms = JSON.parse(localStorage.getItem(STORAGE_KEYS.SNOOZED_ALARMS)) || {};
+        // alarm id -> timestamp (ms) when the snooze ends
+        this.snoozedAlarms = this.migrateSnoozes(loadJSON(STORAGE_KEYS.SNOOZED_ALARMS, {}, isPlainObject));
+        // alarm id -> the occurrence it last rang for, so a repeated local time (when DST ends) can't ring twice
+        this.lastFired = new Map();
     }
 
     init() {
-
         this.startMonitoring();
         this.setupIPCListeners();
-        setTimeout(() => this.checkMissedSnoozes(), 500);
+        // Catch up right away on anything that came due while the app wasn't running
+        setTimeout(() => this.checkAlarms(), 500);
     }
 
-    checkMissedSnoozes() {
-        const now = new Date();
-        const currentHours = now.getHours();
-        const currentMinutes = now.getMinutes();
+    // Older versions stored snoozes as "HH:MM" without a date: resolve each to the nearest such moment
+    migrateSnoozes(snoozes) {
+        const now = Date.now();
+        const halfDay = 12 * 60 * MINUTE_MS;
 
-        let snoozeChanged = false;
+        for (const [id, value] of Object.entries(snoozes)) {
+            if (typeof value === 'number') continue;
 
-        Object.keys(this.snoozedAlarms).forEach(id => {
-            const timeStr = this.snoozedAlarms[id]; // "HH:MM"
-            const [snoozeHours, snoozeMinutes] = timeStr.split(':').map(Number);
-
-            // Check whether the snooze time has passed (earlier hour OR same hour but earlier minute)
-            if (snoozeHours < currentHours || (snoozeHours === currentHours && snoozeMinutes <= currentMinutes)) {
-                // console.log(`Found missed snoozed alarm: ${id} (Target: ${timeStr})`);
-                const alarm = this.alarms.find(a => a.id === Number(id));
-                if (alarm) {
-                    this.triggerAlarm(alarm, true);
-                    delete this.snoozedAlarms[id];
-                    snoozeChanged = true;
-                } else {
-                    // If the alarm no longer exists, clear the snooze
-                    delete this.snoozedAlarms[id];
-                    snoozeChanged = true;
-                }
+            const [hours, minutes] = String(value).split(':').map(Number);
+            if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+                delete snoozes[id];
+                continue;
             }
-        });
 
-        if (snoozeChanged) {
-            this.saveAlarms();
+            // Snoozes only last minutes, so the right day is the one within 12 hours of now
+            const due = new Date();
+            due.setHours(hours, minutes, 0, 0);
+            if (due.getTime() - now > halfDay) due.setDate(due.getDate() - 1);
+            else if (now - due.getTime() > halfDay) due.setDate(due.getDate() + 1);
+            snoozes[id] = due.getTime();
         }
+        return snoozes;
     }
 
     setupIPCListeners() {
@@ -53,8 +56,8 @@ export class AlarmManager {
             window.electronAPI.onNotificationAction((data) => {
                 if (data.action === 'stop') {
                     if (data.id === 'timer' || String(data.id).startsWith('timer-')) {
-                        notificationService.stopAlert(data.id, 'timer');
-                        document.dispatchEvent(new CustomEvent('timer-stop-requested'));
+                        notificationService.stopAlert(data.id);
+                        document.dispatchEvent(new CustomEvent('timer-stop-requested', { detail: { id: data.id } }));
                     } else {
                         this.stopAlarm(Number(data.id));
                         document.dispatchEvent(new CustomEvent('alarm-stop-requested', { detail: { id: Number(data.id) } }));
@@ -84,9 +87,7 @@ export class AlarmManager {
         const seconds = now.getSeconds();
         const msUntilNextMinute = (60 - seconds) * 1000 - now.getMilliseconds();
 
-        // Add a small buffer (50ms) to make sure we land in the next minute, but not so much 
-        // that we end up skipping second 0 if the system is slow
-
+        // Add a small buffer (50ms) to make sure we land in the next minute
         this.checkTimeout = setTimeout(() => {
             this.checkAlarms();
             this.scheduleNextCheck();
@@ -94,66 +95,74 @@ export class AlarmManager {
     }
 
     checkAlarms() {
-        const now = new Date();
-        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        const currentDay = now.getDay();
+        const now = Date.now();
+        const currentMinute = floorToMinute(now);
+        const lastChecked = Number(localStorage.getItem(STORAGE_KEYS.ALARM_LAST_CHECK)) || currentMinute - MINUTE_MS;
 
-        // Safety check: if for some reason the timeout fires before the minute rolls over (negative drift),
-        // do not process, to avoid duplicate or wrong triggers.
-        // console.log(`Checking alarms at ${currentTime}:${now.getSeconds()}`);
+        // Normally exactly one minute has passed since the last check. After sleep, a busy system, a clock
+        // change or while the app was closed, more has: check the skipped minutes too (within the window)
+        let from = Math.min(lastChecked + MINUTE_MS, currentMinute); // min(): the clock may have moved backwards
+        from = Math.max(from, currentMinute - MISSED_ALARM_WINDOW_MS);
+
+        let changed = false;
+        for (let minute = from; minute <= currentMinute; minute += MINUTE_MS) {
+            if (this.checkMinute(new Date(minute))) changed = true;
+        }
+        if (this.checkSnoozes(now)) changed = true;
+
+        localStorage.setItem(STORAGE_KEYS.ALARM_LAST_CHECK, String(currentMinute));
+        if (changed) this.saveAlarms();
+    }
+
+    // Ring every enabled alarm scheduled for this minute. Returns true if an alarm was changed
+    checkMinute(date) {
+        const time = toTimeString(date);
+        const day = date.getDay();
+        const occurrence = `${date.toDateString()} ${time}`;
+        let changed = false;
 
         this.alarms.forEach(alarm => {
-            if (!alarm.enabled) return;
-            const isToday = Array.isArray(alarm.repeat) && alarm.repeat.length > 0
-                ? alarm.repeat.includes(currentDay)
-                : true;
+            if (!alarm.enabled || alarm.time !== time) return;
+            const repeats = Array.isArray(alarm.repeat) && alarm.repeat.length > 0;
+            if (repeats && !alarm.repeat.includes(day)) return;
+            if (this.lastFired.get(alarm.id) === occurrence) return;
 
-            // Compare only HH:MM. Since we run at roughly second 0, this is valid.
-            if (alarm.time === currentTime && isToday) {
-                // Avoid multiple triggers within the same minute by checking whether it already fired?
-                // Not necessary if we guarantee this function runs only once per minute.
-                // The recursive setTimeout guarantees ~60s spacing.
+            this.lastFired.set(alarm.id, occurrence);
+            this.triggerAlarm(alarm, false, date);
 
-                // console.log(`Triggering alarm ${alarm.id} at ${currentTime}`);
-                this.triggerAlarm(alarm);
-
-                if (!Array.isArray(alarm.repeat) || alarm.repeat.length === 0) {
-                    alarm.enabled = false;
-                    this.saveAlarms();
-                }
+            // One-time alarms switch themselves off after ringing
+            if (!repeats) {
+                alarm.enabled = false;
+                changed = true;
             }
         });
 
-        let snoozeChanged = false;
-        Object.keys(this.snoozedAlarms).forEach(id => {
-            if (this.snoozedAlarms[id] === currentTime) {
-                const alarm = this.alarms.find(a => a.id === Number(id));
-                if (alarm) {
-                    this.triggerAlarm(alarm, true);
-                    delete this.snoozedAlarms[id];
-                    snoozeChanged = true;
-                }
-            }
-        });
+        return changed;
+    }
 
-        if (snoozeChanged) {
-            this.saveAlarms();
+    // Ring snoozes that have ended. Returns true if any snooze was removed
+    checkSnoozes(now) {
+        let changed = false;
+
+        for (const [id, dueAt] of Object.entries(this.snoozedAlarms)) {
+            if (dueAt > now) continue;
+
+            delete this.snoozedAlarms[id];
+            changed = true;
+
+            const alarm = this.alarms.find(a => a.id === Number(id));
+            // A snooze that ended long ago (e.g. the PC slept through it) is dropped instead of ringing late
+            if (alarm && now - dueAt <= MISSED_ALARM_WINDOW_MS) {
+                this.triggerAlarm(alarm, true, new Date(dueAt));
+            }
         }
+
+        return changed;
     }
 
-
-    // proxy methods for AudioManager
-    getBuiltInSounds() {
-        return audioManager.getBuiltInSounds();
-    }
-
-    getCustomSounds() {
-        return audioManager.getCustomSounds();
-    }
-
-    async triggerAlarm(alarm, isSnooze = false) {
-        const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    // when: the minute the alarm was due (earlier than now if it was missed while the PC slept)
+    triggerAlarm(alarm, isSnooze = false, when = new Date()) {
+        const timeStr = toTimeString(when);
         const title = isSnooze ? `Snooze (${timeStr})` : `Alarm (${timeStr})`;
 
         notificationService.triggerAlert({
@@ -183,11 +192,8 @@ export class AlarmManager {
         if (!alarm) return;
 
         const duration = alarm.snoozeInterval || 9;
-        const now = new Date();
-        now.setMinutes(now.getMinutes() + duration);
-        const nextTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-        this.snoozedAlarms[alarmId] = nextTime;
+        // Minute-aligned like alarms, so it rings at the start of that minute
+        this.snoozedAlarms[alarmId] = floorToMinute(Date.now()) + duration * MINUTE_MS;
         this.saveAlarms();
     }
 
@@ -248,8 +254,11 @@ export class AlarmManager {
         return this.alarms;
     }
 
+    // alarm id -> "HH:MM" when the snooze ends, for display
     getSnoozedAlarms() {
-        return this.snoozedAlarms;
+        return Object.fromEntries(
+            Object.entries(this.snoozedAlarms).map(([id, dueAt]) => [id, toTimeString(new Date(dueAt))])
+        );
     }
 }
 

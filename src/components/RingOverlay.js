@@ -11,8 +11,8 @@ import { escapeHtml } from '../utils/sanitize.js';
  * @param {Object} [options.actionButton] - primary action button.
  * @param {string} options.actionButton.text - button text (e.g., "Snooze", "Repeat").
  * @param {Function} options.actionButton.onClick - click handler for the primary action button.
- * @param {Function} options.onStop - handler for the stop button (formerly "Save").
- * @returns {HTMLElement} overlay element.
+ * @param {Function} options.onStop - handler for the stop button (formerly "Save"); Escape also stops.
+ * @returns {HTMLElement} overlay element, with dismiss() to remove it without stopping the alert.
  */
 export function showRingOverlay({ title, timeDisplay, label, actionButton, onStop }) {
     const safeTimeDisplay = escapeHtml(timeDisplay);
@@ -25,19 +25,33 @@ export function showRingOverlay({ title, timeDisplay, label, actionButton, onSto
     </div>
   `;
 
+    // Set once the alert is dealt with, so the modal closing afterwards doesn't stop it a second time
+    let handled = false;
+    const stop = () => {
+        if (handled) return;
+        handled = true;
+        if (onStop) onStop();
+    };
+
     const overlay = showModal({
         title: title,
         content: content,
-        onSave: () => {
-            if (onStop) onStop();
-        }
+        onSave: stop,
+        // Escape closes the modal too: treat it as Stop, so the alert can't keep ringing with no overlay left
+        onClose: stop
     });
+
+    overlay.dismiss = () => {
+        handled = true;
+        overlay.close();
+    };
 
     // Set up primary action button
     if (actionButton) {
         const btn = overlay.querySelector('.action-btn');
         if (btn) {
             btn.onclick = () => {
+                handled = true;
                 actionButton.onClick(overlay);
             };
         }

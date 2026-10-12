@@ -2,6 +2,7 @@ import { audioManager } from './AudioManager.js'; // Same folder
 import { showModal } from './modal.js';
 import { showAlert, showConfirm, truncate } from './notification.js';
 import { LIMITS } from './constants.js';
+import { escapeHtml } from './sanitize.js';
 
 export function openSoundSettingsModal(onSave) {
     const volume = audioManager.getVolume();
@@ -13,6 +14,10 @@ export function openSoundSettingsModal(onSave) {
 
     // Helper to stop the current preview and release the file lock
     const stopPreview = () => {
+        const previewAudio = audioManager.getPreviewAudio();
+        previewAudio.onended = null;
+        previewAudio.ontimeupdate = null;
+        previewAudio.onloadedmetadata = null;
         audioManager.stopPreview();
         playingId = null;
     };
@@ -46,7 +51,7 @@ export function openSoundSettingsModal(onSave) {
         return sounds.map(s => `
         <div class="custom-sound-item" id="sound-item-${s.id}">
           <div class="sound-main-info">
-            <span class="custom-sound-name" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${s.name}">${truncate(s.name, 25)}</span>
+            <span class="custom-sound-name" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(s.name)}">${escapeHtml(truncate(s.name, 25))}</span>
             <div class="sound-actions">
               <button class="sound-btn reset-preview" data-id="${s.id}" title="Reset">⏮</button>
               <button class="sound-btn play-preview" data-id="${s.id}" data-src="${s.data}" title="Play/Pause">▶</button>
@@ -161,9 +166,10 @@ export function openSoundSettingsModal(onSave) {
             }
 
             const handleResult = (soundData) => {
-                const name = file.name.split('.')[0];
+                const extensionMatch = file.name.match(/\.[a-z0-9]+$/i);
+                const name = extensionMatch ? file.name.slice(0, -extensionMatch[0].length) : file.name;
                 stopPreview();
-                const success = audioManager.addCustomSound(name, soundData);
+                const success = audioManager.addCustomSound(name, soundData, extensionMatch ? extensionMatch[0].toLowerCase() : '.mp3');
                 if (success && success.then) {
                     success.then((res) => { if (res) renderList(); });
                 } else if (success) {
@@ -171,8 +177,9 @@ export function openSoundSettingsModal(onSave) {
                 }
             };
 
-            if (window.electronAPI && file.path) {
-                handleResult(file.path);
+            if (window.electronAPI) {
+                // Send the raw bytes; no need to round-trip large files through base64
+                file.arrayBuffer().then(buffer => handleResult(new Uint8Array(buffer)));
             } else {
                 const reader = new FileReader();
                 reader.onload = (loadEvent) => {

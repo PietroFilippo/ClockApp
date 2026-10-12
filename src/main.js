@@ -13,24 +13,34 @@ import { notificationService } from './services/NotificationService.js';
 import { showRingOverlay } from './components/RingOverlay.js';
 import { truncate } from './utils/notification.js';
 import { STORAGE_KEYS } from './utils/constants.js';
+import { loadJSON, isPlainObject } from './utils/storage.js';
 import { DEFAULT_KEYBINDS } from './utils/KeybindManager.js';
 
 alarmManager.init();
 
 
-// Helper to track the open modal
+// The ring overlay on screen: { element, type, id }
 let currentOverlay = null;
+
+// Remove a ring overlay without stopping its alert (the alert was handled elsewhere)
+function dismissOverlayElement(element) {
+  if (currentOverlay && currentOverlay.element === element) currentOverlay = null;
+  element.dismiss();
+}
+
+function dismissOverlay(matches = () => true) {
+  if (currentOverlay && matches(currentOverlay)) {
+    dismissOverlayElement(currentOverlay.element);
+  }
+}
+
+const isOverlayFor = (type, id) => (overlay) => overlay.type === type && overlay.id === id;
 
 function onNotificationRing(e) {
   const alert = e.detail;
 
-  // Clean up existing overlay (prevents stacking)
-  if (currentOverlay && currentOverlay.element) {
-    if (currentOverlay.element.isConnected) {
-      currentOverlay.element.remove();
-    }
-    currentOverlay = null;
-  }
+  // Replace the existing overlay (prevents stacking)
+  dismissOverlay();
 
   let timeDisplay, title, label, actionButton = null;
 
@@ -44,11 +54,8 @@ function onNotificationRing(e) {
       actionButton = {
         text: `Snooze (${alert.data.alarm.snoozeInterval || 9} min)`,
         onClick: (ovl) => {
+          dismissOverlayElement(ovl);
           alarmManager.snoozeAlarm(alert.id);
-          setTimeout(() => {
-            if (ovl.isConnected) ovl.remove();
-            currentOverlay = null;
-          }, 0);
         }
       };
     }
@@ -61,19 +68,8 @@ function onNotificationRing(e) {
     actionButton = {
       text: 'Repeat',
       onClick: (ovl) => {
-        notificationService.stopAlert(alert.id, 'timer');
-        timerManager.repeatFromConfig({
-          initialHours: alert.data.initialHours,
-          initialMinutes: alert.data.initialMinutes,
-          initialSeconds: alert.data.initialSeconds,
-          label: alert.body,
-          soundId: alert.soundId,
-          repeatCount: alert.repeatCount
-        });
-        setTimeout(() => {
-          if (ovl.isConnected) ovl.remove();
-          currentOverlay = null;
-        }, 0);
+        dismissOverlayElement(ovl);
+        timerManager.repeatFromAlert(alert.id);
       }
     };
   }
@@ -84,12 +80,13 @@ function onNotificationRing(e) {
     label,
     actionButton,
     onStop: () => {
+      // Forget this overlay first: stopping can synchronously show the next alert's overlay
+      if (currentOverlay && currentOverlay.element === overlay) currentOverlay = null;
       if (alert.type === 'alarm') {
         alarmManager.stopAlarm(alert.id);
       } else {
-        notificationService.stopAlert(alert.id, 'timer');
+        notificationService.stopAlert(alert.id);
       }
-      currentOverlay = null;
     }
   });
 
@@ -103,76 +100,49 @@ function onNotificationRing(e) {
 
 document.addEventListener('notification-ring', onNotificationRing);
 
-// Listeners for external stop requests (e.g., from a Notification)
-document.addEventListener('timer-stop-requested', () => {
-  if (currentOverlay && currentOverlay.type === 'timer' && currentOverlay.element) {
-    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
-    currentOverlay = null;
-  }
-});
+// Listeners for alerts handled from the notification popup
+document.addEventListener('timer-stop-requested', (e) => dismissOverlay(isOverlayFor('timer', e.detail?.id)));
+document.addEventListener('timer-repeat-requested', (e) => dismissOverlay(isOverlayFor('timer', e.detail?.id)));
+document.addEventListener('alarm-stop-requested', (e) => dismissOverlay(isOverlayFor('alarm', e.detail.id)));
+document.addEventListener('alarm-snooze-requested', (e) => dismissOverlay(isOverlayFor('alarm', e.detail.id)));
 
-document.addEventListener('timer-repeat-requested', () => {
-  if (currentOverlay && currentOverlay.type === 'timer' && currentOverlay.element) {
-    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
-    currentOverlay = null;
-  }
-});
-
-document.addEventListener('alarm-stop-requested', (e) => {
-  if (currentOverlay && currentOverlay.type === 'alarm' && currentOverlay.id === e.detail.id && currentOverlay.element) {
-    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
-    currentOverlay = null;
-  }
-});
-
-document.addEventListener('alarm-snooze-requested', (e) => {
-  if (currentOverlay && currentOverlay.type === 'alarm' && currentOverlay.id === e.detail.id && currentOverlay.element) {
-    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
-    currentOverlay = null;
-  }
-});
-
-// Unified action-notification listener (auto-action)
+// Auto-action for an alert left ringing (see NotificationService): same as clicking its button
 document.addEventListener('notification-action', (e) => {
   const { action, id, type } = e.detail;
-  if (currentOverlay && currentOverlay.type === type && currentOverlay.id === id && currentOverlay.element) {
-    if (action === 'snooze' && type === 'alarm') {
-      alarmManager.snoozeAlarm(id);
-    } else if (action === 'repeat' && type === 'timer') {
-      const alert = notificationService.activeAlerts.find(a => a.id === id);
-      if (alert) {
-         notificationService.stopAlert(id, 'timer');
-         timerManager.repeatFromConfig({
-            initialHours: alert.data.initialHours,
-            initialMinutes: alert.data.initialMinutes,
-            initialSeconds: alert.data.initialSeconds,
-            label: alert.body,
-            soundId: alert.soundId,
-            repeatCount: alert.repeatCount
-         });
-      }
-    } else {
-      if (type === 'alarm') alarmManager.stopAlarm(id);
-      else notificationService.stopAlert(id, 'timer');
-    }
-    
-    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
-    currentOverlay = null;
+  dismissOverlay(isOverlayFor(type, id));
+
+  if (type === 'alarm') {
+    if (action === 'snooze') alarmManager.snoozeAlarm(id);
+    else alarmManager.stopAlarm(id);
+  } else if (action === 'repeat') {
+    timerManager.repeatFromAlert(id);
+  } else {
+    notificationService.stopAlert(id);
   }
 });
 
-document.addEventListener('all-alerts-stopped', () => {
-  if (currentOverlay && currentOverlay.element) {
-    if (currentOverlay.element.isConnected) currentOverlay.element.remove();
-    currentOverlay = null;
-  }
-});
+document.addEventListener('all-alerts-stopped', () => dismissOverlay());
 
 
 const app = document.querySelector('#app');
 
 let currentTab = localStorage.getItem(STORAGE_KEYS.ACTIVE_TAB) || 'world-clock';
 let activeComponentCleanup = null;
+
+function onTabChange(newTab) {
+  if (currentTab === newTab) return;
+
+  // Save the scroll position of the current tab before switching
+  const contentArea = document.querySelector('#content');
+  if (contentArea) {
+    scrollPositions[currentTab] = contentArea.scrollTop;
+  }
+
+  currentTab = newTab;
+  localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, currentTab);
+  updateView();
+  updateNav();
+}
 
 function render() {
   app.innerHTML = `
@@ -204,7 +174,7 @@ function render() {
     window.electronAPI.getSettings().then(settings => {
       const useGlobalShortcuts = settings.globalShortcuts !== false;
       if (useGlobalShortcuts) {
-        const keybinds = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_KEYBINDS)) || { ...DEFAULT_KEYBINDS };
+        const keybinds = loadJSON(STORAGE_KEYS.STOPWATCH_KEYBINDS, { ...DEFAULT_KEYBINDS }, isPlainObject);
         window.electronAPI.registerGlobalShortcuts(keybinds);
       }
     });
@@ -228,25 +198,9 @@ function render() {
       }
     });
 
-    // Removed dead onSettingsUpdated handler
   }
 
   const navContainer = app.querySelector('#nav-container');
-
-  const onTabChange = (newTab) => {
-    if (currentTab === newTab) return;
-
-    // Save the scroll position of the current tab before switching
-    const contentArea = document.querySelector('#content');
-    if (contentArea) {
-      scrollPositions[currentTab] = contentArea.scrollTop;
-    }
-
-    currentTab = newTab;
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, currentTab);
-    updateView();
-    updateNav();
-  };
 
   // Render Navigation
   navContainer.appendChild(Navigation(currentTab, onTabChange));
@@ -301,21 +255,6 @@ function updateView() {
 function updateNav() {
   const navContainer = document.querySelector('#nav-container');
   navContainer.innerHTML = '';
-
-  const onTabChange = (newTab) => {
-    if (currentTab === newTab) return;
-
-    // Save the scroll position of the current tab before switching
-    const contentArea = document.querySelector('#content');
-    if (contentArea) {
-      scrollPositions[currentTab] = contentArea.scrollTop;
-    }
-
-    currentTab = newTab;
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, currentTab);
-    updateView();
-    updateNav();
-  };
 
   navContainer.appendChild(Navigation(currentTab, onTabChange));
 }
@@ -530,5 +469,16 @@ if (window.electronAPI && window.electronAPI.onUpdateAvailable) {
     if (btn) {
       btn.textContent = 'Installing...';
     }
+  });
+
+  window.electronAPI.onUpdateError(() => {
+    const banner = document.querySelector('.update-banner');
+    const btn = banner?.querySelector('#update-now-btn');
+    // Only relevant while a download started from the banner is in progress
+    if (!btn || !btn.disabled) return;
+    banner.querySelector('.update-banner-text').textContent = 'Update failed. Please try again.';
+    banner.querySelector('.update-progress-bar').style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = 'Retry';
   });
 }
