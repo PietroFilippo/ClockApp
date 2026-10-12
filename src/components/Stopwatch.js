@@ -16,11 +16,11 @@ export function Stopwatch() {
   let analogInstance = null;
   let viewMode = localStorage.getItem(STORAGE_KEYS.STOPWATCH_VIEW_MODE) || 'digital';
 
-  // Carrega as cores salvas no localStorage ou usa os valores padrão
+  // Load saved colors from localStorage or use the default values
   let fastestColor = localStorage.getItem(STORAGE_KEYS.STOPWATCH_FASTEST_COLOR) || COLORS.DEFAULT_FASTEST_LAP;
   let slowestColor = localStorage.getItem(STORAGE_KEYS.STOPWATCH_SLOWEST_COLOR) || COLORS.DEFAULT_SLOWEST_LAP;
 
-  // Handler da modal do ESC
+  // ESC modal handler
   const handleEsc = (e) => {
     if (e.key === 'Escape') {
       if (colorPickerInstance) {
@@ -34,13 +34,13 @@ export function Stopwatch() {
 
   window.addEventListener('keydown', handleEsc);
 
-  // Carrega as cores personalizadas do localStorage
+  // Load custom colors from localStorage
   let customColors = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_CUSTOM_COLORS)) || [];
 
   let showKeybindsModal = false;
   let showSpeedSelector = false;
 
-  // Keybind manager (encapsula estado, gravação, conflitos, shortcuts)
+  // Keybind manager (encapsulates state, recording, conflicts, shortcuts)
   const keybindManager = new KeybindManager({
     onAction: (action) => handleShortcutAction(action),
     onUpdate: () => render()
@@ -58,7 +58,7 @@ export function Stopwatch() {
         }
         break;
       case 'reset':
-        // Reset especial: Stop, Reset, Start
+        // Special reset: Stop, Reset, Start
         stopwatchManager.specialReset();
         startInterval();
         render();
@@ -163,7 +163,7 @@ export function Stopwatch() {
       content += line + `\n`;
     });
 
-    // Reverte de volta para não quebrar o estado interno se laps for por referência
+    // Revert back so the internal state isn't broken if laps is passed by reference
     state.laps.reverse();
 
     const blob = new Blob([content], { type: 'text/plain' });
@@ -261,7 +261,7 @@ export function Stopwatch() {
   function render() {
     const state = stopwatchManager.getState();
 
-    // Renderização inicial da estrutura
+    // Initial render of the structure
     if (!container.querySelector('.header')) {
       container.innerHTML = `
             <div class="header">
@@ -307,13 +307,13 @@ export function Stopwatch() {
       initSwipeGesture();
     }
 
-    // Botão de Download
+    // Download button
     const downloadBtn = container.querySelector('#download-btn');
     if (downloadBtn) {
       downloadBtn.style.display = (state.laps.length > 0 || state.elapsed > 0) ? 'inline-block' : 'none';
     }
 
-    // Botão de Velocidade
+    // Speed button
     const speedBtn = container.querySelector('#speed-btn');
     if (speedBtn) {
       if (speedBtn.textContent.trim() !== `${state.speed.toFixed(2)}x`) {
@@ -327,7 +327,7 @@ export function Stopwatch() {
     renderLapsList(state);
     updateDisplay(state);
 
-    // Modais
+    // Modals
     const modalsPlaceholder = container.querySelector('#modals-placeholder');
     if (modalsPlaceholder) {
       const hasColor = modalsPlaceholder.querySelector('#color-selection-overlay');
@@ -348,7 +348,7 @@ export function Stopwatch() {
           render();
         });
       } else if (showKeybindsModal && hasKeybind) {
-        // Modal já existe: atualiza apenas os botões de keybind
+        // Modal already exists: only update the keybind buttons
         keybindManager.updateModalUI(container);
       } else if (!showKeybindsModal && hasKeybind) {
         modalsPlaceholder.innerHTML = '';
@@ -419,7 +419,7 @@ export function Stopwatch() {
         document.removeEventListener('click', closeSpeed);
       }
     };
-    // setTimeout pra evitar trigger imediato
+    // setTimeout to avoid immediate trigger
     setTimeout(() => document.addEventListener('click', closeSpeed), 0);
   }
 
@@ -469,7 +469,7 @@ export function Stopwatch() {
     updateDisplay(stopwatchManager.getState());
   }
 
-  // Swipe gesture para alternar digital/analógico
+  // Swipe gesture to toggle digital/analog
   function initSwipeGesture() {
     const track = container.querySelector('#view-track');
     if (!track) return;
@@ -486,7 +486,7 @@ export function Stopwatch() {
     }
 
     function onPointerDown(e) {
-      // Ignora se clicar em botões/inputs dentro
+      // Ignore if clicking on buttons/inputs inside
       if (e.target.closest('button, input, select, .view-dot')) return;
       isDragging = true;
       startX = e.clientX;
@@ -502,11 +502,11 @@ export function Stopwatch() {
     function onPointerMove(e) {
       if (!isDragging) return;
       const deltaX = e.clientX - startX;
-      // Converte pixel delta para % do viewport (track width = 2x viewport)
+      // Convert pixel delta to % of the viewport (track width = 2x viewport)
       const deltaPercent = (deltaX / trackWidth) * 100;
       currentTranslatePercent = startTranslatePercent + deltaPercent;
 
-      // Limita o arraste
+      // Clamp the drag
       currentTranslatePercent = Math.max(-50, Math.min(0, currentTranslatePercent));
 
       track.style.transform = `translateX(${currentTranslatePercent}%)`;
@@ -522,20 +522,20 @@ export function Stopwatch() {
       const elapsed = Date.now() - startTime;
       const velocity = Math.abs(deltaX) / elapsed; // px/ms
 
-      const threshold = trackWidth * 0.15; // 15% do viewport
+      const threshold = trackWidth * 0.15; // 15% of the viewport
       const isFlick = velocity > 0.4;
       const dragDistance = currentTranslatePercent - startTranslatePercent;
 
       let newMode = viewMode;
       if (isFlick || Math.abs(dragDistance) > (threshold / trackWidth * 100)) {
         if (dragDistance < 0) {
-          newMode = 'analog'; // arrastou pra esquerda
+          newMode = 'analog'; // dragged left
         } else {
-          newMode = 'digital'; // arrastou pra direita
+          newMode = 'digital'; // dragged right
         }
       }
 
-      // Anima para posição final
+      // Animate to final position
       viewMode = newMode;
       localStorage.setItem(STORAGE_KEYS.STOPWATCH_VIEW_MODE, viewMode);
       track.style.transform = viewMode === 'analog' ? 'translateX(-50%)' : 'translateX(0%)';
@@ -554,7 +554,7 @@ export function Stopwatch() {
 
   function startInterval() {
     if (intervalId) return;
-    // Sempre atualiza ambas as views para que o swipe mostre dados atuais
+    // Always update both views so the swipe shows current data
     const tick = () => {
       const elapsed = stopwatchManager.getElapsed();
       // Digital display
@@ -586,7 +586,7 @@ export function Stopwatch() {
 
   function updateDisplay(state) {
     const elapsed = stopwatchManager.getElapsed();
-    // Atualiza ambos os displays
+    // Update both displays
     const display = container.querySelector('.stopwatch-display');
     if (display) {
       const newTime = formatTime(elapsed);
@@ -614,7 +614,7 @@ export function Stopwatch() {
     }
   }
 
-  // Otimização de renderização de voltas: rastreia o fingerprint dos dados para evitar reconstruções DOM desnecessárias
+  // Lap rendering optimization: tracks a data fingerprint to avoid unnecessary DOM rebuilds
   let lastLapsFingerprint = null;
 
   function renderLapsList(state) {
@@ -623,7 +623,7 @@ export function Stopwatch() {
 
     const { fastestIndex, slowestIndex } = getLapStats(state.laps);
 
-    // Constroi um fingerprint leve a partir do número de voltas + pontos de dados principais + cores
+    // Build a lightweight fingerprint from lap count + key data points + colors
     const fingerprint = state.laps.length === 0
       ? 'empty'
       : `${state.laps.length}|${state.laps[0].lapTime}|${state.laps[state.laps.length - 1].lapTime}|${fastestIndex}|${slowestIndex}|${fastestColor}|${slowestColor}`;

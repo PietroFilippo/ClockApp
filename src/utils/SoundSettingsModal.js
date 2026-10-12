@@ -8,10 +8,10 @@ export function openSoundSettingsModal(onSave) {
     const limit = window.electronAPI ? LIMITS.MAX_CUSTOM_SOUNDS_ELECTRON : LIMITS.MAX_CUSTOM_SOUNDS_BROWSER;
     let currentTab = 'pre-installed';
 
-    // Rastreia o estado do audio localmente para o modal
+    // Track the audio state locally for the modal
     let playingId = null;
 
-    // Helper para parar a preview atual e liberar o bloqueio do arquivo
+    // Helper to stop the current preview and release the file lock
     const stopPreview = () => {
         audioManager.stopPreview();
         playingId = null;
@@ -83,13 +83,13 @@ export function openSoundSettingsModal(onSave) {
 
         container.innerHTML = renderSoundListHTML(sounds, isBuiltIn);
 
-        // Atualiza contador
+        // Update counter
         const countSpan = overlay.querySelector('#custom-count');
         if (countSpan) {
             countSpan.textContent = audioManager.getCustomSounds().length;
         }
 
-        // Mostra upload apenas na aba custom
+        // Show upload only on the custom tab
         if (currentTab === 'custom') {
             const customSounds = audioManager.getCustomSounds();
             const reached = (window.electronAPI && customSounds.length >= LIMITS.MAX_CUSTOM_SOUNDS_ELECTRON) || (!window.electronAPI && customSounds.length >= LIMITS.MAX_CUSTOM_SOUNDS_BROWSER);
@@ -207,7 +207,7 @@ export function openSoundSettingsModal(onSave) {
                 } else {
                     stopPreview();
                     playingId = id;
-                    audioManager.playPreview(id); // AudioManager gerencia src lookup
+                    audioManager.playPreview(id); // AudioManager handles src lookup
 
                     const currentAudio = audioManager.getPreviewAudio();
                     if (currentAudio) {
@@ -267,7 +267,7 @@ export function openSoundSettingsModal(onSave) {
         });
     }
 
-    // Troca de aba
+    // Tab switching
     overlay.querySelectorAll('.picker-tab').forEach(tab => {
         tab.onclick = () => {
             overlay.querySelectorAll('.picker-tab').forEach(t => t.classList.remove('active'));

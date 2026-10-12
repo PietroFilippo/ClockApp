@@ -28,7 +28,7 @@ export class ColorPicker {
     }
 
     render() {
-        // Cria a estrutura DOM para o ColorPicker
+        // Create the DOM structure for the ColorPicker
         this.element = document.createElement('div');
         this.element.className = 'modal-overlay';
         this.element.id = 'color-picker-overlay';
@@ -175,13 +175,13 @@ export class ColorPicker {
     }
 
     attachListeners() {
-        // Interacção com o espectro
+        // Spectrum interaction
         this.spectrum.addEventListener('mousedown', (e) => {
             this.isDraggingSpectrum = true;
             this.handleSpectrum(e);
         });
 
-        // Interacção com o brilho
+        // Brightness interaction
         this.brightnessSlider.addEventListener('mousedown', (e) => {
             this.isDraggingBrightness = true;
             this.handleBrightness(e);
@@ -208,7 +208,7 @@ export class ColorPicker {
             });
         });
 
-        // Cores básicas
+        // Basic colors
         this.element.querySelectorAll('.basic-color-swatch').forEach(swatch => {
             swatch.addEventListener('click', () => {
                 const rgb = this.hexToRgb(swatch.dataset.color);
@@ -216,7 +216,7 @@ export class ColorPicker {
             });
         });
 
-        // Ações
+        // Actions
         this.element.querySelector('#save-color').onclick = () => {
             this.onSave(this.hexInput.value);
             this.destroy();
@@ -236,7 +236,7 @@ export class ColorPicker {
             }
         };
 
-        // Ações de cores personalizadas
+        // Custom color actions
         this.element.querySelector('#add-custom-color').onclick = () => this.addCustomColor();
         this.element.querySelector('#toggle-delete-custom').onclick = () => this.toggleDeleteCustom();
     }
@@ -262,7 +262,7 @@ export class ColorPicker {
         grid.innerHTML = slots.join('');
         grid.classList.toggle('deleting', this.isDeletingCustom);
 
-        // Anexa listeners para as cores personalizadas
+        // Attach listeners for the custom colors
         grid.querySelectorAll('.custom-swatch, .delete-overlay').forEach(el => {
             el.onclick = (e) => {
                 const index = parseInt(el.dataset.index);

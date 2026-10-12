@@ -52,7 +52,7 @@ export function openSoundPicker(currentSoundId, onSelect) {
             </div>
         `).join('');
 
-        // Adiciona listeners
+        // Add listeners
         container.querySelectorAll('.picker-item').forEach(item => {
             item.onclick = (e) => {
                 if (e.target.closest('.picker-preview-btn')) return;
@@ -68,7 +68,7 @@ export function openSoundPicker(currentSoundId, onSelect) {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 const id = btn.dataset.id;
-                // const src = btn.dataset.src; // audioManager gerencia src lookup
+                // const src = btn.dataset.src; // audioManager handles src lookup
 
                 if (playingId === id) {
                     if (previewAudio.paused) {
@@ -84,13 +84,13 @@ export function openSoundPicker(currentSoundId, onSelect) {
                     audioManager.playPreview(id);
                     btn.textContent = '⏸';
 
-                    // Usa a instância de audio centralizada
+                    // Use the centralized audio instance
                     previewAudio.onended = () => {
                         btn.textContent = '▶';
                         playingId = null;
                     };
 
-                    // Atualiza todos os outros botões
+                    // Update all other buttons
                     container.querySelectorAll('.picker-preview-btn').forEach(b => {
                         if (b !== btn) b.textContent = '▶';
                     });
@@ -99,7 +99,7 @@ export function openSoundPicker(currentSoundId, onSelect) {
         });
     }
 
-    // Troca de aba
+    // Tab switching
     overlay.querySelectorAll('.picker-tab').forEach(tab => {
         tab.onclick = () => {
             overlay.querySelectorAll('.picker-tab').forEach(t => t.classList.remove('active'));

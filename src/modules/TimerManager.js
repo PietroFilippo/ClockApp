@@ -10,26 +10,26 @@ class TimerManager {
 
         this.loadState();
 
-        // Inicia o tick se algum timer estiver ativo
+        // Start the tick if any timer is active
         if (this._hasActiveTimers()) {
             this.startTicking();
         }
 
-        // Listener para alterações de configurações para atualizar o bloqueador de energia
+        // Listener for settings changes to update the power blocker
         document.addEventListener('settings-updated', (e) => {
             if (e.detail.key === 'preventSuspend') {
                 this.updatePowerBlocker();
             }
         });
 
-        // Listener para requisições de repetição de timer
+        // Listener for timer repeat requests
         document.addEventListener('timer-repeat-requested', (e) => {
             const timerId = e.detail?.timerId;
             if (timerId) {
-                // Se tentou repetir pelo TimerManager usando o timerId (se aplicável internamente)
+                // If it tried to repeat via TimerManager using the timerId (if applicable internally)
                 this.repeat(timerId);
             } else if (e.detail?.id) {
-                // Veio do IPC / Notification (External)
+                // Came from IPC / Notification (External)
                 const alert = notificationService.activeAlerts.find(a => a.id === e.detail.id);
                 if (alert && alert.data) {
                      this.repeatFromConfig({
@@ -77,13 +77,13 @@ class TimerManager {
                 for (const state of timersArray) {
                     if (state.isRunning) {
                         if (state.isPaused) {
-                            // Pausado — mantém o tempo restante como está
+                            // Paused — keep the remaining time as is
                         } else {
-                            // Rodando — calcula o tempo decorrido desde o salvamento
+                            // Running — calculate the time elapsed since it was saved
                             const elapsedSinceSave = Math.floor((now - state.lastSaved) / 1000);
                             state.remainingSeconds = Math.max(0, state.remainingSeconds - elapsedSinceSave);
                             if (state.remainingSeconds === 0) {
-                                // Termina após a inicialização
+                                // Finishes after initialization
                                 const id = state.id;
                                 this.timers.set(id, state);
                                 setTimeout(() => this.finish(id), 100);
@@ -242,7 +242,7 @@ class TimerManager {
         const totalSeconds = h * 3600 + m * 60 + s;
         if (totalSeconds <= 0) return null;
 
-        // Checa o limite de timers ativos
+        // Check the active timers limit
         const activeCount = this.getActiveTimerCount();
         if (activeCount >= LIMITS.MAX_ACTIVE_TIMERS) return null;
 
@@ -298,19 +298,19 @@ class TimerManager {
             }
         }
 
-        // Salva a cada 5 ticks
+        // Save every 5 ticks
         this._tickCount++;
         if (this._tickCount % 5 === 0) this.saveState();
 
-        // Notifica a UI para atualizar todos os timers
+        // Notify the UI to update all timers
         this.notify('timers-tick');
 
-        // Finaliza timers que chegaram a zero
+        // Finish timers that reached zero
         for (const id of finishedTimers) {
             this.finish(id);
         }
 
-        // Para de contar se não tiver mais timers ativos
+        // Stop ticking when there are no more active timers
         if (!this._hasActiveTimers()) {
             this.stopTicking();
         }
@@ -325,7 +325,7 @@ class TimerManager {
         this.notify('timers-tick');
         this.updatePowerBlocker();
 
-        // Para de contar se não tiver mais timers ativos
+        // Stop ticking when there are no more active timers
         if (!this._hasActiveTimers()) {
             this.stopTicking();
         }

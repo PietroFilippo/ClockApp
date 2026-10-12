@@ -18,7 +18,7 @@ export function Timer() {
     const detailRadius = 140;
     const detailCircumference = detailRadius * 2 * Math.PI;
 
-    // Card ring constantes
+    // Card ring constants
     const cardRadius = 18;
     const cardCircumference = cardRadius * 2 * Math.PI;
 
@@ -27,7 +27,7 @@ export function Timer() {
     let savedTimers = [];
     let selectedRecents = new Set();
     let currentMode = null; 
-    let selectedTimerId = null; // qual timer é mostrado na view de detalhes
+    let selectedTimerId = null; // which timer is shown in the detail view
     let activeTab = localStorage.getItem(STORAGE_KEYS.TIMER_ACTIVE_TAB) || 'recents';
 
     initDelegatedListeners();
@@ -57,13 +57,13 @@ export function Timer() {
         savedTimers = timerManager.getSaved();
     }
 
-    // Render Principal
+    // Main Render
     function render() {
         loadRecents();
         loadSaved();
         const activeTimers = timerManager.getAllTimers();
 
-        // Determina qual modo mostrar
+        // Determine which mode to show
         let newMode;
         if (selectedTimerId && timerManager.getTimer(selectedTimerId)) {
             newMode = 'detail';
@@ -95,7 +95,7 @@ export function Timer() {
         container.addEventListener('click', async (e) => {
             const target = e.target;
 
-            // Troca de abas
+            // Tab switching
             if (target.closest('.timer-tab')) {
                 const tab = target.closest('.timer-tab');
                 const newTab = tab.dataset.tab;
@@ -143,7 +143,7 @@ export function Timer() {
                 return;
             }
 
-            // Checkbox no modo de editar
+            // Checkbox in edit mode
             if (target.classList.contains('select-checkbox')) {
                 e.stopPropagation();
                 const id = target.dataset.id;
@@ -158,7 +158,7 @@ export function Timer() {
                 return;
             }
 
-            // Botão play no item recente/salvo
+            // Play button on recent/saved item
             if (target.closest('.recent-item-play')) {
                 e.stopPropagation();
                 const btn = target.closest('.recent-item-play');
@@ -172,7 +172,7 @@ export function Timer() {
                 return;
             }
 
-            // Botão salvar timer (bookmark)
+            // Save timer button (bookmark)
             if (target.closest('.save-timer-btn')) {
                 e.stopPropagation();
                 const btn = target.closest('.save-timer-btn');
@@ -181,7 +181,7 @@ export function Timer() {
                 return;
             }
 
-            // Botão deletar (modo de editar)
+            // Delete button (edit mode)
             if (target.closest('.delete-recent-btn')) {
                 e.stopPropagation();
                 const btn = target.closest('.delete-recent-btn');
@@ -194,7 +194,7 @@ export function Timer() {
                 return;
             }
 
-            // Botão pause/resume no card
+            // Pause/resume button on the card
             if (target.closest('.timer-card-btn.pause-resume')) {
                 e.stopPropagation();
                 const btn = target.closest('.timer-card-btn.pause-resume');
@@ -210,7 +210,7 @@ export function Timer() {
                 return;
             }
 
-            // Botão cancelar no card
+            // Cancel button on the card
             if (target.closest('.timer-card-btn.cancel-timer')) {
                 e.stopPropagation();
                 const btn = target.closest('.timer-card-btn.cancel-timer');
@@ -219,7 +219,7 @@ export function Timer() {
                 return;
             }
 
-            // Vai para a view de detalhes
+            // Go to the detail view
             if (target.closest('.timer-card') && !target.closest('.timer-card-btn')) {
                 const card = target.closest('.timer-card');
                 const timerId = card.dataset.timerId;
@@ -231,14 +231,14 @@ export function Timer() {
                 return;
             }
 
-            // Botão adicionar timer (+)
+            // Add timer button (+)
             if (target.closest('.add-timer-btn')) {
                 e.stopPropagation();
                 openAddTimerModal();
                 return;
             }
 
-            // Botão voltar (view de detalhes)
+            // Back button (detail view)
             if (target.closest('.timer-back-btn')) {
                 selectedTimerId = null;
                 currentMode = null; // force re-init
@@ -246,7 +246,7 @@ export function Timer() {
                 return;
             }
 
-            // Botão cancelar (view de detalhes)
+            // Cancel button (detail view)
             if (target.closest('#detail-cancel-btn')) {
                 const timerId = selectedTimerId;
                 selectedTimerId = null;
@@ -256,13 +256,13 @@ export function Timer() {
                 return;
             }
 
-            // Botão pause/resume (view de detalhes)
+            // Pause/resume button (detail view)
             if (target.closest('#detail-pause-btn')) {
                 toggleDetailPause();
                 return;
             }
 
-            // Click no item recente/salvo (editar ou iniciar)
+            // Click on recent/saved item (edit or start)
             const recentInfo = target.closest('.recent-item-info');
             if (recentInfo) {
                 const id = recentInfo.dataset.id;
@@ -352,7 +352,7 @@ export function Timer() {
         const activeTimers = timerManager.getAllTimers();
 
         if (activeTimers.length === 0) {
-            // Mostra o picker inline quando não há timers ativos
+            // Show the inline picker when there are no active timers
             section.innerHTML = renderInlinePicker();
             setupInlinePickerListeners();
             return;
@@ -563,7 +563,7 @@ export function Timer() {
     function updateDetailView() {
         const timer = timerManager.getTimer(selectedTimerId);
         if (!timer) {
-            // Timer foi cancelado ou terminou — volta para a lista
+            // Timer was cancelled or finished — return to the list
             selectedTimerId = null;
             currentMode = null;
             render();
@@ -600,7 +600,7 @@ export function Timer() {
         }
     }
 
-    // Adiciona Timer Modal
+    // Add Timer Modal
     function openAddTimerModal() {
         const soundId = localStorage.getItem(STORAGE_KEYS.TIMER_SELECTED_SOUND) || audioManager.getLastUsedSound() || 'default';
 
@@ -924,18 +924,18 @@ export function Timer() {
         const activeTimers = timerManager.getAllTimers();
         const cards = container.querySelectorAll('.timer-card');
 
-        // Se a contagem mudou, renderiza completamente
+        // If the count changed, re-render completely
         if (cards.length !== activeTimers.length) {
             renderActiveTimers();
             updateListHeaderState();
             return;
         }
 
-        // Atualiza cada card no lugar
+        // Update each card in place
         for (const timer of activeTimers) {
             const card = container.querySelector(`.timer-card[data-timer-id="${timer.id}"]`);
             if (!card) {
-                // Timer não encontrado no DOM, renderiza novamente
+                // Timer not found in the DOM, re-render
                 renderActiveTimers();
                 updateListHeaderState();
                 return;
@@ -951,7 +951,7 @@ export function Timer() {
                 ringCircle.style.strokeDashoffset = offset;
             }
 
-            // Atualiza estado de pausa
+            // Update pause state
             card.classList.toggle('paused', timer.isPaused);
             const pauseBtn = card.querySelector('.pause-resume');
             if (pauseBtn) {
@@ -993,7 +993,7 @@ export function Timer() {
         updateRecentsSection();
     }
 
-    // Registra eventos
+    // Register events
     document.addEventListener('timers-tick', onTimersTick);
     document.addEventListener('timer-added', onTimerAdded);
     document.addEventListener('timer-removed', onTimerRemoved);

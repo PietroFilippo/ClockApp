@@ -18,13 +18,13 @@ class IntervalTimerManager {
             this.startTicking();
         }
 
-        // Listener para requisições de parar
+        // Listener for stop requests
         document.addEventListener('interval-timer-stop-requested', () => {
             this.cancel();
         });
     }
 
-    // Persistência de estado (running state)
+    // State persistence (running state)
 
     loadState() {
         try {
@@ -185,13 +185,13 @@ class IntervalTimerManager {
         audioManager.playAlarm(this.soundId, false);
 
         if (this.currentStepIndex < this.steps.length - 1) {
-            // Próximo step
+            // Next step
             this.currentStepIndex++;
             this._startCurrentStep();
             this.saveState();
             this.notify();
         } else {
-            // Último step — finaliza
+            // Last step — finish
             this.finish();
         }
     }
@@ -200,7 +200,7 @@ class IntervalTimerManager {
         if (this.intervalId) clearInterval(this.intervalId);
         this.isRunning = false;
         this.isPaused = false;
-        // Para o som ao finalizar
+        // Stop the sound when finished
         setTimeout(() => audioManager.stopAlarm(), 2000);
         this.saveState();
         this.updatePowerBlocker();

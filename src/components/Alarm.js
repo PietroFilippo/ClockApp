@@ -31,7 +31,7 @@ export function Alarm() {
   });
 
   function render() {
-    // Cria a estrutura estática apenas uma vez (padrão Stopwatch)
+    // Create the static structure only once (Stopwatch pattern)
     if (!container.querySelector('.header')) {
       container.innerHTML = `
         <div class="header">
@@ -47,7 +47,7 @@ export function Alarm() {
       `;
     }
 
-    // Atualiza apenas as partes dinâmicas
+    // Update only the dynamic parts
     updateHeaderState();
     updateAlarmList();
   }
@@ -117,32 +117,32 @@ export function Alarm() {
     const snoozed = alarmManager.getSnoozedAlarms();
     alarms.sort((a, b) => a.time.localeCompare(b.time));
 
-    // Atualiza classe de modo de edição
+    // Update edit-mode class
     alarmList.classList.toggle('edit-mode', isEditing);
 
-    // Estado vazio
+    // Empty state
     const emptyMsg = alarmList.querySelector('.alarm-empty-msg');
     if (alarms.length === 0) {
-      // Remove todos os itens existentes
+      // Remove all existing items
       alarmList.querySelectorAll('.alarm-item').forEach(el => el.remove());
       if (!emptyMsg) {
         alarmList.innerHTML = '<p class="alarm-empty-msg" style="text-align:center; color:var(--text-secondary); margin-top:50px;">No Alarms</p>';
       }
       return;
     }
-    // Remove mensagem de vazio se existir
+    // Remove empty message if present
     if (emptyMsg) emptyMsg.remove();
 
-    // Mapa de elementos existentes por alarm ID
+    // Map of existing elements by alarm ID
     const existingItems = new Map();
     alarmList.querySelectorAll('.alarm-item[data-alarm-id]').forEach(el => {
       existingItems.set(Number(el.dataset.alarmId), el);
     });
 
-    // IDs dos alarmes atuais para detectar remoções
+    // Current alarm IDs to detect removals
     const currentIds = new Set(alarms.map(a => a.id));
 
-    // Remove itens que não existem mais
+    // Remove items that no longer exist
     for (const [id, el] of existingItems) {
       if (!currentIds.has(id)) {
         el.remove();
@@ -150,14 +150,14 @@ export function Alarm() {
       }
     }
 
-    // Atualiza ou cria cada item na ordem correta
+    // Update or create each item in the correct order
     let previousNode = null;
     for (const alarm of alarms) {
       const existingEl = existingItems.get(alarm.id);
       const newHTML = buildAlarmItemHTML(alarm, snoozed);
 
       if (existingEl) {
-        // Atualiza o conteúdo se mudou
+        // Update the content if it changed
         const temp = document.createElement('div');
         temp.innerHTML = newHTML;
         const newEl = temp.firstElementChild;
@@ -168,7 +168,7 @@ export function Alarm() {
           existingEl.innerHTML = newEl.innerHTML;
         }
 
-        // Garante a ordem correta
+        // Ensure the correct order
         const expectedPrev = previousNode;
         const actualPrev = existingEl.previousElementSibling;
         if (actualPrev !== expectedPrev) {
@@ -180,7 +180,7 @@ export function Alarm() {
         }
         previousNode = existingEl;
       } else {
-        // Cria novo elemento
+        // Create new element
         const temp = document.createElement('div');
         temp.innerHTML = newHTML;
         const newEl = temp.firstElementChild;
@@ -210,22 +210,22 @@ export function Alarm() {
     container.addEventListener('click', async (e) => {
       const target = e.target;
 
-      // Adiciona Alarme
+      // Add Alarm
       if (target.closest('#add-alarm-btn')) {
         openAlarmModal();
         return;
       }
 
-      // Configurações de áudio
+      // Audio settings
       if (target.closest('#audio-settings-btn')) {
         openSoundSettingsModal(() => render());
         return;
       }
 
-      // Edita alarmes
+      // Edit alarms
       if (target.closest('#edit-alarm-btn')) {
         if (isEditing && selectedAlarms.size > 0) {
-          // Deleta alarmes selecionados
+          // Delete selected alarms
           const count = selectedAlarms.size;
           if (await confirmDelete(`${count} alarm${count > 1 ? 's' : ''}`, 'Selected')) {
             for (const id of selectedAlarms) {
@@ -242,7 +242,7 @@ export function Alarm() {
         return;
       }
 
-      // Cancela edição
+      // Cancel editing
       if (target.closest('#cancel-edit-alarm-btn')) {
         isEditing = false;
         selectedAlarms.clear();
@@ -250,7 +250,7 @@ export function Alarm() {
         return;
       }
 
-      // Seleciona checkbox no modo de editar
+      // Select checkbox in edit mode
       if (target.classList.contains('select-checkbox')) {
         e.stopPropagation();
         const id = Number(target.dataset.id);
@@ -271,11 +271,11 @@ export function Alarm() {
         e.stopPropagation();
         const id = Number(target.dataset.id);
 
-        // Previne loop de re-renderização completo
+        // Prevent a full re-render loop
         ignoreNextUpdate = true;
         alarmManager.toggleAlarm(id);
 
-        // Atualização UI granular
+        // Granular UI update
         const item = target.closest('.alarm-item');
         const timeDisplay = item ? item.querySelector('.alarm-time') : null;
         if (timeDisplay) {
@@ -424,7 +424,7 @@ export function Alarm() {
         const snoozeEnabled = ov.querySelector('#modal-snooze').checked;
         const snoozeInterval = Number(ov.querySelector('#modal-snooze-interval').value);
 
-        // Obtém os dias selecionados
+        // Get the selected days
         const selectedDays = [];
         ov.querySelectorAll('.day-option.selected').forEach(el => {
           selectedDays.push(Number(el.dataset.day));
@@ -449,7 +449,7 @@ export function Alarm() {
       }
     });
 
-    // Interatividade no modal — usa referência direta do overlay
+    // Modal interactivity — uses direct overlay reference
     const toggleBtn = overlay.querySelector('#toggle-days-btn');
     const dayOptions = overlay.querySelectorAll('.day-option');
 
@@ -501,7 +501,7 @@ export function Alarm() {
     };
   }
 
-  // Atualizações externas (ex: alarme disparado e desabilitado)
+  // External updates (e.g. alarm fired and disabled)
   function onAlarmsUpdated() {
     if (ignoreNextUpdate) {
       ignoreNextUpdate = false;

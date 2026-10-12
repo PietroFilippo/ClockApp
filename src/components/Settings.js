@@ -7,7 +7,7 @@ export function Settings() {
     const container = document.createElement('div');
     container.className = 'view-container';
 
-    // Estado padrão
+    // Default state
     let settings = {
         preventSuspend: false,
         autoLaunch: true,
@@ -234,7 +234,7 @@ export function Settings() {
             };
         });
 
-        // Duração dos seletores
+        // Duration selects
         container.querySelectorAll('.duration-select').forEach(select => {
             select.onchange = async (e) => {
                 const key = e.target.dataset.key;
@@ -263,7 +263,7 @@ export function Settings() {
             };
         });
 
-        // Inputs customs dos seletores
+        // Custom inputs for the selects
         container.querySelectorAll('.duration-input').forEach(input => {
             input.onchange = async (e) => {
                 const key = e.target.dataset.key;
@@ -278,7 +278,7 @@ export function Settings() {
             };
         });
 
-        // Outros seletores
+        // Other selects
         const notifSelect = container.querySelector('#notificationType');
         if (notifSelect) {
             notifSelect.onchange = async (e) => {

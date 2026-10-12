@@ -1,4 +1,4 @@
-/* Configuracoes */
+/* Settings */
 .settings-btn {
     background: none;
     border: none;
@@ -14,7 +14,7 @@
     opacity: 1;
 }
 
-/* Seletor de Velocidade (Aparentemente usado em settings ou stopwatch) */
+/* Speed Selector (Apparently used in settings or stopwatch) */
 .speed-btn-container {
     position: relative;
     display: flex;
@@ -118,7 +118,7 @@
     color: black;
 }
 
-/* Modal de Cores */
+/* Colors Modal */
 .color-picker-modal {
     background: #2d2d30;
     border-radius: 12px;
@@ -315,7 +315,7 @@
     background: rgba(255, 105, 0, 0.1);
 }
 
-/* Botão de seleção de som */
+/* Sound selection button */
 .sound-select-btn {
     background: rgba(255, 255, 255, 0.05);
     border: none;
@@ -445,7 +445,7 @@
     min-width: 40px;
 }
 
-/* Cores Básicas */
+/* Basic Colors */
 .basic-colors-section {
     flex: 1.5;
 }
@@ -477,7 +477,7 @@
     border-color: white;
 }
 
-/* Cores Personalizadas */
+/* Custom Colors */
 .custom-colors-section {
     flex: 1;
     min-width: 200px;
@@ -583,7 +583,7 @@
     margin-bottom: 20px;
 }
 
-/* Ações do Modal de Cores */
+/* Colors Modal Actions */
 .color-picker-actions {
     display: flex;
     gap: 10px;
@@ -594,7 +594,7 @@
     padding: 10px 20px;
 }
 
-/* Opções de Cores */
+/* Color Options */
 .color-selection-options {
     display: flex;
     flex-direction: column;
@@ -624,7 +624,7 @@
     border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
-/* Configurações de Audio */
+/* Audio Settings */
 .audio-controls {
     padding: 10px 0;
     border-bottom: 1px solid #38383a;

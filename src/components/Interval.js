@@ -21,9 +21,9 @@ export function Interval() {
     let isEditing = false;
     let selectedPresets = new Set();
     let currentMode = null; // 'picker' | 'running'
-    let lastRenderedStepIndex = -1; // Para otimizar rebuild da lista upcoming
+    let lastRenderedStepIndex = -1; // To optimize rebuilding the upcoming list
 
-    // Estado do draft (criação de intervalo)
+    // Draft state (interval creation)
     let draftSteps = [];
     let draftPickerHours = 0;
     let draftPickerMinutes = 5;
@@ -57,10 +57,10 @@ export function Interval() {
         localStorage.setItem(STORAGE_KEYS.INTERVAL_DRAFT_STATE, JSON.stringify(state));
     }
 
-    // Carrega o rascunho antes da renderização
+    // Load the draft before rendering
     loadDraft();
 
-    // Drag-and-drop reorder para steps (estilo WorldClock — delegação de eventos)
+    // Drag-and-drop reorder for steps (WorldClock style — event delegation)
     let draggedStepIdx = null;
 
     function getDragAfterStepElement(listContainer, y) {
@@ -78,7 +78,7 @@ export function Interval() {
     function setupStepDragDelegation(parentEl, listSelector, stepsArray, onReorder) {
         parentEl.addEventListener('dragstart', (e) => {
             const handle = e.target.closest('.interval-drag-handle');
-            if (!handle) return; // Só arrasta pelo handle
+            if (!handle) return; // Only drag via the handle
             const item = handle.closest('.interval-step-draggable');
             if (!item) return;
             draggedStepIdx = parseInt(item.dataset.idx ?? item.dataset.stepIndex);
@@ -116,14 +116,14 @@ export function Interval() {
             const list = parentEl.querySelector(listSelector);
             if (!list) return;
 
-            // Reconstrói a ordem do array baseado na ordem do DOM
+            // Rebuild the array order based on the DOM order
             const reordered = [];
             list.querySelectorAll('.interval-step-draggable').forEach(item => {
                 const idx = parseInt(item.dataset.idx ?? item.dataset.stepIndex);
                 reordered.push(stepsArray[idx]);
             });
 
-            // Atualiza o array in-place
+            // Update the array in place
             stepsArray.length = 0;
             reordered.forEach(s => stepsArray.push(s));
 
@@ -134,7 +134,7 @@ export function Interval() {
 
     initDelegatedListeners();
 
-    // Drag-and-drop delegado no container (configurado uma vez, funciona para qualquer re-render)
+    // Drag-and-drop delegated on the container (set up once, works for any re-render)
     setupStepDragDelegation(container, '.alarm-list', draftSteps, () => {
         saveDraft();
         renderDraftSteps();
@@ -153,12 +153,12 @@ export function Interval() {
         isDisabled: () => isEditing
     });
 
-    // listeners delegados
+    // delegated listeners
     function initDelegatedListeners() {
         container.addEventListener('click', async (e) => {
             const target = e.target;
 
-            // Alterna edit
+            // Toggle edit
             if (target.closest('#edit-intervals-btn')) {
                 if (isEditing && selectedPresets.size > 0) {
                     const count = selectedPresets.size;
@@ -177,7 +177,7 @@ export function Interval() {
                 return;
             }
 
-            // Cancela edit
+            // Cancel edit
             if (target.closest('#cancel-edit-interval-btn')) {
                 isEditing = false;
                 selectedPresets.clear();
@@ -200,7 +200,7 @@ export function Interval() {
                 return;
             }
 
-            // Botão de play
+            // Play button
             if (target.closest('.recent-item-play')) {
                 e.stopPropagation();
                 const btn = target.closest('.recent-item-play');
@@ -209,7 +209,7 @@ export function Interval() {
                 return;
             }
 
-            // Botão delete (modo edit)
+            // Delete button (edit mode)
             if (target.closest('.delete-recent-btn')) {
                 e.stopPropagation();
                 const btn = target.closest('.delete-recent-btn');
@@ -218,7 +218,7 @@ export function Interval() {
                 return;
             }
 
-            // Clique no item info (edit ou play)
+            // Click on item info (edit or play)
             const itemInfo = target.closest('.recent-item-info');
             if (itemInfo) {
                 const id = itemInfo.dataset.id;
@@ -243,7 +243,7 @@ export function Interval() {
         });
     }
 
-    // Funcionalidades core
+    // Core functionality
     function startPreset(id) {
         const presets = intervalTimerManager.getPresets();
         const preset = presets.find(p => p.id === id);
@@ -519,7 +519,7 @@ export function Interval() {
             onSave: () => { }
         });
 
-        // Usa referência direta do overlay
+        // Use direct overlay reference
         const saveBtn = overlay.querySelector('.save');
         if (saveBtn) saveBtn.style.display = 'none';
 
@@ -568,7 +568,7 @@ export function Interval() {
         }
     }
 
-    // Picker View (criação + lista de presets)
+    // Picker View (creation + preset list)
     function initPickerView() {
         const soundId = localStorage.getItem(STORAGE_KEYS.INTERVAL_SELECTED_SOUND) || audioManager.getLastUsedSound();
 
@@ -665,7 +665,7 @@ export function Interval() {
         attachTimeInputValidation(minutesInput, 59, { maxDigits: 2, onChange: updateDraftState });
         attachTimeInputValidation(secondsInput, 59, { maxDigits: 2, onChange: updateDraftState });
 
-        // Adiciona step
+        // Add step
         const addStepBtn = container.querySelector('#add-step-btn');
         if (addStepBtn) {
             addStepBtn.onclick = () => {
@@ -693,7 +693,7 @@ export function Interval() {
             };
         }
 
-        // Iniica
+        // Start
         const startIntervalBtn = container.querySelector('#start-interval-btn');
         if (startIntervalBtn) {
             startIntervalBtn.onclick = () => {
@@ -706,7 +706,7 @@ export function Interval() {
             };
         }
 
-        // Salva
+        // Save
         const saveIntervalBtn = container.querySelector('#save-interval-btn');
         if (saveIntervalBtn) {
             saveIntervalBtn.onclick = () => {
@@ -774,7 +774,7 @@ export function Interval() {
         updateHeaderState();
     }
 
-    // Draft steps (em recents)
+    // Draft steps (in recents)
     function renderDraftSteps() {
         const recentsContainer = container.querySelector('.recents-container');
         const startIntervalBtn = container.querySelector('#start-interval-btn');
@@ -786,7 +786,7 @@ export function Interval() {
         if (draftSteps.length === 0) {
             if (startIntervalBtn) startIntervalBtn.style.display = 'none';
             if (saveIntervalBtn) saveIntervalBtn.style.display = 'none';
-            // Mostra presets em vez do placeholder se existirem
+            // Show presets instead of the placeholder if any exist
             updatePresetsSection();
             return;
         }
@@ -830,7 +830,7 @@ export function Interval() {
             labelInput.placeholder = 'Step name';
         }
 
-        // Inline label editing para draft steps
+        // Inline label editing for draft steps
         recentsContainer.querySelectorAll('.interval-step-label-editable').forEach(label => {
             label.onclick = (e) => {
                 e.stopPropagation();
@@ -908,12 +908,12 @@ export function Interval() {
         });
     }
 
-    // Seção de presets (quando não tem draft steps)    
+    // Presets section (when there are no draft steps)    
     function updatePresetsSection() {
         const recentsContainer = container.querySelector('.recents-container');
         if (!recentsContainer) return;
 
-        // Se tem draft steps, o renderDraftSteps cuida
+        // If there are draft steps, renderDraftSteps handles it
         if (draftSteps.length > 0) return;
 
         const presets = intervalTimerManager.getPresets();
@@ -1076,7 +1076,7 @@ export function Interval() {
             pauseBtn.className = `control-btn ${state.isPaused ? 'start' : 'pause'}`;
         }
 
-        // Só reconstrói a lista upcoming quando o step muda, não a cada tick
+        // Only rebuild the upcoming list when the step changes, not on every tick
         if (state.currentStepIndex !== lastRenderedStepIndex) {
             const upcomingEl = container.querySelector('#interval-upcoming');
             if (upcomingEl) upcomingEl.innerHTML = renderUpcomingSteps(state);
@@ -1107,7 +1107,7 @@ export function Interval() {
                     `;
     }
 
-    // Utilitários
+    // Utilities
 
 
     function updateProgress(remaining, total) {

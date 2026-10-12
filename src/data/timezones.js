@@ -1,4 +1,4 @@
-// ─── Mapeamento de países para zonas de fuso horário (IANA) ────────────────
+// ─── Mapping of countries to time zones (IANA) ────────────────
 const ZONE_COUNTRY = {
     // Africa
     'Africa/Abidjan': 'Ivory Coast', 'Africa/Accra': 'Ghana', 'Africa/Addis_Ababa': 'Ethiopia',
@@ -23,7 +23,7 @@ const ZONE_COUNTRY = {
     'Africa/Sao_Tome': 'São Tomé and Príncipe', 'Africa/Tripoli': 'Libya',
     'Africa/Tunis': 'Tunisia', 'Africa/Windhoek': 'Namibia',
 
-    // América — Estados Unidos
+    // America — United States
     'America/Adak': 'USA', 'America/Anchorage': 'USA', 'America/Boise': 'USA',
     'America/Chicago': 'USA', 'America/Denver': 'USA', 'America/Detroit': 'USA',
     'America/Indiana/Indianapolis': 'USA', 'America/Indiana/Knox': 'USA',
@@ -38,7 +38,7 @@ const ZONE_COUNTRY = {
     'America/Phoenix': 'USA', 'America/Sitka': 'USA', 'America/Yakutat': 'USA',
     'Pacific/Honolulu': 'USA',
 
-    // América — Canadá
+    // America — Canada
     'America/Atikokan': 'Canada', 'America/Blanc-Sablon': 'Canada',
     'America/Cambridge_Bay': 'Canada', 'America/Creston': 'Canada',
     'America/Dawson': 'Canada', 'America/Dawson_Creek': 'Canada',
@@ -52,7 +52,7 @@ const ZONE_COUNTRY = {
     'America/Vancouver': 'Canada', 'America/Whitehorse': 'Canada',
     'America/Winnipeg': 'Canada', 'America/Yellowknife': 'Canada',
 
-    // América — Brasil
+    // America — Brazil
     'America/Araguaina': 'Brazil', 'America/Bahia': 'Brazil', 'America/Belem': 'Brazil',
     'America/Boa_Vista': 'Brazil', 'America/Campo_Grande': 'Brazil',
     'America/Cuiaba': 'Brazil', 'America/Eirunepe': 'Brazil', 'America/Fortaleza': 'Brazil',
@@ -61,7 +61,7 @@ const ZONE_COUNTRY = {
     'America/Rio_Branco': 'Brazil', 'America/Santarem': 'Brazil',
     'America/Sao_Paulo': 'Brazil',
 
-    // América — México
+    // America — Mexico
     'America/Bahia_Banderas': 'Mexico', 'America/Cancun': 'Mexico',
     'America/Chihuahua': 'Mexico', 'America/Ciudad_Juarez': 'Mexico',
     'America/Hermosillo': 'Mexico', 'America/Matamoros': 'Mexico',
@@ -69,7 +69,7 @@ const ZONE_COUNTRY = {
     'America/Mexico_City': 'Mexico', 'America/Monterrey': 'Mexico',
     'America/Ojinaga': 'Mexico', 'America/Tijuana': 'Mexico',
 
-    // América — Argentina
+    // America — Argentina
     'America/Argentina/Buenos_Aires': 'Argentina', 'America/Argentina/Catamarca': 'Argentina',
     'America/Argentina/Cordoba': 'Argentina', 'America/Argentina/Jujuy': 'Argentina',
     'America/Argentina/La_Rioja': 'Argentina', 'America/Argentina/Mendoza': 'Argentina',
@@ -77,7 +77,7 @@ const ZONE_COUNTRY = {
     'America/Argentina/San_Juan': 'Argentina', 'America/Argentina/San_Luis': 'Argentina',
     'America/Argentina/Tucuman': 'Argentina', 'America/Argentina/Ushuaia': 'Argentina',
 
-    // América — Outros
+    // America — Others
     'America/Asuncion': 'Paraguay', 'America/Barbados': 'Barbados',
     'America/Belize': 'Belize', 'America/Bogota': 'Colombia',
     'America/Caracas': 'Venezuela', 'America/Cayenne': 'French Guiana',
@@ -96,7 +96,7 @@ const ZONE_COUNTRY = {
     'America/Tegucigalpa': 'Honduras', 'America/Thule': 'Greenland',
     'America/Tortola': 'British Virgin Islands',
 
-    // Asia — Russia (Parte asiática)
+    // Asia — Russia (Asian part)
     'Asia/Anadyr': 'Russia', 'Asia/Barnaul': 'Russia', 'Asia/Chita': 'Russia',
     'Asia/Irkutsk': 'Russia', 'Asia/Kamchatka': 'Russia', 'Asia/Khandyga': 'Russia',
     'Asia/Krasnoyarsk': 'Russia', 'Asia/Magadan': 'Russia',
@@ -105,7 +105,7 @@ const ZONE_COUNTRY = {
     'Asia/Ust-Nera': 'Russia', 'Asia/Vladivostok': 'Russia', 'Asia/Yakutsk': 'Russia',
     'Asia/Yekaterinburg': 'Russia',
 
-    // Asia — Outros
+    // Asia — Others
     'Asia/Aden': 'Yemen', 'Asia/Almaty': 'Kazakhstan', 'Asia/Amman': 'Jordan',
     'Asia/Aqtau': 'Kazakhstan', 'Asia/Aqtobe': 'Kazakhstan',
     'Asia/Ashgabat': 'Turkmenistan', 'Asia/Atyrau': 'Kazakhstan',
@@ -132,13 +132,13 @@ const ZONE_COUNTRY = {
     'Asia/Ulaanbaatar': 'Mongolia', 'Asia/Urumqi': 'China', 'Asia/Yangon': 'Myanmar',
     'Asia/Yerevan': 'Armenia',
 
-    // Europa — Russia (Parte da europa)
+    // Europe — Russia (European part)
     'Europe/Astrakhan': 'Russia', 'Europe/Kaliningrad': 'Russia', 'Europe/Kirov': 'Russia',
     'Europe/Moscow': 'Russia', 'Europe/Samara': 'Russia', 'Europe/Saratov': 'Russia',
     'Europe/Simferopol': 'Russia', 'Europe/Ulyanovsk': 'Russia',
     'Europe/Volgograd': 'Russia',
 
-    // Europa — Outros
+    // Europe — Others
     'Europe/Amsterdam': 'Netherlands', 'Europe/Andorra': 'Andorra',
     'Europe/Athens': 'Greece', 'Europe/Belgrade': 'Serbia', 'Europe/Berlin': 'Germany',
     'Europe/Bratislava': 'Slovakia', 'Europe/Brussels': 'Belgium',
@@ -163,21 +163,21 @@ const ZONE_COUNTRY = {
     'Europe/Vilnius': 'Lithuania', 'Europe/Warsaw': 'Poland',
     'Europe/Zagreb': 'Croatia', 'Europe/Zurich': 'Switzerland',
 
-    // Atlântico
+    // Atlantic
     'Atlantic/Azores': 'Portugal', 'Atlantic/Bermuda': 'Bermuda',
     'Atlantic/Canary': 'Spain', 'Atlantic/Cape_Verde': 'Cape Verde',
     'Atlantic/Faroe': 'Denmark', 'Atlantic/Madeira': 'Portugal',
     'Atlantic/Reykjavik': 'Iceland', 'Atlantic/South_Georgia': 'UK',
     'Atlantic/St_Helena': 'UK', 'Atlantic/Stanley': 'Falkland Islands',
 
-    // Oceano Índico
+    // Indian Ocean
     'Indian/Antananarivo': 'Madagascar', 'Indian/Chagos': 'UK',
     'Indian/Christmas': 'Australia', 'Indian/Cocos': 'Australia',
     'Indian/Comoro': 'Comoros', 'Indian/Kerguelen': 'France', 'Indian/Mahe': 'Seychelles',
     'Indian/Maldives': 'Maldives', 'Indian/Mauritius': 'Mauritius',
     'Indian/Mayotte': 'France', 'Indian/Reunion': 'France',
 
-    // Austrália
+    // Australia
     'Australia/Adelaide': 'Australia', 'Australia/Brisbane': 'Australia',
     'Australia/Broken_Hill': 'Australia', 'Australia/Darwin': 'Australia',
     'Australia/Eucla': 'Australia', 'Australia/Hobart': 'Australia',
@@ -185,7 +185,7 @@ const ZONE_COUNTRY = {
     'Australia/Melbourne': 'Australia', 'Australia/Perth': 'Australia',
     'Australia/Sydney': 'Australia',
 
-    // Pacífico
+    // Pacific
     'Pacific/Apia': 'Samoa', 'Pacific/Auckland': 'New Zealand',
     'Pacific/Bougainville': 'Papua New Guinea', 'Pacific/Chatham': 'New Zealand',
     'Pacific/Chuuk': 'Micronesia', 'Pacific/Easter': 'Chile', 'Pacific/Efate': 'Vanuatu',
@@ -204,11 +204,11 @@ const ZONE_COUNTRY = {
     'Pacific/Tongatapu': 'Tonga', 'Pacific/Wake': 'USA',
     'Pacific/Wallis': 'Wallis and Futuna',
 
-    // Ártico
+    // Arctic
     'Arctic/Longyearbyen': 'Norway',
 };
 
-// ─── Região → Continente mapping ─────────────────────────────
+// ─── Region → Continent mapping ─────────────────────────────
 const REGION_CONTINENT = {
     'Africa': 'Africa',
     'America': 'Americas',
@@ -221,7 +221,7 @@ const REGION_CONTINENT = {
     'Arctic': 'Europe',
 };
 
-// Substituições para zonas onde o continente baseado na região está errado
+// Overrides for zones where the continent based on the region is wrong
 const CONTINENT_OVERRIDE = {
     'Atlantic/Bermuda': 'Americas',
     'Atlantic/Stanley': 'Americas',
@@ -246,7 +246,7 @@ const CONTINENT_OVERRIDE = {
     'Pacific/Wake': 'Oceania',
 };
 
-// ─── Mostra os nomes das zonas (quando o nome da cidade do IANA não é ideal) ─
+// ─── Display names for zones (when the IANA city name is not ideal) ─
 const DISPLAY_NAME = {
     'Asia/Kolkata': 'Mumbai / New Delhi',
     'America/Argentina/Buenos_Aires': 'Buenos Aires',
@@ -273,13 +273,13 @@ const DISPLAY_NAME = {
     'Europe/Kyiv': 'Kyiv',
 };
 
-// ─── Regiões válidas para incluir (pule Etc/*, SystemV/*, etc) ────
+// ─── Valid regions to include (skip Etc/*, SystemV/*, etc) ────
 const VALID_REGIONS = new Set([
     'Africa', 'America', 'Asia', 'Atlantic', 'Australia',
     'Europe', 'Indian', 'Pacific', 'Arctic'
 ]);
 
-// ─── Gera a lista completa de zonas ─────────────────────
+// ─── Generate the full list of zones ─────────────────────
 function generateTimezones() {
     let zones;
     try {
@@ -294,7 +294,7 @@ function generateTimezones() {
         .filter(zone => {
             const region = zone.split('/')[0];
             if (!VALID_REGIONS.has(region)) return false;
-            // Pula Antartida (estações de pesquisa)
+            // Skip Antarctica (research stations)
             if (region === 'Antarctica') return false;
             return true;
         })
@@ -302,14 +302,14 @@ function generateTimezones() {
             const parts = zone.split('/');
             const region = parts[0];
 
-            // Nome da cidade
+            // City name
             const city = DISPLAY_NAME[zone]
                 || parts[parts.length - 1].replace(/_/g, ' ');
 
-            // País
+            // Country
             const country = ZONE_COUNTRY[zone] || region;
 
-            // Continente
+            // Continent
             const continent = CONTINENT_OVERRIDE[zone]
                 || REGION_CONTINENT[region]
                 || 'Other';

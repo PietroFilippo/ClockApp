@@ -1,4 +1,4 @@
-/* swipe pra deletar */
+/* swipe to delete */
 
 .swipe-container {
     position: relative;
@@ -57,12 +57,12 @@
     transform: translateY(-50%) scale(0.95);
 }
 
-/* no modo de edição, esconde o botão de deletar */
+/* in edit mode, hide the delete button */
 .edit-mode .swipe-delete-btn {
     display: none !important;
 }
 
-/* esconde elementos interativos durante o swipe para evitar sobreposição com o botão de deletar */
+/* hide interactive elements during the swipe to avoid overlapping the delete button */
 .swiping .clock-time,
 .swiping .switch,
 .swiping .save-timer-btn,

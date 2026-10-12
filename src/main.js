@@ -18,13 +18,13 @@ import { DEFAULT_KEYBINDS } from './utils/KeybindManager.js';
 alarmManager.init();
 
 
-// Helper pra rastrear o modal aberto
+// Helper to track the open modal
 let currentOverlay = null;
 
 function onNotificationRing(e) {
   const alert = e.detail;
 
-  // Cleanup de overlay existente (evita empilhamento)
+  // Clean up existing overlay (prevents stacking)
   if (currentOverlay && currentOverlay.element) {
     if (currentOverlay.element.isConnected) {
       currentOverlay.element.remove();
@@ -103,7 +103,7 @@ function onNotificationRing(e) {
 
 document.addEventListener('notification-ring', onNotificationRing);
 
-// Listeners pra requisições externas de parada (ex: de Notificação)
+// Listeners for external stop requests (e.g., from a Notification)
 document.addEventListener('timer-stop-requested', () => {
   if (currentOverlay && currentOverlay.type === 'timer' && currentOverlay.element) {
     if (currentOverlay.element.isConnected) currentOverlay.element.remove();
@@ -132,7 +132,7 @@ document.addEventListener('alarm-snooze-requested', (e) => {
   }
 });
 
-// Listener unificado de notificação de ação (auto-action)
+// Unified action-notification listener (auto-action)
 document.addEventListener('notification-action', (e) => {
   const { action, id, type } = e.detail;
   if (currentOverlay && currentOverlay.type === type && currentOverlay.id === id && currentOverlay.element) {
@@ -200,7 +200,7 @@ function render() {
     if (maxBtn) maxBtn.onclick = () => window.electronAPI.maximizeWindow();
     if (closeBtn) closeBtn.onclick = () => window.electronAPI.closeWindow();
 
-    // Lógica shortcuts globais
+    // Global shortcuts logic
     window.electronAPI.getSettings().then(settings => {
       const useGlobalShortcuts = settings.globalShortcuts !== false;
       if (useGlobalShortcuts) {
@@ -209,9 +209,9 @@ function render() {
       }
     });
 
-    window.electronAPI.removeGlobalShortcutListener(); // Limpa prévios
+    window.electronAPI.removeGlobalShortcutListener(); // Clear previous ones
     window.electronAPI.onGlobalShortcut((action) => {
-      // Mapeia ações para o StopwatchManager
+      // Map actions to the StopwatchManager
       switch (action) {
         case 'toggle':
           stopwatchManager.isRunning ? stopwatchManager.stop() : stopwatchManager.start();
@@ -236,7 +236,7 @@ function render() {
   const onTabChange = (newTab) => {
     if (currentTab === newTab) return;
 
-    // Salva posição do scroll da aba atual antes de trocar
+    // Save the scroll position of the current tab before switching
     const contentArea = document.querySelector('#content');
     if (contentArea) {
       scrollPositions[currentTab] = contentArea.scrollTop;
@@ -259,13 +259,13 @@ const scrollPositions = {};
 function updateView() {
   const contentArea = document.querySelector('#content');
 
-  // Limpa componente anterior
+  // Clean up previous component
   if (activeComponentCleanup) {
     activeComponentCleanup();
     activeComponentCleanup = null;
   }
 
-  contentArea.innerHTML = ''; // Limpa view atual
+  contentArea.innerHTML = ''; // Clear current view
 
   let componentResult;
   switch (currentTab) {
@@ -278,7 +278,7 @@ function updateView() {
     default: componentResult = WorldClock();
   }
 
-  // Gerencia tanto DOM Node quanto { element, cleanup } returns
+  // Handles both DOM Node and { element, cleanup } returns
   if (componentResult instanceof Node) {
     contentArea.appendChild(componentResult);
   } else if (componentResult && componentResult.element) {
@@ -288,7 +288,7 @@ function updateView() {
     }
   }
 
-  // Restaura posição do scroll
+  // Restore scroll position
   if (scrollPositions[currentTab] !== undefined) {
     setTimeout(() => {
       contentArea.scrollTop = scrollPositions[currentTab];
@@ -305,7 +305,7 @@ function updateNav() {
   const onTabChange = (newTab) => {
     if (currentTab === newTab) return;
 
-    // Salva posição do scroll da aba atual antes de trocar
+    // Save the scroll position of the current tab before switching
     const contentArea = document.querySelector('#content');
     if (contentArea) {
       scrollPositions[currentTab] = contentArea.scrollTop;
@@ -324,8 +324,8 @@ function updateNav() {
 render();
 
 // ── Centralized Taskbar Updater ──
-// Atualiza o título da janela e a barra de progresso na taskbar
-// para mostrar countdowns ativos ao passar o mouse no ícone minimizado.
+// Updates the window title and the progress bar on the taskbar
+// to show active countdowns when hovering over the minimized icon.
 if (window.electronAPI && window.electronAPI.setWindowTitle) {
   const DEFAULT_TITLE = 'Clock App';
   let taskbarStopwatchInterval = null;
@@ -356,7 +356,7 @@ if (window.electronAPI && window.electronAPI.setWindowTitle) {
     const activeTimers = allTimers.filter(t => t.isRunning && !t.isPaused);
 
     if (activeTimers.length > 0) {
-      // Pega o timer com menor tempo restante para exibir
+      // Pick the timer with the least time remaining to display
       const nearest = activeTimers.reduce((a, b) =>
         a.remainingSeconds < b.remainingSeconds ? a : b
       );
@@ -365,12 +365,12 @@ if (window.electronAPI && window.electronAPI.setWindowTitle) {
       const timeStr = formatTaskbarTime(nearest.remainingSeconds);
       window.electronAPI.setWindowTitle(`⏱ ${timeStr}${label}`);
 
-      // Barra de progresso: 1.0 = cheio, 0.0 = vazio
+      // Progress bar: 1.0 = full, 0.0 = empty
       const progress = nearest.totalSeconds > 0
         ? nearest.remainingSeconds / nearest.totalSeconds
         : 0;
-      window.electronAPI.setProgressBar(1 - progress); // Inverte: preenche à medida que o tempo passa
-      return true; // Timer tem prioridade
+      window.electronAPI.setProgressBar(1 - progress); // Inverted: fills as time passes
+      return true; // Timer takes priority
     }
     return false;
   }
@@ -380,7 +380,7 @@ if (window.electronAPI && window.electronAPI.setWindowTitle) {
       const elapsed = stopwatchManager.getElapsed();
       const timeStr = formatStopwatchTime(elapsed);
       window.electronAPI.setWindowTitle(`⏱ ${timeStr}`);
-      window.electronAPI.setProgressBar(-1); // Sem barra de progresso para stopwatch
+      window.electronAPI.setProgressBar(-1); // No progress bar for stopwatch
       return true;
     }
     return false;
@@ -391,17 +391,17 @@ if (window.electronAPI && window.electronAPI.setWindowTitle) {
     window.electronAPI.setProgressBar(-1);
   }
 
-  // Listener: Timer tick (disparado a cada segundo pelo TimerManager)
+  // Listener: Timer tick (fired every second by the TimerManager)
   document.addEventListener('timers-tick', () => {
     if (!updateTaskbarFromTimers()) {
-      // Sem timers ativos — verifica stopwatch ou limpa
+      // No active timers — check stopwatch or clear
       if (!updateTaskbarFromStopwatch()) {
         clearTaskbar();
       }
     }
   });
 
-  // Listener: Timer removido/finalizado
+  // Listener: Timer removed/finished
   document.addEventListener('timer-removed', () => {
     if (!updateTaskbarFromTimers() && !updateTaskbarFromStopwatch()) {
       clearTaskbar();
@@ -414,13 +414,13 @@ if (window.electronAPI && window.electronAPI.setWindowTitle) {
     }
   });
 
-  // Listener: Stopwatch — inicia/para intervalo de atualização
+  // Listener: Stopwatch — starts/stops the update interval
   document.addEventListener('stopwatch-update', () => {
     if (stopwatchManager.isRunning) {
-      // Inicia intervalo se não existe e não há timers ativos
+      // Start interval if it doesn't exist and there are no active timers
       if (!taskbarStopwatchInterval) {
         taskbarStopwatchInterval = setInterval(() => {
-          // Timers têm prioridade sobre stopwatch
+          // Timers take priority over stopwatch
           if (!updateTaskbarFromTimers()) {
             if (!updateTaskbarFromStopwatch()) {
               clearInterval(taskbarStopwatchInterval);
@@ -431,24 +431,24 @@ if (window.electronAPI && window.electronAPI.setWindowTitle) {
         }, 1000);
       }
     } else {
-      // Stopwatch parado — limpa intervalo
+      // Stopwatch stopped — clear interval
       if (taskbarStopwatchInterval) {
         clearInterval(taskbarStopwatchInterval);
         taskbarStopwatchInterval = null;
       }
-      // Verifica se há timers antes de limpar
+      // Check whether there are timers before clearing
       if (!updateTaskbarFromTimers()) {
         clearTaskbar();
       }
     }
   });
 
-  // Inicialização: verifica estado atual ao carregar
+  // Initialization: check current state on load
   setTimeout(() => {
     if (!updateTaskbarFromTimers() && !updateTaskbarFromStopwatch()) {
       clearTaskbar();
     } else if (stopwatchManager.isRunning && !taskbarStopwatchInterval) {
-      // Inicia polling do stopwatch se já estava rodando ao carregar
+      // Start stopwatch polling if it was already running on load
       taskbarStopwatchInterval = setInterval(() => {
         if (!updateTaskbarFromTimers()) {
           if (!updateTaskbarFromStopwatch()) {
@@ -465,7 +465,7 @@ if (window.electronAPI && window.electronAPI.setWindowTitle) {
 // Auto-Update Banner
 if (window.electronAPI && window.electronAPI.onUpdateAvailable) {
   window.electronAPI.onUpdateAvailable((data) => {
-    // Evita duplicatas
+    // Avoid duplicates
     if (document.querySelector('.update-banner')) return;
 
     const banner = document.createElement('div');

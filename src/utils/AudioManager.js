@@ -22,11 +22,11 @@ class AudioManager {
         this.customSounds = JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOM_SOUNDS)) || [];
         this.volume = parseFloat(localStorage.getItem(STORAGE_KEYS.ALARM_VOLUME)) || 1.0;
 
-        // Audio principal para alarmes e timers
+        // Main audio for alarms and timers
         this.mainAudio = new Audio();
         this.mainAudio.volume = this.volume;
 
-        // Preview do audio para configurações
+        // Audio preview for settings
         this.previewAudio = new Audio();
         this.previewAudio.volume = this.volume;
     }
@@ -72,7 +72,7 @@ class AudioManager {
     }
 
     getSoundSrc(soundId) {
-        // Fallback pro default se não encontrado
+        // Fall back to the default if not found
         const sound = this.getSoundById(soundId) || this.builtInSounds[0];
         return sound.data;
     }
@@ -90,7 +90,7 @@ class AudioManager {
         this.mainAudio.currentTime = 0;
     }
 
-    // Métodos de preview
+    // Preview methods
     playPreview(soundId) {
         this.stopPreview();
         const src = this.getSoundSrc(soundId);
@@ -108,7 +108,7 @@ class AudioManager {
         return this.previewAudio;
     }
 
-    // Gerenciamento de sons personalizados
+    // Custom sound management
     async addCustomSound(name, data) {
         const isElectron = !!window.electronAPI;
         const limit = isElectron ? LIMITS.MAX_CUSTOM_SOUNDS_ELECTRON : LIMITS.MAX_CUSTOM_SOUNDS_BROWSER;

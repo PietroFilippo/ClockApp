@@ -2,7 +2,7 @@ import { audioManager } from '../utils/AudioManager.js';
 
 export class NotificationService {
     constructor() {
-        this.activeAlerts = []; // Queue/Stack para notificações ativas
+        this.activeAlerts = []; // Queue/Stack for active notifications
         this.permissionsGranted = false;
         
         if (Notification.permission !== 'granted') {
@@ -15,7 +15,7 @@ export class NotificationService {
     }
 
     async triggerAlert({ id, type, title, body, soundId, snoozeEnabled, repeatEnabled, repeatCount, data }) {
-        // Remove se já existe para mover pro topo (re-trigger)
+        // Remove if it already exists, to move it to the top (re-trigger)
         this.activeAlerts = this.activeAlerts.filter(a => a.id !== id);
 
         const alertItem = {
@@ -41,16 +41,16 @@ export class NotificationService {
             return;
         }
 
-        // Pega o último (topo da pilha)
+        // Get the last one (top of the stack)
         const currentAlert = this.activeAlerts[this.activeAlerts.length - 1];
 
-        // Limpa qualquer timeout de ação existente para este alerta para evitar duplicatas se atualizado
+        // Clear any existing action timeout for this alert to avoid duplicates if updated
         if (currentAlert.actionTimeoutId) {
             clearTimeout(currentAlert.actionTimeoutId);
             currentAlert.actionTimeoutId = null;
         }
 
-        // Toca o som do alerta atual
+        // Play the current alert sound
         audioManager.playAlarm(currentAlert.soundId);
 
         // Setup Auto-Action Timeout
@@ -66,7 +66,7 @@ export class NotificationService {
 
                 if (autoDuration > 0) {
                     currentAlert.actionTimeoutId = setTimeout(() => {
-                        // Checa se o alerta ainda está ativo
+                        // Check whether the alert is still active
                         const isStillActive = this.activeAlerts.some(a => a.id === currentAlert.id);
                         if (!isStillActive) return;
 
@@ -88,7 +88,7 @@ export class NotificationService {
                             }
                         }
 
-                        // Força o fechamento da janela de notificação
+                        // Force-close the notification window
                         if (window.electronAPI) {
                             window.electronAPI.closeCustomNotification();
                         }
@@ -98,7 +98,7 @@ export class NotificationService {
             });
         }
 
-        // Atualiza a notificação externa
+        // Update the external notification
         this.handleNotification(currentAlert.title, currentAlert.body, {
             snoozeEnabled: currentAlert.snoozeEnabled,
             repeatEnabled: currentAlert.repeatEnabled,
@@ -106,7 +106,7 @@ export class NotificationService {
             repeatCount: currentAlert.repeatCount
         }).catch(err => console.error("Notification failed", err));
 
-        // Sempre dispara evento para a UI renderizar/atualizar o overlay
+        // Always dispatch an event so the UI renders/updates the overlay
         if (shouldDispatchEvent) {
              document.dispatchEvent(new CustomEvent('notification-ring', { detail: currentAlert }));
         }
@@ -162,7 +162,7 @@ export class NotificationService {
     }
 
     stopAllAlerts() {
-        // Limpa timeouts
+        // Clear timeouts
         this.activeAlerts.forEach(alert => {
             if (alert.actionTimeoutId) {
                 clearTimeout(alert.actionTimeoutId);

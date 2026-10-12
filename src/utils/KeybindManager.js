@@ -1,11 +1,11 @@
 /**
- * KeybindManager — Encapsula o estado de atalhos, gravação, resolução de conflitos,
- * renderização do modal, e registro de atalhos globais e locais.
+ * KeybindManager — Encapsulates shortcut state, recording, conflict resolution,
+ * modal rendering, and registration of global and local shortcuts.
  *
  * Usage:
  *   const km = new KeybindManager({
- *     onAction: (action) => { ... },   // chamado quando um atalho é acionado
- *     onUpdate: () => { ... }          // chamado quando as atalhos mudam (para re-render)
+ *     onAction: (action) => { ... },   // called when a shortcut is triggered
+ *     onUpdate: () => { ... }          // called when the shortcuts change (to re-render)
  *   });
  */
 
@@ -30,14 +30,14 @@ export class KeybindManager {
         this.keybinds = JSON.parse(localStorage.getItem(STORAGE_KEYS.STOPWATCH_KEYBINDS)) || { ...DEFAULT_KEYBINDS };
         this.isListeningForKey = null;
 
-        // Carrega configurações de atalhos globais
+        // Load global shortcut settings
         let storedSettings = {};
         try {
             storedSettings = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS)) || {};
         } catch (e) { }
         this.useGlobalShortcuts = storedSettings.globalShortcuts !== false;
 
-        // Registra shortcuts iniciais
+        // Register initial shortcuts
         if (window.electronAPI) {
             window.electronAPI.removeGlobalShortcutListener();
             window.electronAPI.unregisterGlobalShortcuts();
@@ -52,7 +52,7 @@ export class KeybindManager {
         this._handleLocalKeydown = this._handleLocalKeydown.bind(this);
         this._handleRecording = this._handleRecording.bind(this);
 
-        // Registra listeners
+        // Register listeners
         window.addEventListener('keydown', this._handleLocalKeydown);
         window.addEventListener('keydown', this._handleRecording, { capture: true });
     }
@@ -86,7 +86,7 @@ export class KeybindManager {
         if (window.electronAPI) window.electronAPI.registerGlobalShortcuts(this.keybinds);
     }
 
-    // Retorna o HTML do modal de atalhos
+    // Return the HTML for the shortcuts modal
     renderModal() {
         return `
         <div class="modal-overlay" id="keybinds-modal">
@@ -111,7 +111,7 @@ export class KeybindManager {
       `;
     }
 
-    // Atualiza os botões de gravação dentro de um modal existente
+    // Update the recording buttons inside an existing modal
     updateModalUI(container) {
         const kbModal = container.querySelector('#keybinds-modal');
         if (!kbModal) return;
@@ -126,7 +126,7 @@ export class KeybindManager {
         });
     }
 
-    // Anexa os handlers de clique ao modal
+    // Attach the click handlers to the modal
     attachModalListeners(container, onClose) {
         const kbModal = container.querySelector('#keybinds-modal');
         if (!kbModal) return;
@@ -139,7 +139,7 @@ export class KeybindManager {
             }
         };
 
-        // Grava botões
+        // Record buttons
         kbModal.querySelectorAll('.record-btn').forEach(btn => {
             btn.onclick = () => {
                 this.startRecording(btn.dataset.action);
@@ -147,7 +147,7 @@ export class KeybindManager {
             };
         });
 
-        // Reseta defauts
+        // Reset defaults
         kbModal.querySelector('#reset-defaults').onclick = () => {
             this.resetToDefaults();
             this.updateModalUI(container);
@@ -163,7 +163,7 @@ export class KeybindManager {
         };
     }
 
-    // Remove todos os event listeners, chama na limpeza do componente
+    // Remove all event listeners; call on component cleanup
     cleanup() {
         window.removeEventListener('keydown', this._handleLocalKeydown);
         window.removeEventListener('keydown', this._handleRecording, { capture: true });
@@ -224,7 +224,7 @@ export class KeybindManager {
             parts.push(key);
             const accelerator = parts.join('+');
 
-            // Resolução de conflito
+            // Conflict resolution
             const existingAction = Object.keys(this.keybinds).find(
                 k => this.keybinds[k] === accelerator && k !== this.isListeningForKey
             );

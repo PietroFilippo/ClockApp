@@ -21,7 +21,7 @@
             border: 1px solid #333;
             overflow: hidden;
             user-select: none;
-            /* Manejo do arrastar pelo JS para manter tooltips */
+            /* Dragging is handled in JS so tooltips keep working */
             text-align: center;
             cursor: default;
         }
@@ -36,7 +36,7 @@
             justify-content: center;
             align-items: center;
             pointer-events: none;
-            /* Permite que os cliques passem pelo corpo para arrastar */
+            /* Let clicks pass through to the body for dragging */
         }
 
         h2,
@@ -140,12 +140,12 @@
     </div>
 
     <script>
-        // Lógica de arrastar janela usando eventos de mouse do JS
+        // Window drag logic using JS mouse events
         let isDragging = false;
         let startX, startY;
 
         window.addEventListener('mousedown', (e) => {
-            // Arrasta se for clique esquerdo e não sobre botões de ação ou botão de fechar
+            // Drag on left click, unless it's on an action button or the close button
             if (e.button === 0 && !e.target.closest('button')) {
                 isDragging = true;
                 startX = e.screenX;
@@ -169,8 +169,8 @@
 
         const params = new URLSearchParams(window.location.search);
 
-        // Helper para truncar texto com tooltip (duplicado do notification.js pois
-        // essa janela roda em contexto isolado sem acesso ao bundle do renderer)
+        // Helper to truncate text with a tooltip (duplicated from notification.js because
+        // this window runs in an isolated context without access to the renderer bundle)
         const truncate = (text, limit) => (text && text.length > limit) ? text.substring(0, limit) + '...' : (text || '');
 
         function updateContent(data) {
@@ -214,7 +214,7 @@
             };
         }
 
-        // Inicializa com os parâmetros da URL
+        // Initialize with the URL parameters
         updateContent({
             title: params.get('title'),
             body: params.get('body'),
@@ -224,7 +224,7 @@
             repeatCount: params.get('repeatCount')
         });
 
-        // Espera por atualizações
+        // Listen for updates
         if (window.electronAPI && window.electronAPI.onUpdateContent) {
             window.electronAPI.onUpdateContent((data) => {
                 updateContent(data);

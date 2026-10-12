@@ -21,7 +21,7 @@
     transition: none;
 }
 
-/* Cada view ocupa exatamente 50% da track (= 100% do viewport) */
+/* Each view takes up exactly 50% of the track (= 100% of the viewport) */
 .stopwatch-view-slide {
     width: 50%;
     flex-shrink: 0;

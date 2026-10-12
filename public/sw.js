@@ -1,11 +1,11 @@
 const CACHE_NAME = 'clock-app-v3.3.6';
 
-// Ativa imediatamente sem esperar por abas abertas
+// Activate immediately without waiting for open tabs
 self.addEventListener('install', () => {
     self.skipWaiting();
 });
 
-// Limpa caches antigos e toma controle de todas as abas
+// Clear old caches and take control of all tabs
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
@@ -17,21 +17,21 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// Network-first strategy: tenta a rede primeiro, cai pro cache se offline
+// Network-first strategy: try the network first, fall back to the cache if offline
 self.addEventListener('fetch', (event) => {
     const { request } = event;
 
-    // Ignora requests não-GET (POST, etc)
+    // Ignore non-GET requests (POST, etc)
     if (request.method !== 'GET') return;
 
-    // Ignora requests para URLs externas ou chrome-extension
+    // Ignore requests to external URLs or chrome-extension
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return;
 
     event.respondWith(
         fetch(request)
             .then((response) => {
-                // Resposta da rede ok: cacheia e retorna
+                // Network response ok: cache it and return
                 if (response && response.status === 200) {
                     const responseToCache = response.clone();
                     caches.open(CACHE_NAME).then((cache) => {
@@ -41,7 +41,7 @@ self.addEventListener('fetch', (event) => {
                 return response;
             })
             .catch(() => {
-                // Rede falhou: tenta servir do cache
+                // Network failed: try to serve from the cache
                 return caches.match(request);
             })
     );

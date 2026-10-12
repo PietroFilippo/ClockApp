@@ -10,7 +10,7 @@ export function WorldClock() {
     const container = document.createElement('div');
     container.className = 'view-container world-clock-view';
 
-    // Estado
+    // State
     let clocks = JSON.parse(localStorage.getItem(STORAGE_KEYS.WORLD_CLOCKS)) || [
         { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, label: 'Local Time' }
     ];
@@ -35,7 +35,7 @@ export function WorldClock() {
     });
 
     function renderClocks() {
-        // Cria a estrutura estática apenas uma vez
+        // Create the static structure only once
         if (!container.querySelector('.header')) {
             container.innerHTML = `
           <div class="header">
@@ -50,9 +50,9 @@ export function WorldClock() {
         `;
         }
 
-        // Atualiza header
+        // Update header
         updateHeaderState();
-        // Atualiza a lista de relógios
+        // Update the list of clocks
         updateClockList();
     }
 
@@ -80,16 +80,16 @@ export function WorldClock() {
 
         clockList.classList.toggle('edit-mode', isEditing);
 
-        // Mapa de elementos existentes por index
+        // Map of existing elements by index
         const existingCards = new Map();
         clockList.querySelectorAll('.clock-card[data-index]').forEach(el => {
             existingCards.set(Number(el.dataset.index), el);
         });
 
-        // IDs (indexes) atuais
+        // Current IDs (indexes)
         const currentIndices = new Set(clocks.map((_, i) => i));
 
-        // Remove cards que não existem mais
+        // Remove cards that no longer exist
         for (const [idx, el] of existingCards) {
             if (!currentIndices.has(idx)) {
                 el.remove();
@@ -97,7 +97,7 @@ export function WorldClock() {
             }
         }
 
-        // Atualiza ou cria cada card na ordem correta
+        // Update or create each card in the correct order
         let previousNode = null;
         for (let i = 0; i < clocks.length; i++) {
             const clock = clocks[i];
@@ -105,7 +105,7 @@ export function WorldClock() {
             const newHTML = createClockHTML(clock, i);
 
             if (existingEl) {
-                // Atualiza conteúdo se mudou
+                // Update content if it changed
                 const temp = document.createElement('div');
                 temp.innerHTML = newHTML;
                 const newEl = temp.firstElementChild;
@@ -117,7 +117,7 @@ export function WorldClock() {
                     existingEl.setAttribute('draggable', String(isEditing));
                 }
 
-                // Garante a ordem correta
+                // Ensure the correct order
                 if (existingEl.previousElementSibling !== previousNode) {
                     if (previousNode) {
                         previousNode.after(existingEl);
@@ -127,7 +127,7 @@ export function WorldClock() {
                 }
                 previousNode = existingEl;
             } else {
-                // Cria novo elemento
+                // Create new element
                 const temp = document.createElement('div');
                 temp.innerHTML = newHTML;
                 const newEl = temp.firstElementChild;
@@ -219,7 +219,7 @@ export function WorldClock() {
                 if (isEditing && selectedClocks.size > 0) {
                     const count = selectedClocks.size;
                     if (await confirmDelete(`${count} clock${count > 1 ? 's' : ''}`, 'Selected')) {
-                        // Deleta do maior index para o menor para evitar shift
+                        // Delete from highest index to lowest to avoid shifting
                         const indices = [...selectedClocks].sort((a, b) => b - a);
                         for (const idx of indices) {
                             clocks.splice(idx, 1);
@@ -236,7 +236,7 @@ export function WorldClock() {
                 return;
             }
 
-            // Cancela edição
+            // Cancel editing
             if (target.closest('#cancel-edit-clock-btn')) {
                 isEditing = false;
                 selectedClocks.clear();
@@ -244,7 +244,7 @@ export function WorldClock() {
                 return;
             }
 
-            // Seleciona checkbox no modo de editar
+            // Select checkbox in edit mode
             if (target.classList.contains('select-checkbox')) {
                 e.stopPropagation();
                 const index = Number(target.dataset.index);
@@ -253,7 +253,7 @@ export function WorldClock() {
                 } else {
                     selectedClocks.delete(index);
                 }
-                // Atualiza o texto do botão de edição
+                // Update the edit button text
                 const editBtn = container.querySelector('#edit-clock-btn');
                 if (editBtn) {
                     if (selectedClocks.size > 0) {
@@ -269,7 +269,7 @@ export function WorldClock() {
                 return;
             }
 
-            // Botão Delete Clock (single)
+            // Delete Clock button (single)
             if (target.closest('.delete-clock-btn')) {
                 const btn = target.closest('.delete-clock-btn');
                 const index = Number(btn.dataset.index);
@@ -314,7 +314,7 @@ export function WorldClock() {
             const card = e.target.closest('.clock-card');
             if (card) {
                 draggedItemIndex = Number(card.dataset.index);
-                // setTimeout para o drag ghost ser criado antes de esconder o elemento
+                // setTimeout so the drag ghost is created before hiding the element
                 setTimeout(() => card.classList.add('dragging'), 0);
                 e.dataTransfer.effectAllowed = 'move';
             }
@@ -328,10 +328,10 @@ export function WorldClock() {
             }
         });
 
-        // dragover precisa estar no container da lista para permitir o drop
+        // dragover must be on the list container to allow the drop
         container.addEventListener('dragover', (e) => {
             if (!isEditing) return;
-            e.preventDefault(); // permite drop
+            e.preventDefault(); // allows drop
 
             const list = container.querySelector('.clock-list');
             if (!list) return;
@@ -393,7 +393,7 @@ export function WorldClock() {
     }
 
     function updateTimes() {
-        // Pausa atualizações durante drag para evitar glitch visual
+        // Pause updates during drag to avoid visual glitches
         if (draggedItemIndex !== null) return;
 
         const timeElements = container.querySelectorAll('.clock-time');
@@ -411,12 +411,12 @@ export function WorldClock() {
         });
     }
 
-    // Modal de busca de cidade
+    // City search modal
     function openCitySearch() {
-        // Filtros (reseta toda vez que o modal abre)
+        // Filters (reset every time the modal opens)
         let activeSort = 'az';       // 'az' | 'za' | 'gmt+' | 'gmt-'
-        let activeContinent = 'All'; // 'All' | nome do continente
-        let activeLetters = new Set(); // Letras selecionadas
+        let activeContinent = 'All'; // 'All' | continent name
+        let activeLetters = new Set(); // Selected letters
         let searchTerm = '';
 
         let selectedCitiesMap = new Map(); // Stores zone -> { timezone, label, country }
@@ -498,7 +498,7 @@ export function WorldClock() {
         function applyFilters() {
             let filtered = [...timezones];
 
-            // Procura de texto
+            // Text search
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
                 filtered = filtered.filter(tz =>
@@ -507,12 +507,12 @@ export function WorldClock() {
                 );
             }
 
-            // Filtro do continente
+            // Continent filter
             if (activeContinent !== 'All') {
                 filtered = filtered.filter(tz => tz.continent === activeContinent);
             }
 
-            // Filtro das letras (multi-select)
+            // Letter filter (multi-select)
             if (activeLetters.size > 0) {
                 filtered = filtered.filter(tz => activeLetters.has(tz.city.charAt(0).toUpperCase()));
             }
@@ -533,7 +533,7 @@ export function WorldClock() {
                     break;
             }
 
-            // Atualiza as letras disponíveis
+            // Update the available letters
             updateLetterAvailability(filtered);
             updateClearButton();
 
@@ -542,7 +542,7 @@ export function WorldClock() {
         }
 
         function updateLetterAvailability(currentList) {
-            // Mostra a disponibilidade baseada na busca de texto + continente apenas (não filtro de letras)
+            // Show availability based only on text search + continent (not the letter filter)
             let baseFiltered = [...timezones];
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
@@ -564,33 +564,33 @@ export function WorldClock() {
             });
         }
 
-        // Input de busca
+        // Search input
         searchInput.oninput = (e) => {
             searchTerm = e.target.value;
             applyFilters();
         };
 
-        // Dropdown de ordenação
+        // Sort dropdown
         sortSelect.onchange = (e) => {
             activeSort = e.target.value;
             applyFilters();
         };
 
-        // Dropdown do continente
+        // Continent dropdown
         continentSelect.onchange = (e) => {
             activeContinent = e.target.value;
             activeLetters.clear();
             applyFilters();
         };
 
-        // Index de letras (multi-select toggle)
+        // Letter index (multi-select toggle)
         letterIndexContainer.onclick = (e) => {
             const btn = e.target.closest('.letter-btn');
             if (!btn || btn.classList.contains('disabled')) return;
 
             const letter = btn.dataset.letter;
 
-            // Toggle: adiciona ou remove do set
+            // Toggle: add to or remove from the set
             if (activeLetters.has(letter)) {
                 activeLetters.delete(letter);
             } else {
@@ -600,7 +600,7 @@ export function WorldClock() {
             applyFilters();
         };
 
-        // Limpa todos os filtros
+        // Clear all filters
         clearBtn.onclick = () => {
             activeSort = 'az';
             activeContinent = 'All';
@@ -660,7 +660,7 @@ export function WorldClock() {
             });
         }
 
-        // Renderização inicial
+        // Initial render
         applyFilters();
     }
 

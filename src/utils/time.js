@@ -9,7 +9,7 @@ export function formatTime(totalSeconds) {
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-//Anexa validação de oninput em um elemento de entrada de tempo
+//Attach oninput validation to a time input element
 export function attachTimeInputValidation(input, max, { maxDigits, onChange } = {}) {
     input.oninput = () => {
         let val = parseInt(input.value);

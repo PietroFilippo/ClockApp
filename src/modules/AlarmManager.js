@@ -27,7 +27,7 @@ export class AlarmManager {
             const timeStr = this.snoozedAlarms[id]; // "HH:MM"
             const [snoozeHours, snoozeMinutes] = timeStr.split(':').map(Number);
 
-            // Checa se o tempo de soneca passou (hora anterior OU mesma hora, mas minuto anterior)
+            // Check whether the snooze time has passed (earlier hour OR same hour but earlier minute)
             if (snoozeHours < currentHours || (snoozeHours === currentHours && snoozeMinutes <= currentMinutes)) {
                 // console.log(`Found missed snoozed alarm: ${id} (Target: ${timeStr})`);
                 const alarm = this.alarms.find(a => a.id === Number(id));
@@ -36,7 +36,7 @@ export class AlarmManager {
                     delete this.snoozedAlarms[id];
                     snoozeChanged = true;
                 } else {
-                    // Se o alarme não existe mais limpa a soneca
+                    // If the alarm no longer exists, clear the snooze
                     delete this.snoozedAlarms[id];
                     snoozeChanged = true;
                 }
@@ -84,8 +84,8 @@ export class AlarmManager {
         const seconds = now.getSeconds();
         const msUntilNextMinute = (60 - seconds) * 1000 - now.getMilliseconds();
 
-        // Adiciona um pequeno buffer (50ms) para garantir que entramos no próximo minuto mas não tanto 
-        // que acabe pulando o segundo 0 se o sistema estiver lento
+        // Add a small buffer (50ms) to make sure we land in the next minute, but not so much 
+        // that we end up skipping second 0 if the system is slow
 
         this.checkTimeout = setTimeout(() => {
             this.checkAlarms();
@@ -98,8 +98,8 @@ export class AlarmManager {
         const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const currentDay = now.getDay();
 
-        // Verificação de segurança: se por algum motivo o timeout disparar antes da virada do minuto (drift negativo),
-        // não processa para evitar disparos duplicados ou errados.
+        // Safety check: if for some reason the timeout fires before the minute rolls over (negative drift),
+        // do not process, to avoid duplicate or wrong triggers.
         // console.log(`Checking alarms at ${currentTime}:${now.getSeconds()}`);
 
         this.alarms.forEach(alarm => {
@@ -108,11 +108,11 @@ export class AlarmManager {
                 ? alarm.repeat.includes(currentDay)
                 : true;
 
-            // Compara apenas HH:MM. Como rodamos aprox no segundo 0, isso é válido.
+            // Compare only HH:MM. Since we run at roughly second 0, this is valid.
             if (alarm.time === currentTime && isToday) {
-                // Evita disparos múltiplos no mesmo minuto checando se já disparou?
-                // Não é necessário se garantirmos que esta função roda apenas uma vez por minuto.
-                // O setTimeout recursivo garante o espaçamento de ~60s.
+                // Avoid multiple triggers within the same minute by checking whether it already fired?
+                // Not necessary if we guarantee this function runs only once per minute.
+                // The recursive setTimeout guarantees ~60s spacing.
 
                 // console.log(`Triggering alarm ${alarm.id} at ${currentTime}`);
                 this.triggerAlarm(alarm);
@@ -142,7 +142,7 @@ export class AlarmManager {
     }
 
 
-    // métodos proxy para AudioManager
+    // proxy methods for AudioManager
     getBuiltInSounds() {
         return audioManager.getBuiltInSounds();
     }

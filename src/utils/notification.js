@@ -63,7 +63,7 @@ export function showAlert(message, title = 'Notification') {
             { label: 'OK', className: 'save', id: 'notif-ok' }
         ]);
 
-        // Handler para fechar (sem valor de retorno específico além de void/undefined)
+        // Close handler (no specific return value beyond void/undefined)
         const close = () => {
             cleanup(overlay, handleKey);
             resolve();
@@ -113,7 +113,7 @@ export async function confirmDelete(label, context = 'Item') {
 
     const labelSpan = document.createElement('span');
     labelSpan.textContent = truncate(label, 60);
-    labelSpan.title = label; // Tooltip com o texto completo
+    labelSpan.title = label; // Tooltip with the full text
     labelSpan.style.fontWeight = 'bold';
     labelSpan.style.color = 'var(--text-primary)';
 

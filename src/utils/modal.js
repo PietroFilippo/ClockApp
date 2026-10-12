@@ -44,7 +44,7 @@ export function showModal({ title, content, onSave, onClose }) {
     saveBtn.style.display = 'none';
     if (cancelBtn) {
       cancelBtn.textContent = 'OK';
-      cancelBtn.classList.add('primary'); // faz parecer como um botão primário se for o único
+      cancelBtn.classList.add('primary'); // make it look like a primary button if it is the only one
       cancelBtn.style.width = '100%';
     }
   }

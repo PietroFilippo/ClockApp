@@ -1,4 +1,4 @@
-// SwipeToDelete — arrastar pra esquerda para deletar no estilo iPhone
+// SwipeToDelete — iPhone-style swipe left to delete
 
 export class SwipeToDelete {
     constructor({ container, itemSelector, onDelete, isDisabled }) {
@@ -7,7 +7,7 @@ export class SwipeToDelete {
         this.onDelete = onDelete;
         this.isDisabled = isDisabled || (() => false);
 
-        // Estado
+        // State
         this.activeItem = null;
         this.startX = 0;
         this.currentX = 0;
@@ -23,28 +23,28 @@ export class SwipeToDelete {
         this._onClick = this._onClick.bind(this);
 
         container.addEventListener('pointerdown', this._onPointerDown);
-        container.addEventListener('click', this._onClick, true); // captura para delete btn
+        container.addEventListener('click', this._onClick, true); // capture for delete btn
     }
 
-    // Ponteiros
+    // Pointers
     _onPointerDown(e) {
         if (this.isDisabled()) return;
-        // Ignora right-click
+        // Ignore right-click
         if (e.button !== 0) return;
 
         const item = e.target.closest(this.itemSelector);
         if (!item) return;
 
-        // Não arrasta se estiver clicando em controles interativos (switch, botões, checkboxes)
+        // Do not drag when clicking interactive controls (switch, buttons, checkboxes)
         const interactive = e.target.closest('button, input, label, .switch, .control-btn, .save-timer-btn');
         if (interactive && !e.target.closest('.swipe-delete-btn')) return;
 
-        // Se já houver um item aberto e o usuário tocar em outro lugar ele fecha
+        // If an item is already open and the user taps elsewhere, close it
         if (this.activeItem && this.activeItem !== item) {
             this._closeSwipe(this.activeItem);
         }
 
-        // Verifica se este item já tá no estado "aberto"
+        // Check whether this item is already in the "open" state
         const content = item.querySelector('.swipe-content');
         if (!content) return;
 
@@ -65,7 +65,7 @@ export class SwipeToDelete {
         const dx = e.clientX - this.startX;
         const dy = e.clientY - this._startY;
 
-        // Bloqueia direção no primeiro movimento significativo
+        // Lock the direction on the first significant movement
         if (!this._directionLocked) {
             if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
             this._directionLocked = true;
@@ -76,7 +76,7 @@ export class SwipeToDelete {
             this._pendingItem.classList.add('swiping');
         }
 
-        e.preventDefault(); // previne text selection / scrollar enquanto arrasta
+        e.preventDefault(); // prevent text selection / scrolling while dragging
 
         this.isSwiping = true;
         this.currentX = e.clientX;
@@ -85,18 +85,18 @@ export class SwipeToDelete {
         const content = item.querySelector('.swipe-content');
         if (!content) return;
 
-        // Calcula o offset, só permite arrastar para a esquerda (negativo)
+        // Compute the offset; only allow dragging to the left (negative)
         const isOpen = item.classList.contains('swipe-open');
         const baseOffset = isOpen ? -this.deleteWidth : 0;
         let offset = baseOffset + dx;
 
-        // não arrasta para a direita além da origem, e limita o arrasto para a esquerda
+        // do not drag to the right past the origin, and limit the drag to the left
         offset = Math.min(0, Math.max(-this.deleteWidth * 1.3, offset));
 
         content.style.transition = 'none';
         content.style.transform = `translateX(${offset}px)`;
 
-        // Mostra o botão de deletar só quando há espaço real exposto
+        // Show the delete button only when there is real exposed space
         const btn = item.querySelector('.swipe-delete-btn');
         if (btn) {
             const absOffset = Math.abs(offset);
@@ -156,7 +156,7 @@ export class SwipeToDelete {
     }
 
     _onClick(e) {
-        // depois de um swipe, suprime o click para não ativar o item
+        // after a swipe, suppress the click so the item is not activated
         if (this._swipeOccurred) {
             this._swipeOccurred = false;
             e.stopPropagation();
@@ -182,7 +182,7 @@ export class SwipeToDelete {
         const content = item.querySelector('.swipe-content');
         if (!content) return;
 
-        // fecha qualquer outro item aberto primeiro
+        // close any other open item first
         if (this.activeItem && this.activeItem !== item) {
             this._closeSwipe(this.activeItem);
         }
@@ -230,7 +230,7 @@ export class SwipeToDelete {
         }
     }
 
-    // fecha todos os itens abertos (chanma o re-render)
+    // close all open items (calls the re-render)
     closeAll() {
         if (!this.container) return;
         this.container.querySelectorAll('.swipe-open').forEach(item => {
@@ -246,7 +246,7 @@ export class SwipeToDelete {
     }
 
     _cleanup() {
-        // Remove classe swiping se o gesto foi abortado (ex: rolagem vertical)
+        // Remove the swiping class if the gesture was aborted (e.g. vertical scroll)
         if (this._pendingItem) {
             this._pendingItem.classList.remove('swiping');
         }

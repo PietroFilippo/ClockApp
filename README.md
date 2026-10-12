@@ -1,6 +1,6 @@
 # ⏰ Clock App
 
-Um aplicativo de desktop moderno e elegante para gerenciamento de tempo e produtividade, construído com **Electron** e **JavaScript**. Inspirado no design e funcionalidade do aplicativo Relógio do iOS.
+A modern, elegant desktop app for time management and productivity, built with **Electron** and **JavaScript**. Inspired by the design and functionality of the iOS Clock app.
 
 [![GitHub Release](https://img.shields.io/github/v/release/PietroFilippo/ClockApp?style=flat-square)](https://github.com/PietroFilippo/ClockApp/releases/latest)
 [![Electron](https://img.shields.io/badge/Electron-40-47848F?style=flat-square&logo=electron)](https://www.electronjs.org/)
@@ -8,277 +8,277 @@ Um aplicativo de desktop moderno e elegante para gerenciamento de tempo e produt
 
 ---
 
-## 📋 Visão Geral
+## 📋 Overview
 
-Aplication **Clock App** é uma ferramenta completa para gerenciar seu tempo. Ele combina funcionalidades essenciais como Relógio Mundial, Alarmes, Cronômetro, Temporizador e Intervalos em uma interface limpa e intuitiva, com tema escuro. O aplicativo foi projetado para se integrar perfeitamente ao ambiente de trabalho, oferecendo notificações personalizáveis, minimização para a bandeja do sistema (System Tray), atalhos globais configuráveis, atualização automática e persistência de dados.
+**Clock App** is a complete tool for managing your time. It combines essential features such as World Clock, Alarms, Stopwatch, Timer, and Intervals in a clean, intuitive dark-themed interface. The app is designed to blend seamlessly into your desktop environment, offering customizable notifications, minimizing to the system tray, configurable global shortcuts, automatic updates, and data persistence.
 
 ---
 
-## Funcionalidades
+## Features
 
-### 🌍 Relógio Mundial
-- Adicione múltiplos relógios de diferentes fusos horários
-- **350+ cidades** geradas dinamicamente via `Intl.supportedValuesOf('timeZone')`
-- **Busca avançada**: Filtro por continente, índice de letras (multi-select), ordenação por nome (A-Z, Z-A) e fuso horário (GMT±)
-- **Drag & Drop**: Reordene os relógios arrastando e soltando
-- **Seleção múltipla**: Selecione e delete vários relógios simultaneamente
-- **Swipe-to-Delete**: Deslize um item para o lado para revelar opções rápidas de exclusão
-- Visualização clara da diferença de horário (Offset GMT)
-- Menu de contexto (clique direito) para editar ou deletar
+### 🌍 World Clock
+- Add multiple clocks for different time zones
+- **350+ cities** generated dynamically via `Intl.supportedValuesOf('timeZone')`
+- **Advanced search**: Filter by continent, letter index (multi-select), sort by name (A-Z, Z-A) and time zone (GMT±)
+- **Drag & Drop**: Reorder clocks by dragging and dropping
+- **Multi-select**: Select and delete several clocks at once
+- **Swipe-to-Delete**: Swipe an item sideways to reveal quick delete options
+- Clear view of the time difference (GMT offset)
+- Context menu (right-click) to edit or delete
 
-### ⏰ Alarmes
-- Crie alarmes com horários específicos e etiquetas personalizadas
-- **Repetição**: Configure alarmes para dias específicos da semana (com botão "Selecionar Todos")
-- **Sons Personalizados**: Escolha entre 13 sons inclusos ou adicione seus próprios arquivos de áudio
-- **Soneca (Snooze)**: Adie alarmes com intervalos configuráveis (1–30 min)
-- **Persistência**: Alarmes, estados de soneca e configurações são salvos automaticamente
-- **Seleção múltipla e Swipe**: Delete alarmes em lote ou com gestos de deslize rápidos
-- Menu de contexto para edição e exclusão rápida
+### ⏰ Alarms
+- Create alarms with specific times and custom labels
+- **Repeat**: Set alarms for specific days of the week (with a "Select All" button)
+- **Custom Sounds**: Choose from 13 bundled sounds or add your own audio files
+- **Snooze**: Postpone alarms with configurable intervals (1–30 min)
+- **Persistence**: Alarms, snooze states, and settings are saved automatically
+- **Multi-select and Swipe**: Delete alarms in bulk or with quick swipe gestures
+- Context menu for quick editing and deletion
 
-### ⏱️ Cronômetro
-- Cronômetro preciso com display de alta resolução (horas, minutos, segundos, centésimos)
-- **Modo Analógico**: Visor analógico fluido com leitura digital centralizada
-- **Swipe View**: Transição suave com gestos de arrasto (swipe) entre as visualizações digital e analógica
-- **Voltas (Laps)**: Registre voltas com indicação visual da melhor e pior
-- **Cores Customizáveis**: Personalize a cor do display via Color Picker interativo (canvas)
-- **Velocidade**: Ajuste entre 3 velocidades de atualização do display
-- **Atalhos Configuráveis**: Grave e personalize atalhos de teclado (Start/Stop, Lap, Stop, Reset) com resolução inteligente de conflitos
-- **Download**: Exporte as voltas registradas como arquivo de texto
+### ⏱️ Stopwatch
+- Precise stopwatch with a high-resolution display (hours, minutes, seconds, hundredths)
+- **Analog Mode**: Smooth analog dial with a centered digital readout
+- **Swipe View**: Smooth drag-gesture (swipe) transition between the digital and analog views
+- **Laps**: Record laps with a visual indication of the best and worst
+- **Customizable Colors**: Personalize the display color via an interactive Color Picker (canvas)
+- **Speed**: Switch between 3 display update speeds
+- **Configurable Shortcuts**: Record and customize keyboard shortcuts (Start/Stop, Lap, Stop, Reset) with smart conflict resolution
+- **Download**: Export the recorded laps as a text file
 
-### ⏲️ Temporizador
-- **Múltiplos Temporizadores**: Execute e gerencie diversos timers simultaneamente em formato de cartões compactos (Cards View)
-- Interface visual detalhada (Drill-down View) com **anel de progresso circular** (SVG animado)
-- **Recentes e Favoritos**: Timers salvos e usados recentemente para reutilização rápida
-- **Repetir**: Repita o último timer diretamente da notificação
-- Seleção direta de horas, minutos e segundos com validação inteligente
-- Modo de edição em lote para gerenciar lista de salvos
-- **Seleção múltipla e Swipe-to-Delete**: Gerencie seu histórico de timers facilmente com gestos
-- **Limites e Substituição**: Ao atingir o limite de presets, escolha rapidamente um timer ou intervalo antigo para substituir
+### ⏲️ Timer
+- **Multiple Timers**: Run and manage several timers simultaneously as compact cards (Cards View)
+- Detailed visual interface (Drill-down View) with a **circular progress ring** (animated SVG)
+- **Recents and Favorites**: Saved and recently used timers for quick reuse
+- **Repeat**: Repeat the last timer straight from the notification
+- Direct selection of hours, minutes, and seconds with smart validation
+- Batch edit mode to manage the saved list
+- **Multi-select and Swipe-to-Delete**: Manage your timer history easily with gestures
+- **Limits and Replacement**: When the preset limit is reached, quickly pick an old timer or interval to replace
 
-### ⏳ Intervalos
-- Crie ciclos de trabalho personalizados com múltiplos passos e alarmes independentes
-- **Edição Avançada de Passos**: Mova (▲▼), duplique (⧉) ou remova (✕) passos facilmente. Edite os nomes dos passos inline com um clique.
-- **Drag & Drop**: Reordene passos intuitivamente arrastando pelo ícone (≡)
-- **Rascunhos Persistentes (Draft State)**: Seu progresso (tempos e passos) na criação de intervalos é salvo automaticamente em tempo real, permitindo navegar pelo app sem perdas
-- **Gerenciamento Rápido**: Suporte seleção múltipla e swipe-to-delete para deletar vários intervalos ou apagá-los com gestos
-- **Substituição Inteligente**: Quando o limite de intervalos salvos é atingido, o app exibe um modal intuitivo para substituir presets
-- Interface visual dedicada mostrando o progresso atual, a etapa ativa, e os próximos passos do ciclo
+### ⏳ Intervals
+- Create custom work cycles with multiple steps and independent alarms
+- **Advanced Step Editing**: Easily move (▲▼), duplicate (⧉), or remove (✕) steps. Edit step names inline with a click.
+- **Drag & Drop**: Reorder steps intuitively by dragging the handle icon (≡)
+- **Persistent Drafts (Draft State)**: Your progress (times and steps) while creating intervals is saved automatically in real time, so you can navigate around the app without losing anything
+- **Quick Management**: Supports multi-select and swipe-to-delete to remove several intervals at once or delete them with gestures
+- **Smart Replacement**: When the saved intervals limit is reached, the app shows an intuitive modal to replace presets
+- Dedicated visual interface showing the current progress, the active step, and the upcoming steps of the cycle
 
-### ⚙️ Configurações
-| Configuração | Descrição |
+### ⚙️ Settings
+| Setting | Description |
 |---|---|
-| **Start on Boot** | Inicia o app automaticamente ao fazer login |
-| **Minimize to Tray** | Mantém o app rodando em segundo plano ao fechar |
-| **Prevent Sleep** | Impede que o computador hiberne durante timers |
-| **Steal Focus** | Notificações tomam foco do teclado |
-| **Notification Style** | Sistema (Windows), App Custom, Ambos ou Nenhum |
-| **Notification Position** | 4 cantos pré-definidos ou posição customizada (picker visual via drag & drop) |
-| **Auto-Close Duration** | Tempo até a notificação fechar automaticamente (5s – 10min, valor em segundos Livre, ou Nunca) |
-| **Auto Action Settings** | Ações de timeout, com duração customizável, após tempo limite atingido. Alarmes (Stop ou Auto-Snooze) e Timers (Stop ou Auto-Repeat) |
-| **Global Shortcuts** | Atalhos funcionam mesmo com o app minimizado |
+| **Start on Boot** | Starts the app automatically on login |
+| **Minimize to Tray** | Keeps the app running in the background when closed |
+| **Prevent Sleep** | Prevents the computer from sleeping during timers |
+| **Steal Focus** | Notifications take keyboard focus |
+| **Notification Style** | System (Windows), App Custom, Both, or None |
+| **Notification Position** | 4 preset corners or a custom position (visual picker via drag & drop) |
+| **Auto-Close Duration** | Time until the notification closes automatically (5s – 10min, a custom value in seconds, or Never) |
+| **Auto Action Settings** | Timeout actions, with customizable duration, once the time limit is reached. Alarms (Stop or Auto-Snooze) and Timers (Stop or Auto-Repeat) |
+| **Global Shortcuts** | Shortcuts work even when the app is minimized |
 
-### 🔔 Notificações
-- **Notificações Híbridas**: Suporte a notificações nativas do SO e/ou janelas de sobreposição personalizadas
-- **Overlay Visual**: Notificação in-app com botões de ação (Parar, Soneca, Repetir)
-- **Posição Customizada**: Escolha onde a notificação aparece na tela com picker visual
-- **Arrastar**: Janela de notificação arrastável via clique em qualquer área
-- **Truncamento**: Labels longas são truncadas a 60 caracteres
+### 🔔 Notifications
+- **Hybrid Notifications**: Support for native OS notifications and/or custom overlay windows
+- **Visual Overlay**: In-app notification with action buttons (Stop, Snooze, Repeat)
+- **Custom Position**: Choose where the notification appears on screen with a visual picker
+- **Draggable**: The notification window can be dragged by clicking anywhere on it
+- **Truncation**: Long labels are truncated to 60 characters
 
-### 🔄 Atualização Automática
-- Verificação automática de novas versões via **GitHub Releases** ao iniciar
-- Banner com botão **Update** (baixa e instala automaticamente) e **View Release** (abre a página no navegador)
-- Barra de progresso animada durante o download
+### 🔄 Automatic Updates
+- Automatic check for new versions via **GitHub Releases** on startup
+- Banner with an **Update** button (downloads and installs automatically) and a **View Release** button (opens the page in the browser)
+- Animated progress bar during download
 - Powered by `electron-updater`
 
-### 📱 Experiência de Uso Global
-- **Persistência de Scroll**: A posição de rolagem de cada seção principal (Alarmes, Timers, Relógio Mundial, Intervalos) é mantida perfeitamente ao mudar de abas.
-- **Gestos de Swipe**: Integração avançada de física de arremesso (`translateX`) para deletar elementos.
-- **Preview ao vivo na Taskbar**: O título da janela e a barra de progresso do ícone na taskbar são atualizados em tempo real com o countdown do timer ativo, visível ao passar o mouse sobre o app minimizado.
-- **Estabilidade**: Handlers globais de erro, recuperação automática de crash do renderizador e recriação do tray garantem que o app não feche inesperadamente.
+### 📱 Overall User Experience
+- **Scroll Persistence**: The scroll position of each main section (Alarms, Timers, World Clock, Intervals) is preserved perfectly when switching tabs.
+- **Swipe Gestures**: Advanced fling physics (`translateX`) integration for deleting elements.
+- **Live Taskbar Preview**: The window title and the taskbar icon progress bar are updated in real time with the active timer's countdown, visible when hovering over the minimized app.
+- **Stability**: Global error handlers, automatic renderer crash recovery, and tray re-creation ensure the app doesn't close unexpectedly.
 
 ---
 
-## 🛠️ Arquitetura e Tecnologias
+## 🛠️ Architecture and Technologies
 
-O projeto utiliza uma arquitetura baseada em **Electron** com **Vite** para o bundle do renderizador. O código é escrito em **Vanilla JavaScript** (ES Modules), focando em performance e simplicidade.
+The project uses an architecture based on **Electron** with **Vite** for bundling the renderer. The code is written in **Vanilla JavaScript** (ES Modules), focusing on performance and simplicity.
 
-| Camada | Tecnologia |
+| Layer | Technology |
 |---|---|
 | **Runtime** | [Electron](https://www.electronjs.org/) v40 |
 | **Bundler** | [Vite](https://vitejs.dev/) v7 |
-| **Linguagem** | JavaScript (ES6+ Modules) |
-| **Estilização** | CSS puro com variáveis |
+| **Language** | JavaScript (ES6+ Modules) |
+| **Styling** | Plain CSS with variables |
 | **Build** | [electron-builder](https://www.electron.build/) v26 (NSIS) |
 | **Auto-Update** | [electron-updater](https://www.electron.build/auto-update) v6 |
-| **Armazenamento** | `localStorage` (renderer) + `settings.json` (main process via `fs`) |
+| **Storage** | `localStorage` (renderer) + `settings.json` (main process via `fs`) |
 
-### Estrutura de Pastas
+### Folder Structure
 
 ```
 clockapp/
-├── electron/                       # Processo Principal (Main Process)
-│   ├── main.js                     # Entry point do Electron, IPC, autoUpdater, tray
-│   ├── preload.js                  # Bridge segura (contextBridge + ipcRenderer)
-│   ├── notification.html           # Janela de notificação custom (secundária)
-│   └── positionPicker.html         # Picker de posição custom para notificações
+├── electron/                       # Main Process
+│   ├── main.js                     # Electron entry point, IPC, autoUpdater, tray
+│   ├── preload.js                  # Secure bridge (contextBridge + ipcRenderer)
+│   ├── notification.html           # Custom notification window (secondary)
+│   └── positionPicker.html         # Custom position picker for notifications
 │
-├── src/                            # Processo de Renderização (UI)
-│   ├── main.js                     # Entry point do frontend, roteamento e update banner
+├── src/                            # Renderer Process (UI)
+│   ├── main.js                     # Frontend entry point, routing, and update banner
 │   │
-│   ├── components/                 # Componentes de UI
-│   │   ├── Alarm.js                # Tela de alarmes (skeleton + updates granulares)
-│   │   ├── Interval.js             # Interface de intervalos e fluxo de ciclos personalizados
-│   │   ├── Navigation.js           # Barra de navegação inferior
-│   │   ├── RingOverlay.js          # Overlay de tela cheia para alarmes/timers tocando
-│   │   ├── Settings.js             # Tela de configurações
-│   │   ├── Stopwatch.js            # Cronômetro com laps, cores e velocidade
-│   │   ├── Timer.js                # Temporizador com cards simultâneos e detalhes
-│   │   └── WorldClock.js           # Relógio mundial com drag & drop
+│   ├── components/                 # UI components
+│   │   ├── Alarm.js                # Alarms screen (skeleton + granular updates)
+│   │   ├── Interval.js             # Intervals interface and custom cycle flow
+│   │   ├── Navigation.js           # Bottom navigation bar
+│   │   ├── RingOverlay.js          # Full-screen overlay for ringing alarms/timers
+│   │   ├── Settings.js             # Settings screen
+│   │   ├── Stopwatch.js            # Stopwatch with laps, colors, and speed
+│   │   ├── Timer.js                # Timer with simultaneous cards and details
+│   │   └── WorldClock.js           # World clock with drag & drop
 │   │
-│   ├── modules/                    # Lógica de negócios e gerenciamento de estado
-│   │   ├── AlarmManager.js         # Estado, agendamento, soneca e áudio dos alarmes
-│   │   ├── IntervalTimerManager.js # Motor de execução sequencial para intervalos
-│   │   ├── StopwatchManager.js     # Estado e lógica do cronômetro
-│   │   └── TimerManager.js         # Gerenciador de múltiplos timers concorrentes
+│   ├── modules/                    # Business logic and state management
+│   │   ├── AlarmManager.js         # Alarm state, scheduling, snooze, and audio
+│   │   ├── IntervalTimerManager.js # Sequential execution engine for intervals
+│   │   ├── StopwatchManager.js     # Stopwatch state and logic
+│   │   └── TimerManager.js         # Manager for multiple concurrent timers
 │   │
-│   ├── services/                   # Serviços e integrações
-│   │   └── NotificationService.js  # Gerenciamento unificado de notificações e alertas
+│   ├── services/                   # Services and integrations
+│   │   └── NotificationService.js  # Unified management of notifications and alerts
 │   │
-│   ├── utils/                      # Utilitários compartilhados
-│   │   ├── AnalogStopwatch.js      # Componente do visor analógico em canvas
-│   │   ├── AudioManager.js         # Gerenciador centralizado de áudio (Web Audio API)
-│   │   ├── ColorPicker.js          # Color picker interativo (canvas)
-│   │   ├── KeybindManager.js       # Gravação, conflitos e modal de atalhos
-│   │   ├── SoundPicker.js          # Seletor de sons (padrão + custom)
-│   │   ├── SoundSettingsModal.js   # Modal de configurações de som do alarme
-│   │   ├── SwipeToDelete.js        # Física e gestos avançados para swipe
-│   │   ├── constants.js            # Constantes (storage keys, cores, limites)
-│   │   ├── contextMenu.js          # Menu de contexto (clique direito)
-│   │   ├── modal.js                # Utilitário de modais genéricos
-│   │   ├── notification.js         # Alerts, confirms e truncate
-│   │   ├── sanitize.js             # Escape de HTML
-│   │   └── time.js                 # Helpers e validação de entrada de tempo
+│   ├── utils/                      # Shared utilities
+│   │   ├── AnalogStopwatch.js      # Canvas-based analog dial component
+│   │   ├── AudioManager.js         # Centralized audio manager (Web Audio API)
+│   │   ├── ColorPicker.js          # Interactive color picker (canvas)
+│   │   ├── KeybindManager.js       # Shortcut recording, conflicts, and modal
+│   │   ├── SoundPicker.js          # Sound selector (bundled + custom)
+│   │   ├── SoundSettingsModal.js   # Alarm sound settings modal
+│   │   ├── SwipeToDelete.js        # Advanced physics and gestures for swipe
+│   │   ├── constants.js            # Constants (storage keys, colors, limits)
+│   │   ├── contextMenu.js          # Context menu (right-click)
+│   │   ├── modal.js                # Generic modal utility
+│   │   ├── notification.js         # Alerts, confirms, and truncate
+│   │   ├── sanitize.js             # HTML escaping
+│   │   └── time.js                 # Time input helpers and validation
 │   │
 │   ├── data/
-│   │   └── timezones.js            # 350+ fusos horários gerados via Intl API
+│   │   └── timezones.js            # 350+ time zones generated via the Intl API
 │   │
-│   └── assets/styles/              # Estilos CSS
-│       ├── index.css               # Entry point de estilos (@import)
-│       ├── variables.css           # Variáveis de tema (cores, fontes)
-│       ├── base.css                # Estilos globais
-│       ├── layout.css              # Title bar, navegação, update banner
-│       ├── components/             # Estilos de componentes reutilizáveis
+│   └── assets/styles/              # CSS styles
+│       ├── index.css               # Styles entry point (@import)
+│       ├── variables.css           # Theme variables (colors, fonts)
+│       ├── base.css                # Global styles
+│       ├── layout.css              # Title bar, navigation, update banner
+│       ├── components/             # Reusable component styles
 │       │   ├── context-menu.css
 │       │   ├── form.css
 │       │   ├── header.css
 │       │   └── modal.css
-│       └── features/               # Estilos por funcionalidade
+│       └── features/               # Per-feature styles
 │           ├── alarm.css
 │           ├── settings.css
 │           ├── stopwatch.css
 │           ├── timer.css
 │           └── world-clock.css
 │
-├── public/                         # Assets estáticos
-│   ├── icon.png                    # Ícone do app
+├── public/                         # Static assets
+│   ├── icon.png                    # App icon
 │   ├── manifest.json               # PWA manifest
 │   ├── sw.js                       # Service Worker (network-first caching)
-│   └── sounds/                     # 13 sons inclusos (alarmes e notificações)
+│   └── sounds/                     # 13 bundled sounds (alarms and notifications)
 │
-├── release/                        # Saída dos builds de produção
-├── package.json                    # Dependências, scripts e config do electron-builder
-├── vite.config.js                  # Configuração do Vite
-└── index.html                      # HTML principal com CSP e Service Worker
+├── release/                        # Production build output
+├── package.json                    # Dependencies, scripts, and electron-builder config
+├── vite.config.js                  # Vite configuration
+└── index.html                      # Main HTML with CSP and Service Worker
 ```
 
-### Padrões de Renderização
+### Rendering Patterns
 
-Os componentes utilizam um padrão otimizado de renderização:
-- **Skeleton estático**: A estrutura HTML (header, containers) é criada uma única vez no `container`
-- **Reconciliação DOM por chave**: Listas (alarmes, relógios) usam `data-alarm-id` / `data-index` para atualizar, criar ou remover apenas os elementos que mudaram, sem rebuilds via `innerHTML`
-- **Updates granulares**: Apenas os elementos dinâmicos (contadores, estados de botões) são atualizados
-- **Delegação de eventos**: Event listeners são registrados uma vez no container via delegação
-- **Tracking de modo**: Timer.js rastreia o modo (picker/running) para evitar rebuilds desnecessários
+The components use an optimized rendering pattern:
+- **Static skeleton**: The HTML structure (header, containers) is created only once in the `container`
+- **Keyed DOM reconciliation**: Lists (alarms, clocks) use `data-alarm-id` / `data-index` to update, create, or remove only the elements that changed, with no `innerHTML` rebuilds
+- **Granular updates**: Only the dynamic elements (counters, button states) are updated
+- **Event delegation**: Event listeners are registered once on the container via delegation
+- **Mode tracking**: Timer.js tracks the mode (picker/running) to avoid unnecessary rebuilds
 
-### Comunicação IPC
+### IPC Communication
 
-A comunicação entre Main ↔ Renderer é feita exclusivamente via `contextBridge` + `ipcRenderer` (exposto como `window.electronAPI`), garantindo isolamento de contexto (`contextIsolation: true`). O `preload.js` inclui funções de remoção de listeners para evitar vazamentos de memória.
-
----
-
-## 🚀 Instalação e Execução
-
-### 📥 Download Rápido
-
-A forma mais fácil de instalar é baixar o instalador mais recente diretamente da página de releases:
-
-**[Baixar última versão (.exe)](https://github.com/PietroFilippo/ClockApp/releases/latest)**
-
-Basta executar o instalador e seguir as instruções. O assistente criará automaticamente um **atalho na sua Área de Trabalho (Desktop)** durante a instalação. O app receberá atualizações automaticamente.
+Communication between Main ↔ Renderer is done exclusively via `contextBridge` + `ipcRenderer` (exposed as `window.electronAPI`), ensuring context isolation (`contextIsolation: true`). `preload.js` includes listener-removal functions to prevent memory leaks.
 
 ---
 
-### Desenvolvimento
+## 🚀 Installation and Usage
 
-#### Pré-requisitos
-- Node.js (versão recomendada: LTS)
+### 📥 Quick Download
+
+The easiest way to install is to download the latest installer directly from the releases page:
+
+**[Download latest version (.exe)](https://github.com/PietroFilippo/ClockApp/releases/latest)**
+
+Just run the installer and follow the instructions. The wizard will automatically create a **shortcut on your Desktop** during installation. The app will receive updates automatically.
+
+---
+
+### Development
+
+#### Prerequisites
+- Node.js (recommended version: LTS)
 - npm
 
-### Desenvolvimento
+### Development
 
 ```bash
-# Clone o repositório
+# Clone the repository
 git clone https://github.com/PietroFilippo/ClockApp.git
 cd ClockApp
 
-# Instale as dependências
+# Install dependencies
 npm install
 
-# Execute em modo de desenvolvimento
+# Run in development mode
 npm run electron:dev
 ```
 
-### Build para Produção
+### Production Build
 
 ```bash
-# Gera o instalador (.exe) na pasta release/
+# Generates the installer (.exe) in the release/ folder
 npm run electron:build
 ```
 
-### Scripts Disponíveis
+### Available Scripts
 
-| Script | Descrição |
+| Script | Description |
 |---|---|
-| `npm run dev` | Inicia o servidor Vite (apenas frontend) |
-| `npm run build` | Build do frontend via Vite |
-| `npm run electron:dev` | Dev completo (Vite watch + Electron) |
-| `npm run electron:build` | Build de produção (Vite + electron-builder) |
-| `npm run electron:publish` | Build + publicação no GitHub Releases |
+| `npm run dev` | Starts the Vite server (frontend only) |
+| `npm run build` | Frontend build via Vite |
+| `npm run electron:dev` | Full dev (Vite watch + Electron) |
+| `npm run electron:build` | Production build (Vite + electron-builder) |
+| `npm run electron:publish` | Build + publish to GitHub Releases |
 
 ---
 
-## ⌨️ Atalhos
+## ⌨️ Shortcuts
 
-| Atalho | Ação |
+| Shortcut | Action |
 |---|---|
-| `Alt+P` | Start/Stop do cronômetro* |
-| `Alt+L` | Registrar volta* |
-| `Alt+S` | Parar cronômetro* |
-| `Alt+R` | Reset do cronômetro* |
-| `Ctrl+R` | Recarregar aplicação (apenas em desenvolvimento) |
-| `Ctrl+Shift+I` | DevTools (apenas em desenvolvimento) |
-| `Ctrl+Q` | Encerrar totalmente o aplicativo |
+| `Alt+P` | Stopwatch Start/Stop* |
+| `Alt+L` | Record lap* |
+| `Alt+S` | Stop stopwatch* |
+| `Alt+R` | Reset stopwatch* |
+| `Ctrl+R` | Reload application (development only) |
+| `Ctrl+Shift+I` | DevTools (development only) |
+| `Ctrl+Q` | Fully quit the application |
 
-\* Atalhos padrão, podem ser reconfigurados no modal de keybinds do Cronômetro.
+\* Default shortcuts; they can be reconfigured in the Stopwatch keybinds modal.
 
 ---
 
-## ⚠️ Limitações Conhecidas
+## ⚠️ Known Limitations
 
-- O bloqueio de suspensão de energia (Power Save Blocker) é gerenciado pelo Electron, mas pode depender de permissões do SO.
-- Em alguns sistemas, notificações customizadas podem não se sobrepor a aplicativos em "Tela Cheia Exclusiva" (jogos).
-- A atualização automática funciona em builds empacotados. Em modo de desenvolvimento, o check é desabilitado.
-- Sem code signing, o Windows SmartScreen pode exibir aviso ao instalar/atualizar.
-- Preview animado da Taskbar: O Windows não captura frames de janelas minimizadas, portanto o thumbnail ao viver sobre o ícone não mostrará animação em tempo real - o título e a barra de progresso são usados como alternativa funcional.
+- The power-save blocker (Power Save Blocker) is managed by Electron, but may depend on OS permissions.
+- On some systems, custom notifications may not overlay applications in "Exclusive Fullscreen" (games).
+- Automatic updates work in packaged builds. In development mode, the check is disabled.
+- Without code signing, Windows SmartScreen may show a warning when installing/updating.
+- Animated Taskbar preview: Windows doesn't capture frames from minimized windows, so the thumbnail when hovering over the icon won't show real-time animation - the title and progress bar are used as a functional alternative.
 
 ---

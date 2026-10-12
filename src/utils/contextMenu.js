@@ -3,14 +3,14 @@ export class ContextMenu {
         this.element = null;
         this.active = false;
 
-        // Fecha o menu ao clicar em outro lugar
+        // Close the menu when clicking elsewhere
         document.addEventListener('click', (e) => {
             if (this.active && !e.target.closest('.context-menu')) {
                 this.hide();
             }
         });
 
-        // Fecha o menu ao rolar
+        // Close the menu on scroll
         document.addEventListener('scroll', () => {
             if (this.active) this.hide();
         }, true);
@@ -45,17 +45,17 @@ export class ContextMenu {
 
         document.body.appendChild(this.element);
 
-        // Posição
+        // Position
         const rect = this.element.getBoundingClientRect();
         let finalX = x;
         let finalY = y;
 
-        // Evita overflow a direita
+        // Avoid overflow on the right
         if (x + rect.width > window.innerWidth) {
             finalX = x - rect.width;
         }
 
-        // Evita overflow abaixo
+        // Avoid overflow at the bottom
         if (y + rect.height > window.innerHeight) {
             finalY = y - rect.height;
         }
@@ -63,7 +63,7 @@ export class ContextMenu {
         this.element.style.left = `${finalX}px`;
         this.element.style.top = `${finalY}px`;
 
-        // Animação
+        // Animation
         requestAnimationFrame(() => {
             this.element.classList.add('visible');
         });

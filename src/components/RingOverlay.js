@@ -2,16 +2,16 @@ import { showModal } from '../utils/modal.js';
 import { escapeHtml } from '../utils/sanitize.js';
 
 /**
- * Mostra ringing overlay pra Alarmes ou Timers.
+ * Shows the ringing overlay for Alarms or Timers.
  * 
  * @param {Object} options
- * @param {string} options.title - título da modal.
- * @param {string} options.timeDisplay - texto principal (e.g., time or "Time is up!").
- * @param {string} options.label - texto de subtitulo/label.
- * @param {Object} [options.actionButton] - botão de ação primária.
- * @param {string} options.actionButton.text - texto do botão (e.g., "Snooze", "Repeat").
- * @param {Function} options.actionButton.onClick - click handler do botão de ação primária.
- * @param {Function} options.onStop - handler do botão de parada (anteriormente "Save").
+ * @param {string} options.title - modal title.
+ * @param {string} options.timeDisplay - main text (e.g., time or "Time is up!").
+ * @param {string} options.label - subtitle/label text.
+ * @param {Object} [options.actionButton] - primary action button.
+ * @param {string} options.actionButton.text - button text (e.g., "Snooze", "Repeat").
+ * @param {Function} options.actionButton.onClick - click handler for the primary action button.
+ * @param {Function} options.onStop - handler for the stop button (formerly "Save").
  * @returns {HTMLElement} overlay element.
  */
 export function showRingOverlay({ title, timeDisplay, label, actionButton, onStop }) {
@@ -33,7 +33,7 @@ export function showRingOverlay({ title, timeDisplay, label, actionButton, onSto
         }
     });
 
-    // Configura botão de ação primária
+    // Set up primary action button
     if (actionButton) {
         const btn = overlay.querySelector('.action-btn');
         if (btn) {
@@ -43,7 +43,7 @@ export function showRingOverlay({ title, timeDisplay, label, actionButton, onSto
         }
     }
 
-    // Configura botão de parada
+    // Set up stop button
     const stopBtn = overlay.querySelector('.modal-btn.save');
     if (stopBtn) {
         stopBtn.textContent = 'Stop';
@@ -51,7 +51,7 @@ export function showRingOverlay({ title, timeDisplay, label, actionButton, onSto
         stopBtn.style.color = 'white';
     }
 
-    // Esconde botão de cancelamento e desabilita clique no fundo
+    // Hide cancel button and disable background click
     const cancelBtn = overlay.querySelector('.cancel');
     if (cancelBtn) cancelBtn.style.display = 'none';
     overlay.onclick = null;

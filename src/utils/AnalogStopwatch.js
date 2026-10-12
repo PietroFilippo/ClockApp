@@ -1,6 +1,6 @@
 /**
- * AnalogStopwatch — Renderizador para o cronômetro analógico estilo iOS.
- * Desenha o mostrador de segundos externo, o submostrador de minutos interno e os ponteiros animados.
+ * AnalogStopwatch — Renderer for the iOS-style analog stopwatch.
+ * Draws the outer seconds dial, the inner minutes sub-dial, and the animated hands.
  */
 export class AnalogStopwatch {
     constructor(canvas) {
@@ -16,7 +16,7 @@ export class AnalogStopwatch {
         this.canvas.style.height = `${this.cssSize}px`;
         this.ctx.scale(this.dpr, this.dpr);
 
-        // Centro e raio
+        // Center and radius
         this.cx = this.cssSize / 2;
         this.cy = this.cssSize / 2;
         this.outerRadius = this.cssSize / 2 - 10;
@@ -26,7 +26,7 @@ export class AnalogStopwatch {
         this.subCy = this.cy - 62;
         this.subRadius = 35;
 
-        // Cores
+        // Colors
         this.handColor = '#ff9f0a';
         this.tickColor = '#d1d1d6';
         this.numberColor = '#d1d1d6';
@@ -51,7 +51,7 @@ export class AnalogStopwatch {
         const cy = this.cy;
         const r = this.outerRadius;
 
-        // Marcações de tick
+        // Tick marks
         for (let i = 0; i < 60; i++) {
             const angle = (i / 60) * Math.PI * 2 - Math.PI / 2;
             const isMajor = i % 5 === 0;
@@ -74,7 +74,7 @@ export class AnalogStopwatch {
             ctx.stroke();
         }
 
-        // Números (5, 10, 15 ... 55, 60)
+        // Numbers (5, 10, 15 ... 55, 60)
         ctx.fillStyle = this.numberColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -97,14 +97,14 @@ export class AnalogStopwatch {
         const cy = this.subCy;
         const r = this.subRadius;
 
-        // Anel externo
+        // Outer ring
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Marcações de tick
+        // Tick marks
         for (let i = 0; i < 30; i++) {
             const angle = (i / 30) * Math.PI * 2 - Math.PI / 2;
             const isMajor = i % 5 === 0;
@@ -126,7 +126,7 @@ export class AnalogStopwatch {
             ctx.stroke();
         }
 
-        // Números (5, 10, 15, 20, 25, 30)
+        // Numbers (5, 10, 15, 20, 25, 30)
         ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -141,7 +141,7 @@ export class AnalogStopwatch {
             ctx.fillText(num.toString(), x, y);
         }
 
-        // Ponteiro de minutos (ciclo de 30 minutos)
+        // Minute hand (30-minute cycle)
         const totalMinutes = elapsedMs / 60000;
         const minuteAngle = (totalMinutes % 30) / 30 * Math.PI * 2 - Math.PI / 2;
         const handLen = r - 10;
@@ -157,7 +157,7 @@ export class AnalogStopwatch {
         ctx.lineCap = 'round';
         ctx.stroke();
 
-        // Centro
+        // Center
         ctx.beginPath();
         ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
         ctx.fillStyle = this.handColor;
@@ -170,13 +170,13 @@ export class AnalogStopwatch {
         const cy = this.cy;
         const r = this.outerRadius;
 
-        // Ponteiro de segundos 
+        // Second hand 
         const totalSeconds = elapsedMs / 1000;
         const secondAngle = (totalSeconds % 60) / 60 * Math.PI * 2 - Math.PI / 2;
         const handLen = r - 35;
         const tailLen = 25;
 
-        // Reta (direção oposta)
+        // Tail (opposite direction)
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(
@@ -188,7 +188,7 @@ export class AnalogStopwatch {
         ctx.lineCap = 'round';
         ctx.stroke();
 
-        // Ponteiro principal
+        // Main hand
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(
